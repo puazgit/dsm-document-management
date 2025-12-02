@@ -42,7 +42,7 @@ export async function GET(
       document.createdById === session.user.id ||
       document.accessGroups.includes(session.user.groupId || '') ||
       document.accessGroups.includes(session.user.role || '') ||
-      ['administrator', 'ADMIN', 'admin'].includes(session.user.role);
+      ['admin', 'org_administrator'].includes(session.user.role);
 
     if (!hasAccess) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });

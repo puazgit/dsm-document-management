@@ -32,9 +32,9 @@ export async function POST(
     const userRole = session.user.role || '';
     
     const hasApprovalPermission = userPermissions.includes('documents.approve');
-    const isAdministrator = userRole === 'administrator';
+    const isAdministrator = userRole === 'admin';
     const isManagementRole = ['admin', 'manager'].includes(userRole);
-    const isOrganizationalLeader = ['org_dirut', 'org_gm', 'org_kadiv', 'org_administrator', 'ppd', 'kadiv', 'gm', 'dirut'].includes(userRole);
+    const isOrganizationalLeader = ['org_dirut', 'org_gm', 'org_kadiv', 'org_administrator', 'org_ppd'].includes(userRole);
     
     if (!hasApprovalPermission && !isAdministrator && !isManagementRole && !isOrganizationalLeader) {
       return NextResponse.json({ 

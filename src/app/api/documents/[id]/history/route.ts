@@ -35,7 +35,7 @@ export async function GET(
 
     // Check access permissions
     const userRole = session.user.role || '';
-    const isAdmin = ['administrator', 'admin', 'ADMIN'].includes(userRole);
+    const isAdmin = ['admin', 'org_administrator'].includes(userRole);
     const isOwner = document.createdById === session.user.id;
     const hasRoleAccess = document.accessGroups.includes(session.user.role || '');
     const hasGroupAccess = document.accessGroups.includes(session.user.groupId || '');

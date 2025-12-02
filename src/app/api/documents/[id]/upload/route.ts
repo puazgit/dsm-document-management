@@ -41,7 +41,7 @@ export async function POST(
       userPermissions.includes('documents.update') ||
       userPermissions.includes('documents.update.own') ||
       isOwner ||
-      ['admin', 'administrator', 'editor', 'manager', 'org_administrator', 'ppd', 'org_dirut', 'org_gm', 'org_kadiv'].includes(userRole);
+      ['admin', 'editor', 'org_administrator', 'org_ppd', 'org_dirut', 'org_gm', 'org_kadiv'].includes(userRole);
 
     if (!canUpdate) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });

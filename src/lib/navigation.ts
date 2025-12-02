@@ -57,13 +57,13 @@ export const navigationItems: NavItem[] = [
     href: '/admin',
     icon: Shield,
     description: 'Administrative functions',
-    requiredRoles: ['administrator', 'admin', 'org_administrator'],
+    requiredRoles: ['admin', 'org_administrator'],
     children: [
       {
         title: 'User Management',
         href: '/admin/users',
         icon: Users,
-        requiredRoles: ['administrator', 'admin', 'org_administrator', 'org_ppd']
+        requiredRoles: ['admin', 'org_administrator', 'org_ppd']
       },
       {
         title: 'Group Management',

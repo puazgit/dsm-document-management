@@ -1,0 +1,12 @@
+{
+  "testResults": {
+    "login": false,
+    "routeAccess": {},
+    "apiPermissions": {},
+    "documentOperations": {},
+    "pdfPermissions": {}
+  },
+  "successRate": 0,
+  "totalTests": 0,
+  "successfulTests": 0
+}

@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
     // Access control - users can only see documents they have access to
     // Always apply access control unless user is administrator
     const userRole = session.user.role || '';
-    const isAdmin = ['administrator', 'admin', 'ADMIN'].includes(userRole);
+    const isAdmin = ['admin', 'org_administrator'].includes(userRole);
     
     if (!isAdmin) {
       const role = session.user.role || '';
