@@ -200,22 +200,40 @@ export async function userHasPermission(request: NextRequest, permission: string
 }
 
 /**
- * Legacy compatibility - maps old role checking patterns
+ * Legacy compatibility - maps old role checking patterns to modern names
  */
 export const LEGACY_ROLE_MAPPINGS = {
-  // Admin patterns
-  admin: ['administrator'],
-  administrator: ['administrator'], 
-  ADMIN: ['administrator'],
-  ADMINISTRATOR: ['administrator'],
+  // Admin patterns - map to modern admin role
+  admin: ['admin'],
+  administrator: ['admin'], 
+  ADMIN: ['admin'],
+  ADMINISTRATOR: ['admin'],
   
-  // Manager patterns  
-  manager: ['manager', 'kadiv', 'gm'],
-  MANAGER: ['manager', 'kadiv', 'gm'],
+  // Manager patterns - map to modern org_ prefixed roles
+  manager: ['org_manager', 'org_kadiv', 'org_gm'],
+  MANAGER: ['org_manager', 'org_kadiv', 'org_gm'],
+  kadiv: ['org_kadiv'],
+  KADIV: ['org_kadiv'],
+  gm: ['org_gm'],
+  GM: ['org_gm'],
   
   // PPD patterns
-  ppd: ['ppd'],
-  PPD: ['ppd'],
+  ppd: ['org_ppd'],
+  PPD: ['org_ppd'],
+  
+  // Director patterns
+  dirut: ['org_dirut'],
+  DIRUT: ['org_dirut'],
+  
+  // Audit patterns
+  dewas: ['org_dewas'],
+  DEWAS: ['org_dewas'],
+  komite_audit: ['org_komite_audit'],
+  KOMITE_AUDIT: ['org_komite_audit'],
+  
+  // Guest patterns
+  guest: ['org_guest'],
+  GUEST: ['org_guest'],
   
   // Viewer patterns
   viewer: ['viewer', 'members'],

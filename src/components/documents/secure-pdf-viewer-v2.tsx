@@ -48,13 +48,13 @@ export function SecurePDFViewerV2({
 
   // Enhanced role permissions
   const rolePermissions: Record<string, RolePermissions> = {
-    'administrator': { canDownload: true, canPrint: true, canCopy: true, showWatermark: false },
     'admin': { canDownload: true, canPrint: true, canCopy: true, showWatermark: false },
-    'manager': { canDownload: true, canPrint: true, canCopy: false, showWatermark: false },
-    'editor': { canDownload: true, canPrint: false, canCopy: false, showWatermark: true },
-    'reviewer': { canDownload: false, canPrint: false, canCopy: false, showWatermark: true },
+    'org_ppd': { canDownload: true, canPrint: true, canCopy: true, showWatermark: false },
+    'org_manager': { canDownload: true, canPrint: true, canCopy: false, showWatermark: false },
+    'org_kadiv': { canDownload: true, canPrint: false, canCopy: false, showWatermark: false },
     'viewer': { canDownload: false, canPrint: false, canCopy: false, showWatermark: true },
-    'guest': { canDownload: false, canPrint: false, canCopy: false, showWatermark: true }
+    'editor': { canDownload: false, canPrint: true, canCopy: false, showWatermark: false },
+    'org_guest': { canDownload: false, canPrint: false, canCopy: false, showWatermark: true }
   };
 
   const currentPermissions = {

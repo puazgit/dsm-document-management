@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
       const canEdit = 
         existingDocument.createdById === currentUser.id ||
         session.user.role === 'ADMIN' ||
-        session.user.role === 'MANAGER';
+        session.user.role === 'org_manager';
 
       if (!canEdit) {
         return NextResponse.json({ error: 'Access denied' }, { status: 403 });

@@ -20,15 +20,22 @@ export interface RoleConfig {
  * Higher level = more permissions
  */
 export const ROLES: Record<string, RoleConfig> = {
-  administrator: {
-    name: 'administrator',
+  admin: {
+    name: 'admin',
     displayName: 'Administrator',
     level: 100,
     permissions: ['*'], // All permissions
     description: 'Full system access and administration privileges'
   },
-  ppd: {
-    name: 'ppd',
+  org_administrator: {
+    name: 'org_administrator',
+    displayName: 'Organization Administrator',
+    level: 100,
+    permissions: ['*'],
+    description: 'Full organizational system access'
+  },
+  org_ppd: {
+    name: 'org_ppd',
     displayName: 'Penanggung Jawab Dokumen',
     level: 90,
     permissions: [
@@ -39,8 +46,8 @@ export const ROLES: Record<string, RoleConfig> = {
     ],
     description: 'Document responsibility and management'
   },
-  kadiv: {
-    name: 'kadiv',
+  org_kadiv: {
+    name: 'org_kadiv',
     displayName: 'Kepala Divisi',
     level: 80,
     permissions: [
@@ -50,8 +57,8 @@ export const ROLES: Record<string, RoleConfig> = {
     ],
     description: 'Division head with approval authority'
   },
-  gm: {
-    name: 'gm',
+  org_gm: {
+    name: 'org_gm',
     displayName: 'General Manager',
     level: 70,
     permissions: [
@@ -61,8 +68,8 @@ export const ROLES: Record<string, RoleConfig> = {
     ],
     description: 'General Manager with high-level access'
   },
-  manager: {
-    name: 'manager',
+  org_manager: {
+    name: 'org_manager',
     displayName: 'Manager',
     level: 60,
     permissions: [
@@ -72,8 +79,8 @@ export const ROLES: Record<string, RoleConfig> = {
     ],
     description: 'Management level access'
   },
-  dirut: {
-    name: 'dirut',
+  org_dirut: {
+    name: 'org_dirut',
     displayName: 'Direktur Utama',
     level: 50,
     permissions: [
@@ -82,8 +89,8 @@ export const ROLES: Record<string, RoleConfig> = {
     ],
     description: 'Director with executive access'
   },
-  dewas: {
-    name: 'dewas',
+  org_dewas: {
+    name: 'org_dewas',
     displayName: 'Dewan Pengawas',
     level: 40,
     permissions: [
@@ -92,8 +99,8 @@ export const ROLES: Record<string, RoleConfig> = {
     ],
     description: 'Board of Supervisors'
   },
-  komite_audit: {
-    name: 'komite_audit',
+  org_komite_audit: {
+    name: 'org_komite_audit',
     displayName: 'Komite Audit',
     level: 30,
     permissions: [
@@ -101,6 +108,15 @@ export const ROLES: Record<string, RoleConfig> = {
       'users.read'
     ],
     description: 'Audit Committee with review access'
+  },
+  org_guest: {
+    name: 'org_guest',
+    displayName: 'Guest',
+    level: 25,
+    permissions: [
+      'documents.read'
+    ],
+    description: 'Guest access with limited permissions'
   },
   members: {
     name: 'members',
@@ -198,16 +214,28 @@ export function getRolesWithPermission(permission: string): string[] {
 export function normalizeRoleName(roleName: string): string | null {
   const normalized = roleName.toLowerCase().trim()
   
-  // Handle aliases and variations
+  // Handle aliases and variations - map legacy to modern names
   const roleAliases: Record<string, string> = {
-    'admin': 'administrator',
-    'ADMIN': 'administrator',
-    'ADMINISTRATOR': 'administrator',
-    'administrator': 'administrator',
-    'ppd': 'ppd',
-    'PPD': 'ppd',
-    'manager': 'manager',
-    'MANAGER': 'manager',
+    'administrator': 'admin',
+    'ADMINISTRATOR': 'admin',
+    'ADMIN': 'admin',
+    'admin': 'admin',
+    'ppd': 'org_ppd',
+    'PPD': 'org_ppd',
+    'manager': 'org_manager',
+    'MANAGER': 'org_manager',
+    'kadiv': 'org_kadiv',
+    'KADIV': 'org_kadiv',
+    'gm': 'org_gm',
+    'GM': 'org_gm',
+    'dirut': 'org_dirut',
+    'DIRUT': 'org_dirut',
+    'dewas': 'org_dewas',
+    'DEWAS': 'org_dewas',
+    'komite_audit': 'org_komite_audit',
+    'KOMITE_AUDIT': 'org_komite_audit',
+    'guest': 'org_guest',
+    'GUEST': 'org_guest',
     'viewer': 'viewer',
     'VIEWER': 'viewer',
     'user': 'members', // fallback
