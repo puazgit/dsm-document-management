@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DSMT Security Policy</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        h1 { color: #333; border-bottom: 2px solid #007bff; }
+        h2 { color: #555; }
+        .policy-section { margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>Document Security Management Tool - Security Policy</h1>
+    
+    <div class="policy-section">
+        <h2>1. Overview</h2>
+        <p>This document outlines the security policies and procedures for the DSMT system.</p>
+    </div>
+    
+    <div class="policy-section">
+        <h2>2. Access Control</h2>
+        <ul>
+            <li>All users must authenticate before accessing the system</li>
+            <li>Role-based access control is enforced</li>
+            <li>Multi-factor authentication is recommended</li>
+        </ul>
+    </div>
+    
+    <div class="policy-section">
+        <h2>3. Document Classification</h2>
+        <table border="1" style="border-collapse: collapse; width: 100%;">
+            <tr>
+                <th>Level</th>
+                <th>Description</th>
+                <th>Access</th>
+            </tr>
+            <tr>
+                <td>Public</td>
+                <td>Information available to all users</td>
+                <td>Read-only for all authenticated users</td>
+            </tr>
+            <tr>
+                <td>Internal</td>
+                <td>Information for internal use only</td>
+                <td>Read/Write for authorized roles</td>
+            </tr>
+            <tr>
+                <td>Confidential</td>
+                <td>Sensitive information requiring approval</td>
+                <td>Restricted access with approval workflow</td>
+            </tr>
+        </table>
+    </div>
+    
+    <div class="policy-section">
+        <h2>4. File Upload Security</h2>
+        <p>The following security measures are implemented for file uploads:</p>
+        <ul>
+            <li>File type validation using MIME type checking</li>
+            <li>Maximum file size limit of 50MB</li>
+            <li>Virus scanning (recommended for production)</li>
+            <li>Secure file storage with proper permissions</li>
+        </ul>
+    </div>
+    
+    <footer>
+        <hr>
+        <p><em>Last updated: October 22, 2025</em></p>
+    </footer>
+</body>
+</html>

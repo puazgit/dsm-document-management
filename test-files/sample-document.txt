@@ -1,0 +1,36 @@
+# Sample Document for Testing Upload
+
+This is a test document created to verify the file upload functionality of the DSMT system.
+
+## Document Details
+- Created: October 22, 2025
+- Type: Text Document
+- Purpose: Testing file upload feature
+
+## Content Overview
+This document contains sample text content that can be used to test:
+1. File upload process
+2. File validation
+3. Storage functionality
+4. Document management features
+
+## Test Cases Covered
+- Text file upload (.txt)
+- File size validation (this file is small, under 1KB)
+- Content verification
+- Metadata handling
+
+## Sample Data
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+
+Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+
+## Testing Instructions
+1. Navigate to /documents page
+2. Click "Upload Document" button
+3. Select this file or drag and drop
+4. Fill in the required metadata
+5. Submit and verify successful upload
+
+---
+End of sample document

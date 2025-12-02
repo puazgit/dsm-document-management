@@ -1,0 +1,577 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========================================
+// USER MANAGEMENT TABLES
+// ========================================
+
+model User {
+  id               String    @id @default(cuid())
+  username         String    @unique @db.VarChar(50)
+  email            String    @unique @db.VarChar(255)
+  passwordHash     String    @map("password_hash") @db.VarChar(255)
+  firstName        String    @map("first_name") @db.VarChar(100)
+  lastName         String    @map("last_name") @db.VarChar(100)
+  phone            String?   @db.VarChar(20)
+  position         String?   @db.VarChar(100)
+  department       String?   @db.VarChar(100)
+  isActive         Boolean   @default(true) @map("is_active")
+  lastLoginAt      DateTime? @map("last_login_at")
+  emailVerifiedAt  DateTime? @map("email_verified_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  // Primary group membership (organizational)
+  groupId   String? @map("group_id")
+  divisiId  String? @map("divisi_id")
+
+  // Relations
+  group              Group?     @relation(fields: [groupId], references: [id])
+  divisi             Divisi?    @relation(fields: [divisiId], references: [id])
+  
+  // Primary role system
+  userRoles          UserRole[]
+  assignedUserRoles  UserRole[] @relation("UserRoleAssignedBy")
+  
+  // Document relations
+  createdDocuments   Document[] @relation("DocumentCreatedBy")
+  updatedDocuments   Document[] @relation("DocumentUpdatedBy")  
+  approvedDocuments  Document[] @relation("DocumentApprovedBy")
+  documentVersions   DocumentVersion[]
+  documentHistory    DocumentHistory[] @relation("DocumentHistoryChangedBy")
+  
+  // Division head relationship
+  headOfDivisions    Divisi[] @relation("DivisiHead")
+  
+  // PPD relationships
+  ppdAssignments     Ppd[] @relation("PpdUser")
+  assignedPpds       Ppd[] @relation("PpdAssignedBy")
+  
+  // Comments and activities
+  comments           Comment[]
+  notifications      Notification[]
+  documentActivities DocumentActivity[]
+  systemLogs         SystemLog[]
+  sessions           Session[]
+  
+  auditLogs          AuditLog[]
+
+  @@index([groupId])
+  @@index([divisiId])
+  @@index([isActive])
+  @@index([email])
+  @@index([username])
+  @@map("users")
+}
+
+model Group {
+  id          String @id @default(cuid())
+  name        String @unique @db.VarChar(100)
+  displayName String @map("display_name") @db.VarChar(255)
+  description String? @db.Text
+  level       Int    @default(0)
+  // Removed permissions - Groups are now purely organizational
+  isActive    Boolean @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations - Groups are organizational units only
+  users          User[] // Users belong to groups for organizational structure
+  menuItems      Menu[]
+
+  @@index([level])
+  @@index([isActive])
+  @@map("groups")
+}
+
+// ========================================
+// SIMPLIFIED ROLE SYSTEM (UserRole only)
+// ========================================
+
+// ========================================
+// ENHANCED ROLE & PERMISSION SYSTEM
+// ========================================
+
+model Role {
+  id          String  @id @default(cuid())
+  name        String  @unique @db.VarChar(100)
+  displayName String  @map("display_name") @db.VarChar(255)
+  description String? @db.Text
+  level       Int     @default(0) // Role hierarchy level
+  isActive    Boolean @default(true) @map("is_active")
+  isSystem    Boolean @default(false) @map("is_system") // System roles cannot be deleted
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String  @id @default(cuid())
+  name        String  @unique @db.VarChar(100)
+  displayName String  @map("display_name") @db.VarChar(255)
+  description String? @db.Text
+  module      String  @db.VarChar(100) // e.g., 'documents', 'users', 'system'
+  action      String  @db.VarChar(100) // e.g., 'create', 'read', 'update', 'delete'
+  resource    String? @db.VarChar(100) // e.g., 'own', 'all', 'department'
+  isActive    Boolean @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  rolePermissions RolePermission[]
+
+  @@unique([module, action, resource])
+  @@map("permissions")
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  roleId    String   @map("role_id")
+  assignedBy String  @map("assigned_by")
+  assignedAt DateTime @default(now()) @map("assigned_at")
+  expiresAt DateTime? @map("expires_at")
+  isActive  Boolean  @default(true) @map("is_active")
+
+  // Relations
+  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  assignedByUser User @relation("UserRoleAssignedBy", fields: [assignedBy], references: [id])
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+  @@index([isActive])
+  @@index([userId, isActive])
+  @@index([assignedBy])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  id           String @id @default(cuid())
+  roleId       String @map("role_id")
+  permissionId String @map("permission_id")
+  isGranted    Boolean @default(true) @map("is_granted")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// ========================================
+// ORGANIZATIONAL STRUCTURE
+// ========================================
+
+model Divisi {
+  id          String  @id @default(cuid())
+  name        String  @db.VarChar(200)
+  code        String  @unique @db.VarChar(50)
+  description String? @db.Text
+  isActive    Boolean @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Self-referencing for parent-child relationship
+  parentId String? @map("parent_id")
+  parent   Divisi? @relation("DivisiParent", fields: [parentId], references: [id])
+  children Divisi[] @relation("DivisiParent")
+
+  // Head of division
+  headId String? @map("head_id")
+  head   User?   @relation("DivisiHead", fields: [headId], references: [id])
+
+  // Relations
+  users User[]
+  ppds  Ppd[]
+
+  @@map("divisi")
+}
+
+model Ppd {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  divisiId        String   @map("divisi_id")
+  documentTypeIds String[] @map("document_type_ids")
+  isActive        Boolean  @default(true) @map("is_active")
+  assignedAt      DateTime @default(now()) @map("assigned_at")
+  assignedById    String   @map("assigned_by_id")
+
+  // Relations
+  user       User   @relation("PpdUser", fields: [userId], references: [id])
+  divisi     Divisi @relation(fields: [divisiId], references: [id])
+  assignedBy User   @relation("PpdAssignedBy", fields: [assignedById], references: [id])
+
+  @@unique([userId, divisiId])
+  @@map("ppd")
+}
+
+// ========================================
+// DOCUMENT MANAGEMENT
+// ========================================
+
+model DocumentType {
+  id               String    @id @default(cuid())
+  name             String    @db.VarChar(200)
+  slug             String    @unique @db.VarChar(200)
+  description      String?   @db.Text
+  icon             String?   @db.VarChar(100)
+  color            String?   @db.VarChar(50)
+  accessLevel      Int       @default(1) @map("access_level")
+  requiredApproval Boolean   @default(false) @map("required_approval")
+  retentionPeriod  Int?      @map("retention_period") // days
+  isActive         Boolean   @default(true) @map("is_active")
+  sortOrder        Int       @default(0) @map("sort_order")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  documents Document[]
+
+  @@map("documents_type")
+}
+
+enum DocumentStatus {
+  DRAFT
+  PENDING_REVIEW
+  PENDING_APPROVAL
+  APPROVED
+  PUBLISHED
+  REJECTED
+  ARCHIVED
+  EXPIRED
+
+  @@map("document_status")
+}
+
+model Document {
+  id             String         @id @default(cuid())
+  title          String         @db.VarChar(500)
+  description    String?        @db.Text
+  fileName       String         @map("file_name") @db.VarChar(500)
+  filePath       String         @map("file_path") @db.Text
+  fileSize       BigInt?        @map("file_size")
+  fileType       String?        @map("file_type") @db.VarChar(100)
+  mimeType       String?        @map("mime_type") @db.VarChar(100)
+  version        String         @default("1.0") @db.VarChar(50)
+  status         DocumentStatus @default(DRAFT)
+  isPublic       Boolean        @default(false) @map("is_public")
+  accessGroups   String[]       @map("access_groups")
+  downloadCount  Int            @default(0) @map("download_count")
+  viewCount      Int            @default(0) @map("view_count")
+  tags           String[]
+  metadata       Json?
+  publishedAt    DateTime?      @map("published_at")
+  expiresAt      DateTime?      @map("expires_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  // Foreign Keys
+  documentTypeId String @map("document_type_id")
+  createdById    String @map("created_by_id")
+  updatedById    String? @map("updated_by_id")
+  approvedById   String? @map("approved_by_id")
+  approvedAt     DateTime? @map("approved_at")
+
+  // Relations
+  documentType DocumentType @relation(fields: [documentTypeId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("DocumentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy    User?        @relation("DocumentUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  approvedBy   User?        @relation("DocumentApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  // Document relations
+  comments           Comment[]
+  activities         DocumentActivity[]
+  versions           DocumentVersion[]
+  history            DocumentHistory[]
+
+  @@index([documentTypeId])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([approvedById])
+  @@index([status])
+  @@index([isPublic])
+  @@index([createdAt])
+  @@index([status, isPublic])
+  @@index([createdById, status])
+  @@index([documentTypeId, status])
+  @@map("documents")
+}
+
+model DocumentHistory {
+  id            String   @id @default(cuid())
+  documentId    String   @map("document_id")
+  action        String   @db.VarChar(50)  // 'created', 'updated', 'status_changed', 'deleted', 'restored', 'published'
+  fieldChanged  String?  @map("field_changed") @db.VarChar(100) // field name that was changed
+  oldValue      String?  @map("old_value") @db.Text // previous value (JSON string)
+  newValue      String?  @map("new_value") @db.Text // new value (JSON string)
+  statusFrom    DocumentStatus? @map("status_from") // previous status
+  statusTo      DocumentStatus? @map("status_to")   // new status
+  changedById   String   @map("changed_by_id")
+  changeReason  String?  @map("change_reason") @db.Text // optional reason for change
+  metadata      Json?    // additional metadata
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relations
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  changedBy   User     @relation("DocumentHistoryChangedBy", fields: [changedById], references: [id], onDelete: Restrict)
+
+  @@index([documentId])
+  @@index([createdAt])
+  @@index([action])
+  @@index([changedById])
+  @@index([documentId, createdAt])
+  @@map("document_history")
+}
+
+model DocumentVersion {
+  id               String    @id @default(cuid())
+  documentId       String    @map("document_id")
+  version          String    @db.VarChar(50)
+  changes          String?   @db.Text
+  fileName         String    @map("file_name") @db.VarChar(500)
+  filePath         String    @map("file_path") @db.Text
+  fileSize         BigInt?   @map("file_size")
+  previousVersion  String?   @map("previous_version") @db.VarChar(50)
+  createdById      String    @map("created_by_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  document       Document   @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdBy      User       @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  // Self-referencing for version hierarchy
+  parentVersionId String? @map("parent_version_id")
+  parentVersion   DocumentVersion? @relation("VersionHierarchy", fields: [parentVersionId], references: [id])
+  childVersions   DocumentVersion[] @relation("VersionHierarchy")
+
+  @@unique([documentId, version])
+  @@index([documentId])
+  @@index([createdById])
+  @@index([createdAt])
+  @@index([parentVersionId])
+  @@map("document_versions")
+}
+
+// ========================================
+// COLLABORATION & COMMUNICATION
+// ========================================
+
+model Comment {
+  id         String    @id @default(cuid())
+  documentId String    @map("document_id")
+  parentId   String?   @map("parent_id")
+  userId     String    @map("user_id")
+  content    String    @db.Text
+  isEdited   Boolean   @default(false) @map("is_edited")
+  editedAt   DateTime? @map("edited_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  document Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id])
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies  Comment[] @relation("CommentReplies")
+
+  @@index([documentId])
+  @@index([userId])
+  @@index([parentId])
+  @@index([createdAt])
+  @@map("comments")
+}
+
+enum NotificationType {
+  DOCUMENT_UPLOADED
+  DOCUMENT_APPROVED
+  DOCUMENT_REJECTED
+  DOCUMENT_PUBLISHED
+  COMMENT_ADDED
+  COMMENT_REPLIED
+  DOCUMENT_EXPIRED
+  ACCESS_GRANTED
+  SYSTEM_MAINTENANCE
+  USER_MENTIONED
+
+  @@map("notification_type")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String           @map("user_id")
+  title     String           @db.VarChar(500)
+  message   String?          @db.Text
+  type      NotificationType @default(DOCUMENT_UPLOADED)
+  data      Json?
+  isRead    Boolean          @default(false) @map("is_read")
+  readAt    DateTime?        @map("read_at")
+  expiresAt DateTime?        @map("expires_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// ========================================
+// SYSTEM MANAGEMENT
+// ========================================
+
+model Menu {
+  id           String  @id @default(cuid())
+  name         String  @db.VarChar(200)
+  url          String? @db.VarChar(500)
+  icon         String? @db.VarChar(100)
+  parentId     String? @map("parent_id")
+  sortOrder    Int     @default(0) @map("sort_order")
+  accessGroups String[] @map("access_groups")
+  isActive     Boolean @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Self-referencing for parent-child relationship
+  parent   Menu?  @relation("MenuParent", fields: [parentId], references: [id])
+  children Menu[] @relation("MenuParent")
+
+  // Relations with groups (many-to-many through accessGroups array)
+  groups Group[]
+
+  @@map("menu")
+}
+
+enum ActivityAction {
+  CREATE
+  UPDATE
+  DELETE
+  VIEW
+  DOWNLOAD
+  APPROVE
+  REJECT
+  PUBLISH
+  COMMENT
+  LOGIN
+  LOGOUT
+
+  @@map("activity_action")
+}
+
+model DocumentActivity {
+  id          String         @id @default(cuid())
+  documentId  String         @map("document_id")
+  userId      String         @map("user_id")
+  action      ActivityAction
+  description String?        @db.Text
+  ipAddress   String?        @map("ip_address") @db.Inet
+  userAgent   String?        @map("user_agent") @db.Text
+  metadata    Json?
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  // Relations
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([documentId])
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([documentId, action])
+  @@map("document_activities")
+}
+
+model SystemLog {
+  id          String         @id @default(cuid())
+  userId      String?        @map("user_id")
+  action      ActivityAction
+  entity      String?        @db.VarChar(100)
+  entityId    String?        @map("entity_id")
+  description String?        @db.Text
+  ipAddress   String?        @map("ip_address") @db.Inet
+  userAgent   String?        @map("user_agent") @db.Text
+  metadata    Json?
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("system_logs")
+}
+
+// ========================================
+// SESSION MANAGEMENT
+// ========================================
+
+model Session {
+  id           String    @id @default(cuid())
+  sessionToken String    @unique @map("session_token")
+  userId       String    @map("user_id")
+  expires      DateTime
+  ipAddress    String?   @map("ip_address") @db.Inet
+  userAgent    String?   @map("user_agent") @db.Text
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// ========================================
+// SYSTEM CONFIGURATION
+// ========================================
+
+model SystemConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique @db.VarChar(200)
+  value     String?  @db.Text
+  dataType  String   @map("data_type") @db.VarChar(50) // string, number, boolean, json
+  category  String?  @db.VarChar(100)
+  description String? @db.Text
+  isEditable Boolean @default(true) @map("is_editable")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_config")
+}
+
+// ========================================
+// AUDIT LOGGING
+// ========================================
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  action     String   @db.VarChar(50)  // CREATE, UPDATE, DELETE, LOGIN, etc.
+  resource   String   @db.VarChar(50)  // USER, ROLE, PERMISSION, etc.
+  resourceId String   @map("resource_id") @db.VarChar(255)
+  actorId    String   @map("actor_id")
+  details    String?  @db.Text // JSON string with additional details
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  userAgent  String?  @map("user_agent") @db.Text
+  metadata   String?  @db.Text // Additional JSON metadata
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Relations
+  actor User @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([action])
+  @@index([resource])
+  @@index([resourceId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+

@@ -1,0 +1,240 @@
+/* PDF Viewer Styles - Hide browser PDF toolbar and download buttons */
+
+/* Hide PDF.js toolbar and controls */
+.pdf-viewer-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.pdf-viewer-container object,
+.pdf-viewer-container iframe {
+  /* Hide scrollbars on PDF viewer */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+}
+
+.pdf-viewer-container object::-webkit-scrollbar,
+.pdf-viewer-container iframe::-webkit-scrollbar {
+  display: none; /* WebKit browsers */
+}
+
+/* Override PDF.js viewer styles when embedded */
+.pdf-viewer-container object[data*="toolbar=0"],
+.pdf-viewer-container iframe[src*="toolbar=0"] {
+  pointer-events: auto;
+}
+
+/* Custom PDF object styling */
+.pdf-viewer-container object {
+  background-color: #f9fafb;
+  border-radius: 8px;
+}
+
+/* Disable context menu on PDF to prevent right-click download */
+.pdf-viewer-container object,
+.pdf-viewer-container iframe {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  pointer-events: none; /* Disable all pointer events including right-click */
+}
+
+/* Enable scrolling and navigation while maintaining security */
+.pdf-viewer-container object,
+.pdf-viewer-container iframe {
+  pointer-events: auto;
+}
+
+/* Override for context menu prevention only */
+.pdf-viewer-container object:focus,
+.pdf-viewer-container iframe:focus {
+  outline: none;
+}
+
+/* Prevent context menu specifically on PDF elements */
+.pdf-viewer-container object,
+.pdf-viewer-container iframe,
+.pdf-viewer-container embed {
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Additional security styles */
+.pdf-secure-viewer {
+  position: relative;
+}
+
+.pdf-secure-viewer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+  background: linear-gradient(45deg, 
+    transparent 24%, 
+    rgba(59, 130, 246, 0.02) 25%, 
+    rgba(59, 130, 246, 0.02) 26%, 
+    transparent 27%, 
+    transparent 74%, 
+    rgba(59, 130, 246, 0.02) 75%, 
+    rgba(59, 130, 246, 0.02) 76%, 
+    transparent 77%
+  );
+  background-size: 30px 30px;
+  pointer-events: none;
+}
+
+/* Disable right-click and context menu globally for document pages */
+.document-secure-page {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.document-secure-page * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Allow text selection for input fields and editable content */
+.document-secure-page input,
+.document-secure-page textarea,
+.document-secure-page [contenteditable="true"],
+.document-secure-page .text-selectable {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+}
+
+/* Enhanced PDF Security - Balanced Protection Mode */
+.pdf-viewer-restricted {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  
+  /* Advanced interaction prevention */
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  
+  /* Allow scrolling but prevent other gestures */
+  touch-action: pan-y pan-x;
+  -ms-touch-action: pan-y pan-x;
+}
+
+/* Stronger context menu prevention for PDF elements */
+.pdf-viewer-container object,
+.pdf-viewer-container iframe,
+.pdf-viewer-container embed,
+.pdf-viewer-restricted object,
+.pdf-viewer-restricted iframe,
+.pdf-viewer-restricted embed {
+  /* Disable right-click completely */
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+/* Additional security for PDF content */
+.pdf-viewer-container *,
+.pdf-viewer-restricted * {
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+/* Security overlay for PDF containers */
+.pdf-security-overlay {
+  position: relative;
+  overflow: hidden;
+}
+
+.pdf-security-overlay::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  pointer-events: none;
+  background: transparent;
+}
+
+/* Maximum security mode - disable all interactions */
+.pdf-lockdown {
+  pointer-events: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  user-select: none !important;
+}
+
+/* Hide print button and download controls in browser PDF viewer */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Responsive PDF viewer */
+@media (max-width: 768px) {
+  .pdf-viewer-container {
+    min-height: 400px;
+  }
+  
+  .pdf-viewer-container object,
+  .pdf-viewer-container iframe {
+    min-height: 400px;
+  }
+}
+
+/* Focus styles for accessibility */
+.pdf-viewer-container object:focus,
+.pdf-viewer-container iframe:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Loading animation for PDF viewer */
+.pdf-loading {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Security watermark overlay (optional) */
+.pdf-watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-45deg);
+  color: rgba(0, 0, 0, 0.05);
+  font-size: 4rem;
+  font-weight: bold;
+  pointer-events: none;
+  z-index: 1000;
+  white-space: nowrap;
+}
