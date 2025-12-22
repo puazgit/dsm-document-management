@@ -1,0 +1,17 @@
+{
+  "name": "DSMT Dokumen Sistem Manajemen Terpadu",
+  "short_name": "DSM",
+  "description": "Enterprise Document Management System with Role-Based Access Control",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "32x32",
+      "type": "image/x-icon"
+    }
+  ]
+}

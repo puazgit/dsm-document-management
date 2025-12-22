@@ -38,7 +38,7 @@ ENCRYPTION_KEY="your-32-character-encryption-key"
 # APPLICATION SETTINGS
 # ================================
 NODE_ENV="production"
-APP_NAME="Document Management System"
+APP_NAME="Dokumen Sistem Manajemen Terpadu"
 APP_URL="https://yourdomain.com"
 APP_VERSION="1.0.0"
 

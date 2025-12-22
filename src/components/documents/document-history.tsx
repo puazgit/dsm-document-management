@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 // import { ScrollArea } from '../ui/scroll-area';
 // import { Separator } from '../ui/separator';
 import { 
@@ -21,7 +21,8 @@ import {
   ChevronRight,
   Activity,
   ExternalLink,
-  Download
+  Download,
+  MessageSquare
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -84,23 +85,20 @@ export function DocumentHistory({ documentId, documentTitle, isOpen: externalIsO
     }
   };
 
-  // Render file link for version access
   const renderFileLink = (fileInfo: { fileName: string; filePath: string; version: string }, label: string) => {
     return (
-      <div className="inline-flex items-center space-x-2 bg-blue-50 px-3 py-2 rounded-lg border">
-        <FileText className="h-4 w-4 text-blue-600" />
-        <div className="flex flex-col">
-          <span className="text-xs font-medium text-blue-800">{label}</span>
-          <Link 
-            href={`/api/documents/${documentId}/version/${fileInfo.version}`}
-            target="_blank"
-            className="text-sm text-blue-600 hover:text-blue-800 flex items-center space-x-1"
-          >
-            <span className="truncate max-w-[200px]">{fileInfo.fileName}</span>
-            <ExternalLink className="h-3 w-3 flex-shrink-0" />
-          </Link>
+      <Link 
+        href={`/api/documents/${documentId}/version/${fileInfo.version}`}
+        target="_blank"
+        className="flex items-center gap-2 bg-blue-50 px-2 py-1.5 rounded border hover:bg-blue-100 transition-colors"
+      >
+        <FileText className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <div className="text-xs text-gray-600">{label}</div>
+          <div className="text-xs font-medium text-blue-700 truncate">{fileInfo.fileName}</div>
         </div>
-      </div>
+        <ExternalLink className="flex-shrink-0 w-3 h-3 text-blue-500" />
+      </Link>
     );
   };
 
@@ -132,23 +130,23 @@ export function DocumentHistory({ documentId, documentTitle, isOpen: externalIsO
   const getActionIcon = (action: string) => {
     switch (action) {
       case 'created':
-        return <FileText className="h-4 w-4" />;
+        return <FileText className="w-4 h-4" />;
       case 'updated':
-        return <Edit className="h-4 w-4" />;
+        return <Edit className="w-4 h-4" />;
       case 'published':
       case 'approved':
-        return <Check className="h-4 w-4" />;
+        return <Check className="w-4 h-4" />;
       case 'rejected':
-        return <X className="h-4 w-4" />;
+        return <X className="w-4 h-4" />;
       case 'archived':
-        return <Archive className="h-4 w-4" />;
+        return <Archive className="w-4 h-4" />;
       case 'file_uploaded':
       case 'file_replaced':
-        return <Upload className="h-4 w-4" />;
+        return <Upload className="w-4 h-4" />;
       case 'status_changed':
-        return <Activity className="h-4 w-4" />;
+        return <Activity className="w-4 h-4" />;
       default:
-        return <Clock className="h-4 w-4" />;
+        return <Clock className="w-4 h-4" />;
     }
   };
 
@@ -215,30 +213,33 @@ export function DocumentHistory({ documentId, documentTitle, isOpen: externalIsO
       {externalIsOpen === undefined && (
         <DialogTrigger asChild>
           <Button variant="outline" size="sm">
-            <History className="h-4 w-4 mr-2" />
+            <History className="w-4 h-4 mr-2" />
             History
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className="max-w-4xl max-h-[80vh]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <History className="h-5 w-5" />
-            Document History: {documentTitle}
+      <DialogContent className="max-w-3xl max-h-[85vh]">
+        <DialogHeader className="pb-3">
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <History className="w-4 h-4" />
+            History: {documentTitle}
           </DialogTitle>
+          <DialogDescription>
+            View all changes and activities for this document
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">
           {loading && (
             <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+              <div className="w-8 h-8 border-b-2 border-gray-900 rounded-full animate-spin"></div>
               <span className="ml-2">Loading history...</span>
             </div>
           )}
 
           {error && (
-            <div className="text-center py-8">
-              <div className="text-red-600 mb-2">Failed to load document history</div>
+            <div className="py-8 text-center">
+              <div className="mb-2 text-red-600">Failed to load document history</div>
               <div className="text-sm text-gray-500">{error}</div>
               <Button 
                 variant="outline" 
@@ -252,87 +253,85 @@ export function DocumentHistory({ documentId, documentTitle, isOpen: externalIsO
           )}
 
           {!loading && !error && history.length === 0 && (
-            <div className="text-center py-8">
-              <History className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+            <div className="py-8 text-center">
+              <History className="w-12 h-12 mx-auto mb-2 text-gray-400" />
               <div className="text-gray-600">No history available</div>
               <div className="text-sm text-gray-500">Document activities will appear here</div>
             </div>
           )}
 
           {!loading && !error && history.length > 0 && (
-            <div className="max-h-[500px] overflow-y-auto pr-4">
-              <div className="space-y-4">
+            <div className="max-h-[520px] overflow-y-auto pr-2">
+              <div className="space-y-2">
                 {history.map((entry, index) => {
                   const { date, time } = formatTimestamp(entry.createdAt);
                   
                   return (
                     <div key={entry.id} className="relative">
-                      {/* Timeline line */}
                       {index < history.length - 1 && (
-                        <div className="absolute left-6 top-12 w-0.5 h-full bg-gray-200"></div>
+                        <div className="absolute left-4 top-10 w-0.5 h-full bg-gray-200"></div>
                       )}
                       
-                      <Card className="ml-0">
-                        <CardContent className="p-4">
-                          <div className="flex items-start gap-4">
-                            {/* Icon */}
-                            <div className={`flex items-center justify-center w-12 h-12 rounded-full border-2 ${getActionColor(entry.action)}`}>
-                              {getActionIcon(entry.action)}
+                      <div className="flex items-start gap-3 p-3 transition-colors rounded-lg hover:bg-gray-50">
+                        <div className={`flex items-center justify-center w-8 h-8 rounded-full border ${getActionColor(entry.action)} flex-shrink-0`}>
+                          {getActionIcon(entry.action)}
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-sm font-medium text-gray-900">
+                                {entry.changeReason || `Document ${entry.action}`}
+                              </span>
+                              {entry.statusFrom && entry.statusTo && (
+                                <div className="flex items-center gap-1.5">
+                                  <StatusBadge status={entry.statusFrom} />
+                                  <ChevronRight className="w-3 h-3 text-gray-400" />
+                                  <StatusBadge status={entry.statusTo} />
+                                </div>
+                              )}
                             </div>
-                            
-                            {/* Content */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-2">
-                                <h4 className="font-medium text-gray-900">
-                                  {entry.changeReason || `Document ${entry.action}`}
-                                </h4>
-                                {entry.statusFrom && entry.statusTo && (
-                                  <div className="flex items-center gap-2">
-                                    <StatusBadge status={entry.statusFrom} />
-                                    <ChevronRight className="h-3 w-3 text-gray-400" />
-                                    <StatusBadge status={entry.statusTo} />
-                                  </div>
-                                )}
+                          </div>
+                          
+                          <div className="flex items-center gap-3 text-xs text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <User className="w-3 h-3" />
+                              {`${entry.changedBy.firstName} ${entry.changedBy.lastName}`}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {date} at {time}
+                            </span>
+                          </div>
+                          
+                          {entry.changeReason && entry.action !== 'file_replaced' && (
+                            <div className="flex items-start gap-2 p-2 mt-2 border border-blue-100 rounded-md bg-blue-50">
+                              <MessageSquare className="w-3.5 h-3.5 text-blue-600 flex-shrink-0 mt-0.5" />
+                              <div className="flex-1 min-w-0">
+                                <span className="text-xs font-medium text-blue-900">Penjelasan: </span>
+                                <span className="text-xs leading-relaxed text-blue-800">
+                                  {entry.changeReason}
+                                </span>
                               </div>
+                            </div>
+                          )}
                               
-                              <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
-                                <div className="flex items-center gap-1">
-                                  <User className="h-3 w-3" />
-                                  {`${entry.changedBy.firstName} ${entry.changedBy.lastName}`}
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {date} at {time}
-                                </div>
-                              </div>
-                              
-                              {entry.changeReason && (
-                                <div className="text-sm text-gray-700 italic">
-                                  "{entry.changeReason}"
-                                </div>
-                              )}
-                              
-                              {/* File Links for file_replaced actions */}
                               {entry.action === 'file_replaced' && entry.metadata?.oldFile && entry.metadata?.newFile && (
-                                <div className="mt-3 pt-3 border-t border-gray-100">
-                                  <div className="space-y-3">
-                                    <div className="text-sm font-medium text-gray-700">Document Files:</div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                      {renderFileLink(entry.metadata.oldFile, "Previous Version")}
-                                      {renderFileLink(entry.metadata.newFile, "Current Version")}
-                                    </div>
+                                <div className="pt-2 mt-2 space-y-2 border-t">
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {renderFileLink(entry.metadata.oldFile, "Previous")}
+                                    {renderFileLink(entry.metadata.newFile, "Current")}
                                   </div>
                                 </div>
                               )}
                               
-                              {/* Additional details for other actions */}
                               {entry.action !== 'file_replaced' && (entry.oldValue || entry.newValue) && (
-                                <div className="mt-3 pt-3 border-t border-gray-100">
-                                  <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div className="pt-2 mt-2 border-t">
+                                  <div className="grid grid-cols-2 gap-2 text-xs">
                                     {entry.oldValue && (
                                       <div>
-                                        <div className="font-medium text-gray-700 mb-1">Before:</div>
-                                        <div className="bg-red-50 p-2 rounded text-red-800 font-mono text-xs">
+                                        <div className="text-gray-600 mb-0.5">Before:</div>
+                                        <div className="bg-red-50 p-1.5 rounded text-red-800 font-mono">
                                           {typeof entry.oldValue === 'string'
                                             ? entry.oldValue
                                             : JSON.stringify(entry.oldValue, null, 2)}
@@ -341,8 +340,8 @@ export function DocumentHistory({ documentId, documentTitle, isOpen: externalIsO
                                     )}
                                     {entry.newValue && (
                                       <div>
-                                        <div className="font-medium text-gray-700 mb-1">After:</div>
-                                        <div className="bg-green-50 p-2 rounded text-green-800 font-mono text-xs">
+                                        <div className="text-gray-600 mb-0.5">After:</div>
+                                        <div className="bg-green-50 p-1.5 rounded text-green-800 font-mono">
                                           {typeof entry.newValue === 'string'
                                             ? entry.newValue
                                             : JSON.stringify(entry.newValue, null, 2)}
@@ -352,10 +351,8 @@ export function DocumentHistory({ documentId, documentTitle, isOpen: externalIsO
                                   </div>
                                 </div>
                               )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
+                        </div>
+                      </div>
                     </div>
                   );
                 })}

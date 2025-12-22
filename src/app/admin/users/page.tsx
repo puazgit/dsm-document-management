@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { withAuth } from '@/components/auth/with-auth'
 import { DashboardLayout } from '@/components/ui/dashboard-layout'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { AddUserForm } from '@/components/admin/add-user-form'
 import { UserRoleAssignment } from '@/components/admin/user-role-assignment'
@@ -118,7 +118,7 @@ function UsersManagementPage() {
   const [isEditUserOpen, setIsEditUserOpen] = useState(false)
   const { toast } = useToast()
 
-  const fetchRoles = async () => {
+  const fetchRoles = useCallback(async () => {
     try {
       const response = await fetch('/api/roles?includePermissions=true', {
         credentials: 'include'
@@ -143,9 +143,9 @@ function UsersManagementPage() {
         variant: 'destructive',
       })
     }
-  }
+  }, [])
 
-  const fetchGroups = async () => {
+  const fetchGroups = useCallback(async () => {
     try {
       const response = await fetch('/api/groups?includeUsers=true', {
         credentials: 'include'
@@ -161,7 +161,8 @@ function UsersManagementPage() {
       if (process.env.NODE_ENV === 'development') {
         console.log('Fetched groups:', data)
       }
-      setGroups(data)
+      const groupsList = data.groups || data || []
+      setGroups(groupsList)
     } catch (error) {
       console.error('Fetch groups error:', error)
       toast({
@@ -170,9 +171,9 @@ function UsersManagementPage() {
         variant: 'destructive',
       })
     }
-  }
+  }, [])
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams({
@@ -210,13 +211,13 @@ function UsersManagementPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [currentPage, searchTerm, statusFilter, roleFilter, groupFilter])
 
   useEffect(() => {
     fetchUsers()
     fetchRoles()
     fetchGroups()
-  }, [currentPage, searchTerm, statusFilter, roleFilter, groupFilter])
+  }, [fetchUsers, fetchRoles, fetchGroups])
 
   const handleStatusChange = async (userId: string, isActive: boolean) => {
     try {
@@ -389,6 +390,9 @@ function UsersManagementPage() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add New User</DialogTitle>
+                <DialogDescription>
+                  Create a new user account with basic information
+                </DialogDescription>
               </DialogHeader>
               <AddUserForm 
                 roles={roles}

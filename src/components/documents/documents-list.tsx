@@ -17,15 +17,74 @@ import { Switch } from '../ui/switch';
 import { useToast } from '../../hooks/use-toast';
 import { DocumentStatusWorkflow } from './document-status-workflow';
 import { DocumentHistory } from './document-history';
+import { useRoleVisibility, RoleGuard, FeatureToggle } from '../../hooks/use-role-visibility';
 
-// Dynamic import to ensure client-side only execution
+// Utility functions for cleaner permission checks
+const hasDocumentAccess = (userSession: any, document: any) => {
+  return document?.createdById === userSession?.user?.id;
+};
+
+const canPerformAction = (action: string, permissions: string[], document: any, userSession: any, roleVisibility: any) => {
+  const actionPermissions = {
+    view: ['documents.read', 'pdf.view'],
+    history: ['documents.read'],
+    edit: ['documents.update'],
+    download: ['documents.read', 'pdf.download'],
+    delete: ['documents.delete']
+  };
+  
+  const requiredPerms = actionPermissions[action as keyof typeof actionPermissions] || [];
+  return roleVisibility.hasAnyPermission(requiredPerms) || hasDocumentAccess(userSession, document);
+};
+
+// Simplified ActionMenuItem component
+const ActionMenuItem = ({ 
+  document, 
+  action, 
+  onClick, 
+  label, 
+  className = "",
+  userSession,
+  roleVisibility 
+}: {
+  document: any;
+  action: string;
+  onClick: () => void;
+  label: string;
+  className?: string;
+  userSession: any;
+  roleVisibility: any;
+}) => {
+  const hasAccess = canPerformAction(action, [], document, userSession, roleVisibility);
+  
+  if (!hasAccess) return null;
+  
+  return (
+    <DropdownMenuItem onClick={onClick} className={className}>
+      {label}
+    </DropdownMenuItem>
+  );
+};
+
+// Dynamic import to ensure client-side only execution with error handling
 const SecurePDFViewer = dynamic(
-  () => import('./pdf-viewer').then(mod => ({ default: mod.SecurePDFViewer })),
-  { ssr: false, loading: () => <div className="bg-gray-200 rounded animate-pulse h-96">Loading PDF viewer...</div> }
+  () => import('./pdf-viewer').then(mod => ({ default: mod.SecurePDFViewer })).catch(err => {
+    console.warn('Failed to load SecurePDFViewer:', err);
+    return { default: () => <div className="p-4 text-center text-red-600">Failed to load PDF viewer</div> };
+  }),
+  { 
+    ssr: false, 
+    loading: () => <div className="flex items-center justify-center bg-gray-200 rounded animate-pulse h-96">
+      <span className="text-gray-600">Loading PDF viewer...</span>
+    </div> 
+  }
 );
 
 const PDFViewer = dynamic(
-  () => import('./pdf-viewer').then(mod => ({ default: mod.PDFViewer })),
+  () => import('./pdf-viewer').then(mod => ({ default: mod.PDFViewer })).catch(err => {
+    console.warn('Failed to load PDFViewer:', err);
+    return { default: () => <div className="p-4 text-center text-red-600">Failed to load PDF viewer</div> };
+  }),
   { ssr: false }
 );
 
@@ -52,6 +111,7 @@ export function DocumentsList({
   onPageChange,
   userSession,
 }: DocumentsListProps) {
+  const roleVisibility = useRoleVisibility();
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
   const [showViewer, setShowViewer] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -66,7 +126,7 @@ export function DocumentsList({
     accessGroups: [] as string[],
     expiresAt: ''
   });
-  const [previewMode, setPreviewMode] = useState<'details' | 'pdf'>('details');
+
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedDocumentForHistory, setSelectedDocumentForHistory] = useState<any>(null);
   const { toast } = useToast();
@@ -115,13 +175,16 @@ export function DocumentsList({
     setActionLoading(doc.id);
     try {
       console.log('🔄 Starting download for:', doc.fileName);
+      // Sanitize fileName to prevent XSS
+      const safeFileName = doc.fileName.replace(/<[^>]*>/g, '').replace(/[<>\"'`]/g, '');
+      
       const response = await fetch(`/api/documents/${doc.id}/download`);
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = browserDocument.createElement('a');
         a.href = url;
-        a.download = doc.fileName;
+        a.download = safeFileName;
         browserDocument.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -253,9 +316,6 @@ export function DocumentsList({
 
   const handleViewDocument = (doc: any) => {
     setSelectedDocument(doc);
-    // Check if file is PDF for preview mode
-    const isPDF = doc.fileName?.toLowerCase().endsWith('.pdf') || doc.mimeType === 'application/pdf';
-    setPreviewMode(isPDF ? 'pdf' : 'details');
     setShowViewer(true);
   };
 
@@ -454,15 +514,9 @@ export function DocumentsList({
                     </TableCell>
                     <TableCell className="px-4 py-3 text-right">
                       {/* Check if user has any permissions for actions */}
-                      {((userSession?.user?.permissions?.includes('documents.read') || 
-                        userSession?.user?.permissions?.includes('pdf.view') ||
-                        userSession?.user?.permissions?.includes('documents.update') || 
-                        userSession?.user?.permissions?.includes('documents.update.own') || 
-                        userSession?.user?.permissions?.includes('pdf.download') || 
-                        userSession?.user?.permissions?.includes('documents.download') ||
-                        userSession?.user?.permissions?.includes('documents.delete') || 
-                        document?.createdById === userSession?.user?.id ||
-                        ['admin', 'administrator', 'editor', 'manager', 'org_administrator', 'ppd', 'org_dirut', 'org_gm', 'org_kadiv', 'org_manager'].includes(userSession?.user?.role?.toLowerCase()))) ? (
+                      {(roleVisibility.hasAnyPermission(['documents.read', 'documents.update', 'documents.delete', 'pdf.view', 'pdf.download']) || 
+                        document?.createdById === userSession?.user?.id || 
+                        !roleVisibility.isGuest) ? (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" className="w-8 h-8 p-0" disabled={actionLoading === document.id}>
@@ -475,60 +529,54 @@ export function DocumentsList({
                             </Button>
                           </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          {/* Preview/View option - only show if user has permissions */}
-                          {(userSession?.user?.permissions?.includes('documents.read') || 
-                            userSession?.user?.permissions?.includes('pdf.view') ||
-                            document?.createdById === userSession?.user?.id ||
-                            ['admin', 'administrator', 'editor', 'manager', 'org_administrator', 'ppd', 'org_dirut', 'org_gm', 'org_kadiv'].includes(userSession?.user?.role?.toLowerCase())) && (
-                            <DropdownMenuItem onClick={() => handleViewDocument(document)}>
-                              {isPDFFile(document) ? 'Preview PDF' : 'View Details'}
-                            </DropdownMenuItem>
-                          )}
-                          {/* History option - show for users with read access */}
-                          {(userSession?.user?.permissions?.includes('documents.read') || 
-                            userSession?.user?.permissions?.includes('pdf.view') ||
-                            document?.createdById === userSession?.user?.id ||
-                            ['admin', 'administrator', 'editor', 'manager', 'org_administrator', 'ppd', 'org_dirut', 'org_gm', 'org_kadiv'].includes(userSession?.user?.role?.toLowerCase())) && (
-                            <DropdownMenuItem onClick={() => {
+                          <ActionMenuItem 
+                            document={document} 
+                            action="view" 
+                            onClick={() => handleViewDocument(document)} 
+                            label={isPDFFile(document) ? 'Preview PDF' : 'View Details'}
+                            userSession={userSession}
+                            roleVisibility={roleVisibility}
+                          />
+                          <ActionMenuItem 
+                            document={document} 
+                            action="history" 
+                            onClick={() => {
                               setSelectedDocumentForHistory(document);
                               setShowHistoryModal(true);
-                            }}>
-                              History
-                            </DropdownMenuItem>
-                          )}
-                          {/* Edit option - only show if user has permissions */}
-                          {(userSession?.user?.permissions?.includes('documents.update') || 
-                            userSession?.user?.permissions?.includes('documents.update.own') || 
-                            document?.createdById === userSession?.user?.id ||
-                            ['admin', 'administrator', 'editor', 'manager', 'org_administrator', 'ppd', 'org_dirut', 'org_gm', 'org_kadiv'].includes(userSession?.user?.role?.toLowerCase())) && (
-                            <DropdownMenuItem onClick={() => handleEdit(document)}>
-                              Edit
-                            </DropdownMenuItem>
-                          )}
-                          {/* Download option - only show if user has download permissions */}
-                          {(userSession?.user?.permissions?.includes('pdf.download') || 
-                            userSession?.user?.permissions?.includes('documents.download') ||
-                            document?.createdById === userSession?.user?.id ||
-                            ['admin', 'administrator', 'editor', 'manager', 'org_administrator', 'ppd', 'org_dirut', 'org_gm', 'org_kadiv', 'org_manager'].includes(userSession?.user?.role?.toLowerCase())) && (
-                            <DropdownMenuItem onClick={() => handleDownload(document)}>
-                              Download
-                            </DropdownMenuItem>
-                          )}
-                          {/* Delete option - only show if user has permissions */}
-                          {(userSession?.user?.permissions?.includes('documents.delete') || 
-                            document?.createdById === userSession?.user?.id ||
-                            ['admin', 'administrator', 'org_administrator', 'ppd', 'org_dirut'].includes(userSession?.user?.role?.toLowerCase())) && (
-                            <DropdownMenuItem 
-                              onClick={() => handleDelete(document)}
-                              className="text-red-600"
-                            >
-                              Delete
-                            </DropdownMenuItem>
-                          )}
+                            }} 
+                            label="History"
+                            userSession={userSession}
+                            roleVisibility={roleVisibility}
+                          />
+                          <ActionMenuItem 
+                            document={document} 
+                            action="edit" 
+                            onClick={() => handleEdit(document)} 
+                            label="Edit"
+                            userSession={userSession}
+                            roleVisibility={roleVisibility}
+                          />
+                          <ActionMenuItem 
+                            document={document} 
+                            action="download" 
+                            onClick={() => handleDownload(document)} 
+                            label="Download"
+                            userSession={userSession}
+                            roleVisibility={roleVisibility}
+                          />
+                          <ActionMenuItem 
+                            document={document} 
+                            action="delete" 
+                            onClick={() => handleDelete(document)} 
+                            label="Delete"
+                            className="text-red-600"
+                            userSession={userSession}
+                            roleVisibility={roleVisibility}
+                          />
                         </DropdownMenuContent>
                       </DropdownMenu>
                       ) : (
-                        <span className="text-gray-400 text-xs">No actions</span>
+                        <span className="text-xs text-gray-400">No actions</span>
                       )}
                     </TableCell>
                   </TableRow>
@@ -573,7 +621,6 @@ export function DocumentsList({
         <Dialog open={showViewer} onOpenChange={() => {
           setShowViewer(false);
           setSelectedDocument(null);
-          setPreviewMode('details');
         }}>
           <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
             <DialogHeader>
@@ -610,20 +657,65 @@ export function DocumentsList({
                         )}
                       </Button>
                     )}
-                    <Button
-                      variant={previewMode === 'details' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setPreviewMode(previewMode === 'details' ? 'pdf' : 'details')}
-                    >
-                      {previewMode === 'details' ? 'Back to Preview' : 'Details'}
-                    </Button>
                   </div>
                 )}
               </div>
             </DialogHeader>
             
-            <div className="overflow-y-auto max-h-[70vh]">
-              {previewMode !== 'details' && isPDFFile(selectedDocument) ? (
+            {/* Minimalist Document Details - Always shown above PDF */}
+            <div className="p-4 mb-4 border rounded-lg bg-gray-50">
+              <div className="grid grid-cols-2 gap-4 text-sm md:grid-cols-4">
+                <div>
+                  <span className="text-gray-500">File Name:</span>
+                  <div className="font-medium truncate">{selectedDocument.fileName || 'N/A'}</div>
+                </div>
+                <div>
+                  <span className="text-gray-500">Type:</span>
+                  <div className="font-medium">{selectedDocument.documentType?.name || 'N/A'}</div>
+                </div>
+                <div>
+                  <span className="text-gray-500">Status:</span>
+                  <div>
+                    <Badge variant="outline" className="text-xs">
+                      {(selectedDocument.status || 'DRAFT').replace('_', ' ')}
+                    </Badge>
+                  </div>
+                </div>
+                <div>
+                  <span className="text-gray-500">Size:</span>
+                  <div className="font-medium">{formatFileSize(selectedDocument.fileSize ? Number(selectedDocument.fileSize) : 0)}</div>
+                </div>
+                <div>
+                  <span className="text-gray-500">Created:</span>
+                  <div className="font-medium">{selectedDocument.createdAt ? formatDate(selectedDocument.createdAt) : 'N/A'}</div>
+                </div>
+                <div>
+                  <span className="text-gray-500">Created By:</span>
+                  <div className="font-medium">{selectedDocument.createdBy?.firstName || 'Unknown'} {selectedDocument.createdBy?.lastName || ''}</div>
+                </div>
+                {selectedDocument.description && (
+                  <div className="col-span-2">
+                    <span className="text-gray-500">Description:</span>
+                    <div className="font-medium">{selectedDocument.description}</div>
+                  </div>
+                )}
+                {selectedDocument.tags && selectedDocument.tags.length > 0 && (
+                  <div className="col-span-2">
+                    <span className="text-gray-500">Tags:</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {selectedDocument.tags.map((tag: string, index: number) => (
+                        <Badge key={index} variant="outline" className="text-xs">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="overflow-y-auto max-h-[60vh]">
+              {isPDFFile(selectedDocument) ? (
                 <SecurePDFViewer
                   fileUrl={`/api/documents/${selectedDocument.id}/download`}
                   fileName={selectedDocument.fileName}
@@ -632,56 +724,16 @@ export function DocumentsList({
                   document={selectedDocument}
                 />
               ) : (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <strong>File Name:</strong> {selectedDocument.fileName || 'N/A'}
-                    </div>
-                    <div>
-                      <strong>Type:</strong> {selectedDocument.documentType?.name || 'N/A'}
-                    </div>
-                    <div>
-                      <strong>Status:</strong> 
-                      <Badge className="ml-2">
-                        {(selectedDocument.status || 'DRAFT').replace('_', ' ')}
-                      </Badge>
-                    </div>
-                    <div>
-                      <strong>Size:</strong> {formatFileSize(selectedDocument.fileSize ? Number(selectedDocument.fileSize) : 0)}
-                    </div>
-                    <div>
-                      <strong>Created:</strong> {selectedDocument.createdAt ? formatDate(selectedDocument.createdAt) : 'N/A'}
-                    </div>
-                    <div>
-                      <strong>Created By:</strong> {selectedDocument.createdBy?.firstName || 'Unknown'} {selectedDocument.createdBy?.lastName || ''}
-                    </div>
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="p-4 mb-4 rounded-full bg-muted">
+                    <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
                   </div>
-                  
-                  {selectedDocument.description && (
-                    <div>
-                      <strong>Description:</strong>
-                      <p className="mt-1 text-gray-700">{selectedDocument.description}</p>
-                    </div>
-                  )}
-                  
-                  {selectedDocument.tags && selectedDocument.tags.length > 0 && (
-                    <div>
-                      <strong>Tags:</strong>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {selectedDocument.tags.map((tag: string, index: number) => (
-                          <Badge key={index} variant="outline" className="text-xs">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="pt-4 border-t">
-                    <div className="flex gap-2">
-                      {/* Download and View PDF buttons removed for security */}
-                    </div>
-                  </div>
+                  <h3 className="mb-2 font-semibold text-foreground">Non-PDF Document</h3>
+                  <p className="max-w-sm text-sm text-muted-foreground">
+                    This document is not a PDF file. Document information is displayed above.
+                  </p>
                 </div>
               )}
             </div>
@@ -702,7 +754,7 @@ export function DocumentsList({
             {/* Basic Information */}
             <div className="space-y-4">
               <h4 className="text-sm font-medium text-foreground">Basic Information</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="edit-title">Title *</Label>
                   <Input
@@ -794,7 +846,7 @@ export function DocumentsList({
             {/* Current File Information */}
             <div className="space-y-4">
               <h4 className="text-sm font-medium text-foreground">Current File</h4>
-              <div className="p-4 bg-muted rounded-lg">
+              <div className="p-4 rounded-lg bg-muted">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="font-medium">Filename:</span> {editingDocument?.fileName}

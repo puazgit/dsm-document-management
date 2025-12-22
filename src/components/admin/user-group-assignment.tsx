@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
@@ -12,7 +12,8 @@ import {
   User,
   Building,
   AlertTriangle,
-  Check
+  Check,
+  X
 } from 'lucide-react'
 
 interface Group {
@@ -49,24 +50,57 @@ export function UserGroupAssignment({ user, isOpen, onClose, onUpdate }: UserGro
   const [selectedGroupId, setSelectedGroupId] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
   const { toast } = useToast()
 
+  const fetchCurrentUser = async () => {
+    if (!user) return
+    
+    try {
+      const response = await fetch(`/api/users/${user.id}`)
+      if (!response.ok) throw new Error('Failed to fetch user data')
+      
+      const userData = await response.json()
+      setCurrentUser(userData.user || userData)
+    } catch (error) {
+      console.error('Error fetching current user:', error)
+      setCurrentUser(user)
+    }
+  }
+
   const fetchAvailableGroups = async () => {
+    const userToCheck = currentUser || user
+    if (!userToCheck) return
+    
     try {
       setLoading(true)
-      const response = await fetch('/api/groups?includeUsers=true')
-      if (!response.ok) throw new Error('Failed to fetch groups')
+      console.log('📡 Fetching groups...')
       
-      const allGroups: Group[] = await response.json()
+      const response = await fetch('/api/groups')
       
-      // All groups are available for assignment (organizational structure)
-      // Filter for active groups with valid IDs
-      setAvailableGroups(allGroups.filter(group => 
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ API Error:', response.status, errorText)
+        throw new Error('Failed to fetch groups')
+      }
+      
+      const data = await response.json()
+      console.log('📋 Fetched groups data:', data)
+      
+      const allGroups: Group[] = data.groups || data || []
+      console.log('✅ All groups:', allGroups.length, 'groups')
+      
+      // All groups are available for selection
+      const filtered = allGroups.filter(group => 
         group.isActive && 
         group.id && 
         group.id.trim() !== ''
-      ))
+      )
+      
+      console.log('🔄 Filtered groups:', filtered.length, 'groups')
+      setAvailableGroups(filtered)
     } catch (error) {
+      console.error('💥 Error fetching groups:', error)
       toast({
         title: 'Error',
         description: 'Failed to fetch available groups',
@@ -79,20 +113,28 @@ export function UserGroupAssignment({ user, isOpen, onClose, onUpdate }: UserGro
 
   useEffect(() => {
     if (isOpen && user) {
-      fetchAvailableGroups()
-      // Set current group as selected if user has one
-      setSelectedGroupId(user.groupId || '__no_group__')
+      console.log('🔍 Dialog opened for user:', {
+        email: user.email,
+        currentGroupId: user.groupId,
+        currentGroup: user.group?.name
+      })
+      setCurrentUser(user)
+      fetchCurrentUser()
+      setSelectedGroupId('')
     }
   }, [isOpen, user])
 
-  const handleAssignGroup = async () => {
-    if (!user) return
+  useEffect(() => {
+    if (currentUser) {
+      fetchAvailableGroups()
+    }
+  }, [currentUser])
 
-    // Validate selectedGroupId if it's not empty
-    if (selectedGroupId && selectedGroupId.trim() === '') {
+  const handleAssignGroup = async () => {
+    if (!user || !selectedGroupId || selectedGroupId.trim() === '') {
       toast({
         title: 'Error',
-        description: 'Invalid group selection',
+        description: 'Please select a group',
         variant: 'destructive',
       })
       return
@@ -104,31 +146,80 @@ export function UserGroupAssignment({ user, isOpen, onClose, onUpdate }: UserGro
       const response = await fetch(`/api/users/${user.id}/group`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          groupId: selectedGroupId === '__no_group__' ? null : selectedGroupId // null to remove from group
-        }),
+        body: JSON.stringify({ groupId: selectedGroupId }),
       })
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.message || 'Failed to update group assignment')
+        throw new Error(error.message || 'Failed to assign group')
       }
 
-      const actionMessage = selectedGroupId && selectedGroupId !== '__no_group__'
-        ? 'User assigned to organizational group successfully'
-        : 'User removed from organizational group successfully'
+      const result = await response.json()
+      
+      if (result.user) {
+        setCurrentUser(result.user)
+      } else {
+        await fetchCurrentUser()
+      }
 
       toast({
         title: 'Success',
-        description: actionMessage,
+        description: 'Group assigned successfully',
       })
       
       onUpdate()
-      onClose()
+      setSelectedGroupId('')
     } catch (error: any) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to update group assignment',
+        description: error.message || 'Failed to assign group',
+        variant: 'destructive',
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleRemoveGroup = async () => {
+    if (!user) return
+
+    const userName = `${user.firstName} ${user.lastName}`
+    if (!confirm(`Are you sure you want to remove ${userName} from their current organizational group?`)) {
+      return
+    }
+
+    try {
+      setSubmitting(true)
+      
+      const response = await fetch(`/api/users/${user.id}/group`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupId: null }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || 'Failed to remove group')
+      }
+
+      const result = await response.json()
+      
+      if (result.user) {
+        setCurrentUser(result.user)
+      } else {
+        await fetchCurrentUser()
+      }
+
+      toast({
+        title: 'Success',
+        description: 'User removed from organizational group',
+      })
+      
+      onUpdate()
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to remove group',
         variant: 'destructive',
       })
     } finally {
@@ -155,6 +246,9 @@ export function UserGroupAssignment({ user, isOpen, onClose, onUpdate }: UserGro
             <Building className="h-5 w-5" />
             <span>Organizational Group Assignment</span>
           </DialogTitle>
+          <DialogDescription>
+            Assign user to an organizational group to define their position in the company hierarchy
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-6">
@@ -164,16 +258,16 @@ export function UserGroupAssignment({ user, isOpen, onClose, onUpdate }: UserGro
               <User className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h3 className="font-medium">{user.firstName} {user.lastName}</h3>
-              <p className="text-sm text-muted-foreground">@{user.username} • {user.email}</p>
+              <h3 className="font-medium">{(currentUser || user)?.firstName} {(currentUser || user)?.lastName}</h3>
+              <p className="text-sm text-muted-foreground">@{(currentUser || user)?.username} • {(currentUser || user)?.email}</p>
             </div>
           </div>
 
           {/* Current Group */}
           <div>
             <Label className="text-base font-medium">Current Organizational Group</Label>
-            <div className="mt-2">
-              {!user.group ? (
+            <div className="mt-2 space-y-2">
+              {!(currentUser || user)?.group ? (
                 <div className="flex items-center space-x-2 p-3 border border-orange-200 bg-orange-50 rounded-lg">
                   <AlertTriangle className="h-4 w-4 text-orange-500" />
                   <span className="text-sm text-orange-700">No organizational group assigned</span>
@@ -181,111 +275,91 @@ export function UserGroupAssignment({ user, isOpen, onClose, onUpdate }: UserGro
               ) : (
                 <div className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center space-x-3">
-                    <Badge variant={getGroupBadgeVariant(user.group.level)}>
-                      Level {user.group.level}
+                    <Badge variant={getGroupBadgeVariant((currentUser || user)?.group?.level || 0)}>
+                      Level {(currentUser || user)?.group?.level}
                     </Badge>
                     <div>
-                      <p className="text-sm font-medium">{user.group.displayName}</p>
+                      <p className="text-sm font-medium">{(currentUser || user)?.group?.displayName}</p>
                       <p className="text-xs text-muted-foreground">
-                        {user.group.name}
-                      </p>
-                      {user.group.description && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {user.group.description}
-                        </p>
-                      )}
-                      <p className="text-xs text-muted-foreground">
-                        Members: {user.group._count?.users || 0}
+                        {(currentUser || user)?.group?.description}
                       </p>
                     </div>
                   </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRemoveGroup}
+                    disabled={submitting}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Remove
+                  </Button>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Group Assignment */}
+          {/* Assign New Group */}
           <div>
-            <Label className="text-base font-medium">Assign to Organizational Group</Label>
-            <p className="text-xs text-muted-foreground mt-1 mb-3">
-              Groups define organizational hierarchy and structure (not functional permissions)
-            </p>
-            
-            {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select organizational group (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__no_group__">
-                      <div className="text-gray-500">No group (remove assignment)</div>
-                    </SelectItem>
-                    {availableGroups
-                      .filter(group => group.id && group.id.trim() !== '')
-                      .sort((a, b) => b.level - a.level) // Sort by level desc
-                      .map((group) => (
-                      <SelectItem key={group.id} value={group.id}>
-                        <div className="flex items-center space-x-2">
-                          <Badge variant={getGroupBadgeVariant(group.level)} className="text-xs">
-                            L{group.level}
-                          </Badge>
-                          <div>
-                            <div className="font-medium">{group.displayName}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {group.name} • {group._count?.users || 0} members
+            <Label className="text-base font-medium">Assign to Group</Label>
+            <div className="mt-2 space-y-3">
+              {loading ? (
+                <div className="flex items-center space-x-2 p-3 border rounded-lg">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                  <span className="text-sm text-muted-foreground">Loading available groups...</span>
+                </div>
+              ) : availableGroups.length === 0 ? (
+                <div className="flex items-center space-x-2 p-3 border border-green-200 bg-green-50 rounded-lg">
+                  <Check className="h-4 w-4 text-green-500" />
+                  <span className="text-sm text-green-700">No groups available</span>
+                </div>
+              ) : (
+                <div className="flex space-x-2">
+                  <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select a group to assign" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableGroups
+                        .sort((a, b) => b.level - a.level)
+                        .map((group) => (
+                          <SelectItem key={group.id} value={group.id}>
+                            <div className="flex items-center space-x-2">
+                              <Badge variant={getGroupBadgeVariant(group.level)} className="text-xs">
+                                L{group.level}
+                              </Badge>
+                              <span>{group.displayName}</span>
                             </div>
-                          </div>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                {selectedGroupId && selectedGroupId !== '__no_group__' && (
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-start space-x-2">
-                      <Check className="h-4 w-4 text-blue-500 mt-0.5" />
-                      <div className="text-sm text-blue-700">
-                        <p className="font-medium">Group Assignment Preview</p>
-                        <p>
-                          User will be assigned to organizational group: 
-                          <strong> {availableGroups.find(g => g.id === selectedGroupId)?.displayName}</strong>
-                        </p>
-                        <p className="text-xs mt-1">
-                          This affects organizational structure only. 
-                          Functional permissions are managed separately through Roles.
-                        </p>
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    onClick={handleAssignGroup}
+                    disabled={!selectedGroupId || submitting}
+                    size="default"
+                  >
+                    {submitting ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                       </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4 mr-1" />
+                        Assign
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleAssignGroup}
-            disabled={submitting || loading}
-            className="min-w-[100px]"
-          >
-            {submitting ? (
-              <div className="flex items-center space-x-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                <span>Saving...</span>
-              </div>
-            ) : (
-              selectedGroupId ? 'Assign Group' : 'Remove Group'
-            )}
+            Close
           </Button>
         </DialogFooter>
       </DialogContent>

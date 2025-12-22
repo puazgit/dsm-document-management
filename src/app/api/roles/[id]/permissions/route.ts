@@ -24,7 +24,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // TODO: Check if user has admin permissions
+    // TODO: Check if user has admin role permissions
 
     const role = await prisma.role.findUnique({
       where: { id: params.id },

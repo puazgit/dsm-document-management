@@ -33,51 +33,33 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check if current user has permission to view groups
-    const currentUser = await prisma.user.findUnique({
-      where: { email: session.user.email! },
-      include: { 
-        userRoles: { 
-          include: { role: true } 
-        },
-        group: true
-      }
-    })
-
-    // Allow group viewing for administrators, ppd, managers, or kadiv
-    const canViewGroups = currentUser?.userRoles.some(ur => 
-      ['administrator', 'ppd', 'manager', 'kadiv'].includes(ur.role.name)
-    ) || currentUser?.group?.name === 'administrator'
-
-    if (!canViewGroups) {
-      return NextResponse.json({ 
-        error: 'Insufficient permissions', 
-        details: 'Group viewing requires administrator, ppd, manager, or kadiv role'
-      }, { status: 403 })
-    }
-
+    // All authenticated users can view groups for document access control
     const { searchParams } = new URL(request.url)
     const includeUsers = searchParams.get('includeUsers') === 'true'
 
     const groups = await prisma.group.findMany({
+      where: {
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        displayName: true,
+        description: true,
+        level: true,
+        isActive: true,
+      },
       orderBy: [
         { level: 'desc' },
         { name: 'asc' }
-      ],
-      include: includeUsers ? {
-        _count: {
-          select: {
-            users: true
-          }
-        }
-      } : undefined
+      ]
     })
-
-    // Filter out groups with invalid IDs (safety check)
-    const validGroups = groups.filter(group => group.id && typeof group.id === 'string' && group.id.trim() !== '')
     
-    console.log('✅ Groups fetched successfully:', { count: validGroups.length })
-    return NextResponse.json(validGroups)
+    console.log('✅ Groups fetched successfully:', { count: groups.length })
+    return NextResponse.json({ 
+      groups,
+      count: groups.length 
+    })
   } catch (error) {
     console.error('💥 Error fetching groups:', error)
     return NextResponse.json(

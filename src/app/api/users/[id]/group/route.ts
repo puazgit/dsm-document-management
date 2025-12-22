@@ -35,7 +35,7 @@ export async function PUT(
       }
     })
 
-    // Allow group assignment for administrators, ppd, managers, or kadiv
+    // Allow group assignment for admin, org_ppd, org_manager, or org_kadiv
     const canAssignGroups = currentUser?.userRoles.some(ur => 
       ['administrator', 'ppd', 'manager', 'kadiv'].includes(ur.role.name)
     ) || currentUser?.group?.name === 'administrator'

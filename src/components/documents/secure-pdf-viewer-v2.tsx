@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,7 +27,7 @@ interface RolePermissions {
   showWatermark: boolean;
 }
 
-export function SecurePDFViewerV2({
+function SecurePDFViewerV2Component({
   fileUrl,
   fileName,
   userRole = 'viewer',
@@ -45,18 +46,100 @@ export function SecurePDFViewerV2({
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const loadTimeoutRef = useRef<NodeJS.Timeout>();
+  const { data: session } = useSession();
 
-  // Enhanced role permissions
+  // Load permissions from session instead of hardcoded role permissions
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Enhanced role permissions - used as fallback only
   const rolePermissions: Record<string, RolePermissions> = {
-    'administrator': { canDownload: true, canPrint: true, canCopy: true, showWatermark: false },
     'admin': { canDownload: true, canPrint: true, canCopy: true, showWatermark: false },
-    'manager': { canDownload: true, canPrint: true, canCopy: false, showWatermark: false },
-    'editor': { canDownload: true, canPrint: false, canCopy: false, showWatermark: true },
-    'reviewer': { canDownload: false, canPrint: false, canCopy: false, showWatermark: true },
+    'org_ppd': { canDownload: true, canPrint: true, canCopy: true, showWatermark: false },
+    'org_manager': { canDownload: true, canPrint: true, canCopy: false, showWatermark: false },
+    'org_kadiv': { canDownload: true, canPrint: false, canCopy: false, showWatermark: false },
     'viewer': { canDownload: false, canPrint: false, canCopy: false, showWatermark: true },
-    'guest': { canDownload: false, canPrint: false, canCopy: false, showWatermark: true }
+    'editor': { canDownload: false, canPrint: true, canCopy: false, showWatermark: false },
+    'org_guest': { canDownload: false, canPrint: false, canCopy: false, showWatermark: true }
   };
 
+  const [currentPermissions, setCurrentPermissions] = useState<RolePermissions>({
+    canDownload: false,
+    canPrint: false,
+    canCopy: false,
+    showWatermark: true
+  });
+
+  // Load user permissions from session
+  useEffect(() => {
+    const loadPermissions = async () => {
+      if (!session?.user) {
+        // Use fallback when no session
+        const fallback = rolePermissions[userRole] || rolePermissions['viewer'] || {
+          canCopy: false,
+          canPrint: false,
+          canDownload: false,
+          showWatermark: true
+        };
+        setCurrentPermissions({
+          canCopy: canCopy !== undefined ? canCopy : fallback.canCopy,
+          canPrint: canPrint !== undefined ? canPrint : fallback.canPrint,
+          canDownload: canDownload !== undefined ? canDownload : fallback.canDownload,
+          showWatermark: fallback.showWatermark
+        });
+        setPermissionsLoaded(true);
+        return;
+      }
+
+      try {
+        const userPermissions = session.user.permissions || [];
+        
+        // Check permissions from database
+        const hasDownload = userPermissions.includes('pdf.download') || userPermissions.includes('documents.download');
+        const hasPrint = userPermissions.includes('pdf.print');
+        const hasCopy = userPermissions.includes('pdf.copy');
+        // pdf.watermark permission controls watermark visibility (has permission = no watermark)
+        const hasWatermarkControl = userPermissions.includes('pdf.watermark');
+        
+        console.log('🔍 SecurePDFViewer V2 - Permission Check:', {
+          userPermissions,
+          hasDownload,
+          hasPrint,
+          hasCopy,
+          hasWatermarkControl,
+          showWatermark: !hasWatermarkControl
+        });
+
+        setCurrentPermissions({
+          canDownload: canDownload !== undefined ? canDownload : hasDownload,
+          canPrint: canPrint !== undefined ? canPrint : hasPrint,
+          canCopy: canCopy !== undefined ? canCopy : hasCopy,
+          showWatermark: !hasWatermarkControl
+        });
+      } catch (error) {
+        console.error('Error loading permissions:', error);
+        // Fallback to role-based permissions
+        const fallback = rolePermissions[userRole] || rolePermissions['viewer'] || {
+          canCopy: false,
+          canPrint: false,
+          canDownload: false,
+          showWatermark: true
+        };
+        setCurrentPermissions({
+          canCopy: canCopy !== undefined ? canCopy : fallback.canCopy,
+          canPrint: canPrint !== undefined ? canPrint : fallback.canPrint,
+          canDownload: canDownload !== undefined ? canDownload : fallback.canDownload,
+          showWatermark: fallback.showWatermark
+        });
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+
+    loadPermissions();
+  }, [session, userRole, canDownload, canPrint, canCopy]);
+
+  // Remove old static permission assignment
+  /*
   const currentPermissions = {
     ...rolePermissions[userRole] || rolePermissions['viewer'],
     // Allow prop overrides
@@ -64,6 +147,7 @@ export function SecurePDFViewerV2({
     ...(canPrint !== undefined && { canPrint }),
     ...(canCopy !== undefined && { canCopy })
   };
+  */
 
   // Security violation handler
   const handleSecurityViolation = useCallback((type: string, details: any = {}) => {
@@ -235,7 +319,7 @@ export function SecurePDFViewerV2({
       'editor': 'bg-green-100 text-green-800 border-green-300',
       'reviewer': 'bg-yellow-100 text-yellow-800 border-yellow-300',
       'viewer': 'bg-gray-100 text-gray-800 border-gray-300',
-      'guest': 'bg-red-100 text-red-800 border-red-300'
+      'org_guest': 'bg-red-100 text-red-800 border-red-300'
     };
     return colors[role as keyof typeof colors] || colors.viewer;
   };
@@ -542,4 +626,6 @@ export function SecurePDFViewerV2({
   );
 }
 
+// Memoized export for performance
+export const SecurePDFViewerV2 = memo(SecurePDFViewerV2Component);
 export default SecurePDFViewerV2;

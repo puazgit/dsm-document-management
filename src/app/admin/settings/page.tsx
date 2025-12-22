@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { withAuth } from '@/components/auth/with-auth'
 import { DashboardLayout } from '@/components/ui/dashboard-layout'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -79,11 +79,7 @@ function SystemSettingsPage() {
     retentionPeriod: ''
   })
 
-  useEffect(() => {
-    fetchConfigs()
-  }, [])
-
-  const fetchConfigs = async () => {
+  const fetchConfigs = useCallback(async () => {
     try {
       const response = await fetch('/api/admin/settings')
       if (response.ok) {
@@ -125,7 +121,11 @@ function SystemSettingsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchConfigs()
+  }, [fetchConfigs])
 
   const handleSave = async () => {
     setSaving(true)

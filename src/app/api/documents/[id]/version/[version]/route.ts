@@ -19,8 +19,79 @@ export async function GET(
     const documentId = params.id;
     const versionId = params.version;
 
-    // Get document version
-    const documentVersion = await prisma.documentVersion.findFirst({
+    // First check if this is the current version
+    const currentDocument = await prisma.document.findUnique({
+      where: { id: documentId },
+      include: {
+        createdBy: true
+      }
+    });
+
+    if (!currentDocument) {
+      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+    }
+
+    // If requesting current version, serve the current file
+    if (currentDocument.version === versionId || 
+        parseFloat(currentDocument.version).toFixed(1) === parseFloat(versionId).toFixed(1)) {
+      
+      // Check if file exists
+      const filePath = join(process.cwd(), currentDocument.filePath);
+      if (!existsSync(filePath)) {
+        return NextResponse.json({ error: 'Current file not found on disk' }, { status: 404 });
+      }
+
+      // Check permissions for current document
+      const userPermissions = session.user.permissions || [];
+      const userRole = session.user.role?.toLowerCase();
+      const isOwner = currentDocument.createdById === session.user.id;
+      
+      const canRead = 
+        userPermissions.includes('documents.read') ||
+        userPermissions.includes('pdf.view') ||
+        isOwner ||
+        ['admin', 'editor', 'org_administrator', 'org_ppd', 'org_dirut', 'org_gm', 'org_kadiv', 'org_supervisor'].includes(userRole);
+
+      if (!canRead) {
+        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+      }
+
+      // Read and serve current file
+      const fileBuffer = await readFile(filePath);
+      
+      const ext = currentDocument.fileName.split('.').pop()?.toLowerCase();
+      let contentType = 'application/octet-stream';
+      
+      switch (ext) {
+        case 'pdf':
+          contentType = 'application/pdf';
+          break;
+        case 'doc':
+          contentType = 'application/msword';
+          break;
+        case 'docx':
+          contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+          break;
+        case 'txt':
+          contentType = 'text/plain';
+          break;
+        case 'md':
+          contentType = 'text/markdown';
+          break;
+      }
+
+      return new NextResponse(fileBuffer, {
+        status: 200,
+        headers: {
+          'Content-Type': contentType,
+          'Content-Disposition': `inline; filename="${currentDocument.fileName}"`,
+          'Content-Length': fileBuffer.length.toString(),
+        },
+      });
+    }
+
+    // Get document version from history - try exact match first, then fuzzy match
+    let documentVersion = await prisma.documentVersion.findFirst({
       where: {
         documentId,
         version: versionId
@@ -33,6 +104,26 @@ export async function GET(
         }
       }
     });
+
+    // If not found with exact match, try to find similar version (handle floating point errors)
+    if (!documentVersion) {
+      const normalizedVersion = parseFloat(versionId).toFixed(1);
+      const allVersions = await prisma.documentVersion.findMany({
+        where: { documentId },
+        include: {
+          document: {
+            include: {
+              createdBy: true
+            }
+          }
+        }
+      });
+      
+      documentVersion = allVersions.find(v => {
+        const vNormalized = parseFloat(v.version).toFixed(1);
+        return vNormalized === normalizedVersion;
+      }) || null;
+    }
 
     if (!documentVersion) {
       return NextResponse.json({ error: 'Document version not found' }, { status: 404 });
@@ -47,7 +138,7 @@ export async function GET(
       userPermissions.includes('documents.read') ||
       userPermissions.includes('pdf.view') ||
       isOwner ||
-      ['admin', 'administrator', 'editor', 'manager', 'org_administrator', 'ppd', 'org_dirut', 'org_gm', 'org_kadiv', 'org_supervisor'].includes(userRole);
+      ['admin', 'editor', 'org_administrator', 'org_ppd', 'org_dirut', 'org_gm', 'org_kadiv', 'org_supervisor'].includes(userRole);
 
     if (!canRead) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });

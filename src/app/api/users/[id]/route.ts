@@ -95,7 +95,7 @@ export async function PUT(
     const isOwnProfile = session.user.id === params.id
     const userRole = session.user.role?.toLowerCase()
     console.log('PUT - Current user role:', userRole, 'Is own profile:', isOwnProfile, 'Session user:', session.user)
-    const isAdmin = userRole === 'administrator' || userRole === 'admin' || userRole === 'org_administrator' || userRole === 'ppd'
+    const isAdmin = userRole === 'admin' || userRole === 'org_administrator' || userRole === 'org_ppd'
 
     if (!isOwnProfile && !isAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -202,7 +202,7 @@ export async function DELETE(
     // Check admin permissions for deletion
     const userRole = session.user.role?.toLowerCase()
     console.log('DELETE - Current user role:', userRole, 'Session user:', session.user)
-    const isAdmin = userRole === 'administrator' || userRole === 'admin' || userRole === 'org_administrator' || userRole === 'ppd'
+    const isAdmin = userRole === 'admin' || userRole === 'org_administrator' || userRole === 'org_ppd'
 
     if (!isAdmin) {
       return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 })

@@ -42,13 +42,13 @@ export function SimplePDFViewer({
 
   // Enhanced role permissions
   const rolePermissions: Record<string, RolePermissions> = {
-    'administrator': { canDownload: true, canPrint: true, canCopy: true, showWatermark: false },
     'admin': { canDownload: true, canPrint: true, canCopy: true, showWatermark: false },
-    'manager': { canDownload: true, canPrint: true, canCopy: false, showWatermark: false },
-    'editor': { canDownload: true, canPrint: false, canCopy: false, showWatermark: true },
-    'reviewer': { canDownload: false, canPrint: false, canCopy: false, showWatermark: true },
+    'org_ppd': { canDownload: true, canPrint: true, canCopy: true, showWatermark: false },
+    'org_manager': { canDownload: true, canPrint: true, canCopy: false, showWatermark: false },
+    'org_kadiv': { canDownload: true, canPrint: false, canCopy: false, showWatermark: false },
     'viewer': { canDownload: false, canPrint: false, canCopy: false, showWatermark: true },
-    'guest': { canDownload: false, canPrint: false, canCopy: false, showWatermark: true }
+    'editor': { canDownload: false, canPrint: true, canCopy: false, showWatermark: false },
+    'org_guest': { canDownload: false, canPrint: false, canCopy: false, showWatermark: true }
   };
 
   const currentPermissions = {
@@ -181,7 +181,7 @@ export function SimplePDFViewer({
       'editor': 'bg-green-100 text-green-800 border-green-300',
       'reviewer': 'bg-yellow-100 text-yellow-800 border-yellow-300',
       'viewer': 'bg-gray-100 text-gray-800 border-gray-300',
-      'guest': 'bg-red-100 text-red-800 border-red-300'
+      'org_guest': 'bg-red-100 text-red-800 border-red-300'
     };
     return colors[role as keyof typeof colors] || colors.viewer;
   };

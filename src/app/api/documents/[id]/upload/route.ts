@@ -41,7 +41,7 @@ export async function POST(
       userPermissions.includes('documents.update') ||
       userPermissions.includes('documents.update.own') ||
       isOwner ||
-      ['admin', 'administrator', 'editor', 'manager', 'org_administrator', 'ppd', 'org_dirut', 'org_gm', 'org_kadiv'].includes(userRole);
+      ['admin', 'editor', 'org_administrator', 'org_ppd', 'org_dirut', 'org_gm', 'org_kadiv'].includes(userRole);
 
     if (!canUpdate) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
@@ -105,12 +105,23 @@ export async function POST(
     const oldFileName = existingDocument.fileName;
     const oldFilePath = existingDocument.filePath;
 
+    // Helper function to increment version properly
+    const incrementVersion = (currentVersion: string): string => {
+      const parts = currentVersion.split('.');
+      const major = parseInt(parts[0] || '1');
+      const minor = parseInt(parts[1] || '0');
+      return `${major}.${minor + 1}`;
+    };
+
+    const oldVersion = existingDocument.version || '1.0';
+    const newVersion = incrementVersion(oldVersion);
+
     // Create document version entry for old file (preserve history)
     if (oldFilePath && oldFileName) {
       await prisma.documentVersion.create({
         data: {
           documentId,
-          version: existingDocument.version || '1.0',
+          version: oldVersion,
           fileName: oldFileName,
           filePath: oldFilePath,
           fileSize: existingDocument.fileSize || BigInt(0),
@@ -129,7 +140,7 @@ export async function POST(
         fileSize: BigInt(file.size),
         fileType: fileExtension || null,
         mimeType: file.type,
-        version: `${parseFloat(existingDocument.version || '1.0') + 0.1}`,
+        version: newVersion,
         updatedAt: new Date(),
         updatedById: session.user.id
       },
@@ -153,12 +164,12 @@ export async function POST(
         oldFile: {
           fileName: oldFileName,
           filePath: oldFilePath,
-          version: existingDocument.version || '1.0'
+          version: oldVersion
         },
         newFile: {
           fileName: file.name,
           filePath: relativePath,
-          version: `${parseFloat(existingDocument.version || '1.0') + 0.1}`
+          version: newVersion
         }
       }
     });

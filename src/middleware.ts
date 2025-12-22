@@ -10,19 +10,19 @@ import { hasRoleAccess, normalizeRoleName } from '@/config/roles'
  * Role hierarchy is automatically handled (higher level roles inherit lower level access)
  */
 const protectedRoutes: Record<string, string[]> = {
-  '/admin': ['administrator', 'admin', 'org_administrator'],
-  '/admin/users': ['administrator', 'admin', 'org_administrator', 'ppd', 'org_ppd'],
-  '/admin/groups': ['administrator', 'admin', 'org_administrator'],
-  '/admin/roles': ['administrator', 'admin', 'org_administrator'],
-  '/admin/permissions': ['administrator', 'admin', 'org_administrator'],
-  '/admin/settings': ['administrator', 'admin', 'org_administrator'],
-  '/admin/analytics': ['administrator', 'admin', 'org_administrator', 'ppd', 'org_ppd', 'manager', 'org_manager', 'org_kadiv'],
-  '/admin/audit-logs': ['administrator', 'admin', 'org_administrator'],
-  '/admin/pdf-permissions': ['administrator', 'admin', 'org_administrator'],
-  '/admin/pdf-settings': ['administrator', 'admin', 'org_administrator'],
-  '/documents/upload': ['administrator', 'admin', 'org_administrator', 'ppd', 'org_ppd', 'kadiv', 'org_kadiv', 'manager', 'org_manager'],
-  '/documents/[id]/edit': ['administrator', 'admin', 'org_administrator', 'ppd', 'org_ppd', 'kadiv', 'org_kadiv'],
-  '/documents/[id]/delete': ['administrator', 'admin', 'org_administrator', 'ppd', 'org_ppd'],
+  '/admin': ['admin', 'org_administrator'],
+  '/admin/users': ['admin', 'org_administrator', 'org_ppd'],
+  '/admin/groups': ['admin', 'org_administrator'],
+  '/admin/roles': ['admin', 'org_administrator'],
+  '/admin/permissions': ['admin', 'org_administrator'],
+  '/admin/settings': ['admin', 'org_administrator'],
+  '/admin/analytics': ['admin', 'org_administrator', 'org_ppd', 'org_manager', 'org_kadiv'],
+  '/admin/audit-logs': ['admin', 'org_administrator'],
+  '/admin/pdf-permissions': ['admin', 'org_administrator'],
+
+  '/documents/upload': ['admin', 'org_administrator', 'org_ppd', 'org_kadiv', 'org_manager'],
+  '/documents/[id]/edit': ['admin', 'org_administrator', 'org_ppd', 'org_kadiv'],
+  '/documents/[id]/delete': ['admin', 'org_administrator', 'org_ppd'],
 }
 
 /**

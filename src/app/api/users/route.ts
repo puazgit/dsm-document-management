@@ -61,10 +61,10 @@ export async function GET(request: NextRequest) {
       group: currentUser?.group?.name
     })
 
-    // Allow access for administrators, ppd, or any user with elevated permissions
+    // Allow access for admin, org_ppd, or any user with elevated permissions
     const hasAdminAccess = currentUser?.userRoles.some(ur => 
-      ['administrator', 'ppd', 'manager', 'kadiv'].includes(ur.role.name)
-    ) || currentUser?.group?.name === 'administrator'
+      ['admin', 'org_ppd', 'org_manager', 'org_kadiv'].includes(ur.role.name)
+    ) || currentUser?.group?.name === 'admin'
 
     console.log('🔑 Access check:', { hasAdminAccess, userRoles: currentUser?.userRoles.length })
 
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
       console.log('❌ Access denied for user:', currentUser?.email)
       return NextResponse.json({ 
         error: 'Insufficient permissions', 
-        details: 'User management requires administrator, ppd, manager, or kadiv role'
+        details: 'User management requires admin, org_ppd, org_manager, or org_kadiv role'
       }, { status: 403 })
     }
 

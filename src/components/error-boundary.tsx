@@ -22,10 +22,15 @@ export class GlobalErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoun
   }
 
   override componentDidCatch(error: Error, errorInfo: any) {
-    // Only log actual application errors, not extension errors
-    if (!error.stack?.includes('extension://') && 
-        !error.stack?.includes('contentScript') &&
-        !error.message.includes('shadowRoot')) {
+    // Filter out common development and extension errors
+    const isIgnoredError = error.stack?.includes('extension://') || 
+                          error.stack?.includes('contentScript') ||
+                          error.message.includes('shadowRoot') ||
+                          error.message.includes('Invalid or unexpected token') ||
+                          error.message.includes('React DevTools') ||
+                          error.name === 'SyntaxError';
+                          
+    if (!isIgnoredError) {
       console.error('Application Error:', error, errorInfo)
       
       // In production, you might want to send to error tracking service

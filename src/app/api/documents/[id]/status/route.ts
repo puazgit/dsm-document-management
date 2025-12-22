@@ -59,21 +59,44 @@ export async function POST(
     const userPermissions = session.user.permissions || [];
     const userRole = session.user.role || '';
     
+    // Get user's role level from database
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: {
+        userRoles: {
+          include: {
+            role: {
+              select: {
+                level: true,
+                name: true
+              }
+            }
+          }
+        }
+      }
+    });
+    
+    // Get highest role level
+    const userLevel = currentUser?.userRoles.reduce((maxLevel, userRole) => {
+      return Math.max(maxLevel, userRole.role.level);
+    }, 0) || 0;
+    
     // Add administrator special handling
-    const effectivePermissions = userRole === 'administrator' ? 
+    const effectivePermissions = userRole === 'administrator' || userRole === 'admin' ? 
       ['*', 'documents.create', 'documents.read', 'documents.update', 'documents.delete', 'documents.approve'] : 
       userPermissions;
 
     const currentStatus = document.status as DocumentStatus;
-    const isAllowed = isTransitionAllowed(currentStatus, newStatus, userRole, effectivePermissions);
+    const isAllowed = isTransitionAllowed(currentStatus, newStatus, userRole, effectivePermissions, userLevel);
 
     if (!isAllowed) {
-      const allowedTransitions = getAllowedTransitions(currentStatus, userRole, effectivePermissions);
+      const allowedTransitions = getAllowedTransitions(currentStatus, userRole, effectivePermissions, userLevel);
       return NextResponse.json({ 
-        error: `Status transition from ${currentStatus} to ${newStatus} is not allowed for your role`,
+        error: `Status transition from ${currentStatus} to ${newStatus} is not allowed for your role (level ${userLevel})`,
         allowedTransitions: allowedTransitions.map(t => ({
           to: t.to,
-          description: t.description
+          description: t.description,
+          minLevel: t.minLevel
         }))
       }, { status: 403 });
     }
@@ -287,13 +310,38 @@ export async function GET(
     const userPermissions = session.user.permissions || [];
     const userRole = session.user.role || '';
     
+    // Get user's role level from database
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: {
+        userRoles: {
+          include: {
+            role: {
+              select: {
+                level: true,
+                name: true,
+                displayName: true
+              }
+            }
+          }
+        }
+      }
+    });
+    
+    // Get highest role level
+    const userLevel = currentUser?.userRoles.reduce((maxLevel, userRole) => {
+      return Math.max(maxLevel, userRole.role.level);
+    }, 0) || 0;
+    
+    const highestRole = currentUser?.userRoles.find(ur => ur.role.level === userLevel)?.role;
+    
     // Add administrator special handling
     const effectivePermissions = (userRole === 'administrator' || userRole === 'admin') ? 
       ['*', 'documents.create', 'documents.read', 'documents.update', 'documents.delete', 'documents.approve'] : 
       userPermissions;
 
     const currentStatus = document.status as DocumentStatus;
-    const allowedTransitions = getAllowedTransitions(currentStatus, userRole, effectivePermissions);
+    const allowedTransitions = getAllowedTransitions(currentStatus, userRole, effectivePermissions, userLevel);
 
     return NextResponse.json(serializeForResponse({
       document: {
@@ -305,14 +353,16 @@ export async function GET(
       allowedTransitions: allowedTransitions.map(t => ({
         to: t.to,
         description: t.description,
-        requiredRoles: t.requiredRoles,
+        minLevel: t.minLevel,
         allowedBy: t.allowedBy
       })),
       userInfo: {
         role: userRole,
+        level: userLevel,
+        roleName: highestRole?.name,
+        roleDisplayName: highestRole?.displayName,
         permissions: userPermissions,
-        canModify: document.createdById === session.user.id || 
-                  ['administrator', 'ppd', 'manager', 'kadiv', 'gm', 'dirut'].includes(userRole)
+        canModify: document.createdById === session.user.id || userLevel >= 70 // Manager+ or document creator
       }
     }));
   } catch (error) {

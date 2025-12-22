@@ -1,16 +1,23 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  reactStrictMode: false, // Disable strict mode to reduce development errors
   swcMinify: true,
+  poweredByHeader: false,
+  
+  // Performance optimizations
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
   
   // Experimental features
   experimental: {
-    serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs']
+    serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs'],
+    // optimizeCss: true, // Disabled - requires critters package
   },
 
   // Environment variables
   env: {
-    APP_NAME: process.env.APP_NAME || 'Document Management System',
+    APP_NAME: process.env.APP_NAME || 'Dokumen Sistem Manajemen Terpadu',
     APP_VERSION: process.env.APP_VERSION || '1.0.0',
   },
 

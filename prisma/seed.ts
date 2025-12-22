@@ -150,6 +150,26 @@ async function main() {
         description: 'Departemen keuangan dengan akses ke laporan keuangan, anggaran, dan dokumen finansial',
         level: 7
       }
+    }),
+    prisma.group.upsert({
+      where: { name: 'operations' },
+      update: {},
+      create: {
+        name: 'operations',
+        displayName: 'Operations',
+        description: 'Departemen operasional dengan akses ke dokumen operasional dan prosedur kerja',
+        level: 5
+      }
+    }),
+    prisma.group.upsert({
+      where: { name: 'tik' },
+      update: {},
+      create: {
+        name: 'tik',
+        displayName: 'Bidang Teknologi Informasi & Komunikasi',
+        description: 'Bidang TIK dengan akses ke dokumen teknis, sistem, dan infrastruktur IT',
+        level: 6
+      }
     })
   ]);
 
@@ -347,8 +367,10 @@ async function main() {
   const ppdGroup = await prisma.group.findUnique({ where: { name: 'ppd' } });
   const kadivGroup = await prisma.group.findUnique({ where: { name: 'kadiv' } });
   const managerGroup = await prisma.group.findUnique({ where: { name: 'manager' } });
-  const membersGroup = await prisma.group.findUnique({ where: { name: 'members' } });
-  const viewerGroup = await prisma.group.findUnique({ where: { name: 'viewer' } });
+  const tikGroup = await prisma.group.findUnique({ where: { name: 'tik' } });
+  const operationsGroup = await prisma.group.findUnique({ where: { name: 'operations' } });
+  const staffGroup = await prisma.group.findUnique({ where: { name: 'staff' } });
+  const financeGroup = await prisma.group.findUnique({ where: { name: 'finance' } });
 
   const sampleUsers = await Promise.all([
     // PPD User
@@ -393,32 +415,60 @@ async function main() {
         divisiId: divisions[2].id // Finance Division
       }
     }),
-    // Regular Member
+    // Operations Staff
     prisma.user.upsert({
-      where: { email: 'member@dsm.com' },
+      where: { email: 'operations@dsm.com' },
       update: {},
       create: {
-        username: 'member_user',
-        email: 'member@dsm.com',
-        passwordHash: await bcrypt.hash('member123', 12),
-        firstName: 'Regular',
-        lastName: 'Member',
-        groupId: membersGroup?.id,
+        username: 'operations_user',
+        email: 'operations@dsm.com',
+        passwordHash: await bcrypt.hash('operations123', 12),
+        firstName: 'Operations',
+        lastName: 'Staff',
+        groupId: operationsGroup?.id,
         divisiId: divisions[3].id // Operations Division
       }
     }),
-    // Viewer User
+    // TIK Staff
     prisma.user.upsert({
-      where: { email: 'viewer@dsm.com' },
+      where: { email: 'tik@dsm.com' },
       update: {},
       create: {
-        username: 'viewer_user',
-        email: 'viewer@dsm.com',
-        passwordHash: await bcrypt.hash('viewer123', 12),
+        username: 'tik_user',
+        email: 'tik@dsm.com',
+        passwordHash: await bcrypt.hash('tik123', 12),
+        firstName: 'TIK',
+        lastName: 'Staff',
+        groupId: tikGroup?.id,
+        divisiId: divisions[0].id // IT Division
+      }
+    }),
+    // Editor User
+    prisma.user.upsert({
+      where: { email: 'editor@dsm.com' },
+      update: {},
+      create: {
+        username: 'editor_user',
+        email: 'editor@dsm.com',
+        passwordHash: await bcrypt.hash('editor123', 12),
         firstName: 'Document',
-        lastName: 'Viewer',
-        groupId: viewerGroup?.id,
-        divisiId: divisions[0].id // General Division
+        lastName: 'Editor',
+        groupId: staffGroup?.id,
+        divisiId: divisions[3].id // Operations Division
+      }
+    }),
+    // Finance User
+    prisma.user.upsert({
+      where: { email: 'finance@dsm.com' },
+      update: {},
+      create: {
+        username: 'finance_user',
+        email: 'finance@dsm.com',
+        passwordHash: await bcrypt.hash('finance123', 12),
+        firstName: 'Finance',
+        lastName: 'Department',
+        groupId: financeGroup?.id,
+        divisiId: divisions[2].id // Finance Division
       }
     })
   ]);
@@ -438,7 +488,7 @@ async function main() {
         url: '/dashboard',
         icon: '🏠',
         sortOrder: 1,
-        accessGroups: ['administrator', 'ppd', 'kadiv', 'gm', 'manager', 'dirut', 'dewas', 'komite_audit', 'members', 'viewer']
+        accessGroups: ['administrator', 'ppd', 'kadiv', 'gm', 'manager', 'dirut', 'dewas', 'komite_audit', 'staff', 'operations', 'tik', 'finance', 'hrd']
       }
     }),
     prisma.menu.upsert({
@@ -450,7 +500,7 @@ async function main() {
         url: '/documents',
         icon: '📄',
         sortOrder: 2,
-        accessGroups: ['administrator', 'ppd', 'kadiv', 'gm', 'manager', 'dirut', 'dewas', 'komite_audit', 'members', 'viewer']
+        accessGroups: ['administrator', 'ppd', 'kadiv', 'gm', 'manager', 'dirut', 'dewas', 'komite_audit', 'staff', 'operations', 'tik', 'finance', 'hrd']
       }
     }),
     prisma.menu.upsert({
@@ -570,8 +620,10 @@ async function main() {
   console.log('PPD: ppd@dsm.com / ppd123');
   console.log('Kadiv: kadiv@dsm.com / kadiv123');
   console.log('Manager: manager@dsm.com / manager123');
-  console.log('Member: member@dsm.com / member123');
-  console.log('Viewer: viewer@dsm.com / viewer123');
+  console.log('Operations: operations@dsm.com / operations123');
+  console.log('TIK: tik@dsm.com / tik123');
+  console.log('Editor: editor@dsm.com / editor123');
+  console.log('Finance: finance@dsm.com / finance123');
 
   // Seed roles and permissions
   await seedRolesAndPermissions();

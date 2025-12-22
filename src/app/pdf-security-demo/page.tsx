@@ -13,10 +13,7 @@ import AdvancedPDFViewer from '@/components/documents/advanced-pdf-viewer';
 import SimplePDFViewer from '@/components/documents/simple-pdf-viewer';
 import SecurePDFViewerV2 from '@/components/documents/secure-pdf-viewer-v2';
 import { SecurePDFViewer } from '@/components/documents/pdf-viewer';
-import { FallbackPDFViewer } from '@/components/documents/fallback-pdf-viewer';
 import { PDFDebugViewer } from '@/components/documents/pdf-debug-viewer';
-import { UltraSecurePDFViewer } from '@/components/documents/ultra-secure-pdf-viewer';
-import { FastPDFViewer } from '@/components/documents/fast-pdf-viewer';
 import useSecurityMeasures from '@/hooks/use-security-measures';
 
 // Sample PDF URLs (using local files for better performance)
@@ -246,16 +243,14 @@ export default function PDFSecurityDemoPage() {
 
               <TabsContent value="viewer" className="space-y-4">
                 {viewerType === 'fast' ? (
-                  <FastPDFViewer
+                  <SecurePDFViewer
                     fileUrl={selectedDocument?.url || ''}
                     fileName={selectedDocument?.name || 'Document'}
                     userRole={selectedRole}
-                    onSecurityViolation={(type, details) => {
-                      setSecurityViolations(prev => [...prev, { type, details, timestamp: new Date() }]);
-                    }}
+                    canDownload={true}
                   />
                 ) : viewerType === 'ultra' ? (
-                  <UltraSecurePDFViewer
+                  <SecurePDFViewerV2
                     fileUrl={selectedDocument?.url || ''}
                     fileName={selectedDocument?.name || 'Document'}
                     userRole={selectedRole}
@@ -299,7 +294,7 @@ export default function PDFSecurityDemoPage() {
                     }}
                   />
                 ) : viewerType === 'fallback' ? (
-                  <FallbackPDFViewer
+                  <SimplePDFViewer
                     fileUrl={selectedDocument?.url || ''}
                     fileName={selectedDocument?.name || 'Document'}
                     userRole={selectedRole}

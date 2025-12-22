@@ -37,6 +37,16 @@ export function DocumentViewer({ document, open, onClose, onRefresh }: DocumentV
       if (response.ok) {
         const data = await response.json();
         setDocumentDetails(data);
+        
+        // Log VIEW activity
+        try {
+          await fetch(`/api/documents/${document.id}/view`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+        } catch (error) {
+          console.error('Failed to log view activity:', error);
+        }
       } else {
         toast({
           title: 'Error',

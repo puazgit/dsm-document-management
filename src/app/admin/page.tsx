@@ -74,19 +74,7 @@ function AdminDashboard() {
           </Card>
         </Link>
 
-        <Link href="/admin/pdf-settings">
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">PDF Settings</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">
-                Configure PDF permissions by role
-              </p>
-            </CardContent>
-          </Card>
-        </Link>
+
 
         <Link href="/admin/settings">
           <Card className="hover:shadow-lg transition-shadow cursor-pointer">

@@ -43,7 +43,7 @@ interface DocumentStatusWorkflowProps {
 interface StatusTransition {
   to: DocumentStatus
   description: string
-  requiredRoles: string[]
+  minLevel: number
   allowedBy: string[]
 }
 
@@ -112,29 +112,48 @@ export function DocumentStatusWorkflow({
       
       // Upload file first if selected
       if (selectedFile) {
+        console.log('📤 Uploading file:', selectedFile.name, selectedFile.size);
+        setUploadProgress(10)
+        
         const formData = new FormData()
         formData.append('file', selectedFile)
-        formData.append('title', document.title)
-        formData.append('description', `Updated file during status change to ${selectedTransition.to}`)
         
         const uploadResponse = await fetch(`/api/documents/${document.id}/upload`, {
           method: 'POST',
-          body: formData
+          body: formData,
+          credentials: 'include'
         })
         
+        console.log('📥 Upload response status:', uploadResponse.status);
+        
         if (!uploadResponse.ok) {
-          const error = await uploadResponse.json()
+          const errorText = await uploadResponse.text()
+          console.error('Upload error response:', errorText)
+          let error
+          try {
+            error = JSON.parse(errorText)
+          } catch (e) {
+            error = { error: errorText }
+          }
           throw new Error(error.error || 'Failed to upload file')
         }
         
         fileUploadResult = await uploadResponse.json()
-        setUploadProgress(50)
+        console.log('✅ File uploaded successfully:', fileUploadResult)
+        setUploadProgress(60)
+        
+        // Small delay to ensure file is fully processed
+        await new Promise(resolve => setTimeout(resolve, 500))
       }
       
       // Then change status
+      console.log('🔄 Changing status to:', selectedTransition.to)
+      setUploadProgress(selectedFile ? 70 : 30)
+      
       const response = await fetch(`/api/documents/${document.id}/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           newStatus: selectedTransition.to,
           comment: comment.trim() || undefined,
@@ -142,19 +161,33 @@ export function DocumentStatusWorkflow({
         })
       })
 
+      console.log('📥 Status change response:', response.status)
+
       if (!response.ok) {
-        const error = await response.json()
+        const errorText = await response.text()
+        console.error('Status change error:', errorText)
+        let error
+        try {
+          error = JSON.parse(errorText)
+        } catch (e) {
+          error = { error: errorText }
+        }
         throw new Error(error.error || 'Failed to change status')
       }
 
       const result = await response.json()
+      console.log('✅ Status changed successfully:', result)
       setUploadProgress(100)
       
       const successMessage = selectedFile 
-        ? `Document updated and status changed to ${selectedTransition.to}`
-        : `Document status changed to ${selectedTransition.to}`
+        ? `File uploaded and status changed to ${capitalizeStatus(selectedTransition.to)}`
+        : `Status changed to ${capitalizeStatus(selectedTransition.to)}`
       
       toast.success(successMessage)
+      
+      // Wait a moment before closing to show 100% progress
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
       setShowConfirmDialog(false)
       setSelectedTransition(null)
       setComment('')
@@ -165,8 +198,8 @@ export function DocumentStatusWorkflow({
         onStatusChange()
       }
     } catch (error: any) {
-      console.error('Error changing status:', error)
-      toast.error(error.message || 'Failed to change document status')
+      console.error('❌ Error in status change workflow:', error)
+      toast.error(error.message || 'Failed to update document')
       setUploadProgress(0)
     } finally {
       setIsLoading(false)
@@ -249,14 +282,14 @@ export function DocumentStatusWorkflow({
               <Label htmlFor="file-upload" className="text-sm font-medium">
                 Update Document File (Optional)
               </Label>
-              <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4">
+              <div className="p-4 border-2 border-dashed rounded-lg border-muted-foreground/25">
                 <div className="flex flex-col items-center justify-center space-y-2">
-                  <Upload className="h-8 w-8 text-muted-foreground" />
+                  <Upload className="w-8 h-8 text-muted-foreground" />
                   <div className="text-center">
-                    <Label htmlFor="file-upload" className="cursor-pointer text-sm text-primary hover:text-primary/80">
+                    <Label htmlFor="file-upload" className="text-sm cursor-pointer text-primary hover:text-primary/80">
                       Click to upload new document file
                     </Label>
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       PDF, DOC, DOCX files up to 10MB
                     </p>
                   </div>
@@ -269,8 +302,8 @@ export function DocumentStatusWorkflow({
                   />
                 </div>
                 {selectedFile && (
-                  <div className="mt-3 p-2 bg-muted rounded flex items-center space-x-2">
-                    <File className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex items-center p-2 mt-3 space-x-2 rounded bg-muted">
+                    <File className="w-4 h-4 text-muted-foreground" />
                     <div className="flex-1">
                       <p className="text-sm font-medium">{selectedFile.name}</p>
                       <p className="text-xs text-muted-foreground">
@@ -289,13 +322,13 @@ export function DocumentStatusWorkflow({
                 )}
                 {uploadProgress > 0 && uploadProgress < 100 && (
                   <div className="mt-2">
-                    <div className="bg-muted rounded-full h-2">
+                    <div className="h-2 rounded-full bg-muted">
                       <div 
-                        className="bg-primary h-2 rounded-full transition-all duration-300"
+                        className="h-2 transition-all duration-300 rounded-full bg-primary"
                         style={{ width: `${uploadProgress}%` }}
                       />
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Uploading... {uploadProgress}%</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Uploading... {uploadProgress}%</p>
                   </div>
                 )}
               </div>
