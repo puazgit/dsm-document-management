@@ -19,7 +19,7 @@ const protectedRoutes: Record<string, string[]> = {
   '/admin/analytics': ['admin', 'org_administrator', 'org_ppd', 'org_manager', 'org_kadiv'],
   '/admin/audit-logs': ['admin', 'org_administrator'],
   '/admin/pdf-permissions': ['admin', 'org_administrator'],
-  '/admin/pdf-settings': ['admin', 'org_administrator'],
+
   '/documents/upload': ['admin', 'org_administrator', 'org_ppd', 'org_kadiv', 'org_manager'],
   '/documents/[id]/edit': ['admin', 'org_administrator', 'org_ppd', 'org_kadiv'],
   '/documents/[id]/delete': ['admin', 'org_administrator', 'org_ppd'],

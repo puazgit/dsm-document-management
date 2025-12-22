@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { DashboardLayout } from '@/components/ui/dashboard-layout'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -72,7 +72,7 @@ export default function RolesManagementPage() {
   })
   const { toast } = useToast()
 
-  const fetchRoles = async () => {
+  const fetchRoles = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch('/api/roles?includePermissions=true')
@@ -91,9 +91,9 @@ export default function RolesManagementPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const fetchPermissions = async () => {
+  const fetchPermissions = useCallback(async () => {
     try {
       const response = await fetch('/api/permissions')
       if (!response.ok) throw new Error('Failed to fetch permissions')
@@ -109,12 +109,12 @@ export default function RolesManagementPage() {
         variant: 'destructive',
       })
     }
-  }
+  }, [])
 
   useEffect(() => {
     fetchRoles()
     fetchPermissions()
-  }, [])
+  }, [fetchRoles, fetchPermissions])
 
   const filteredRoles = roles.filter(role =>
     role.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -304,6 +304,9 @@ export default function RolesManagementPage() {
             <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Role</DialogTitle>
+                <DialogDescription>
+                  Define a new role with permissions and access level
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
@@ -512,6 +515,9 @@ export default function RolesManagementPage() {
           <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Role</DialogTitle>
+              <DialogDescription>
+                Modify role details and update assigned permissions
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>

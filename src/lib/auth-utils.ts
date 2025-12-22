@@ -209,7 +209,7 @@ export const LEGACY_ROLE_MAPPINGS = {
   ADMIN: ['admin'],
   ADMINISTRATOR: ['admin'],
   
-  // Manager patterns - map to modern org_ prefixed roles
+  // Management patterns - map to modern org_ prefixed roles
   manager: ['org_manager', 'org_kadiv', 'org_gm'],
   MANAGER: ['org_manager', 'org_kadiv', 'org_gm'],
   kadiv: ['org_kadiv'],
@@ -217,7 +217,7 @@ export const LEGACY_ROLE_MAPPINGS = {
   gm: ['org_gm'],
   GM: ['org_gm'],
   
-  // PPD patterns
+  // Document responsibility patterns
   ppd: ['org_ppd'],
   PPD: ['org_ppd'],
   

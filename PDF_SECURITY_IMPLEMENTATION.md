@@ -7,8 +7,8 @@ Implementasi lengkap client-side PDF viewer dengan pembatasan download dan fitur
 ### 1. **Role-Based Access Control (RBAC)**
 ```tsx
 const rolePermissions = {
-  'administrator': { canDownload: true, canPrint: true, canCopy: true, maxZoom: 3.0 },
-  'manager': { canDownload: true, canPrint: true, canCopy: false, maxZoom: 2.5 },
+  'admin': { canDownload: true, canPrint: true, canCopy: true, maxZoom: 3.0 },
+  'org_manager': { canDownload: true, canPrint: true, canCopy: false, maxZoom: 2.5 },
   'editor': { canDownload: true, canPrint: false, canCopy: false, maxZoom: 2.0 },
   'reviewer': { canDownload: false, canPrint: false, canCopy: false, maxZoom: 1.8 },
   'viewer': { canDownload: false, canPrint: false, canCopy: false, maxZoom: 1.5 },
@@ -115,7 +115,7 @@ function SecureComponent() {
 interface AdvancedPDFViewerProps {
   fileUrl: string;                    // URL PDF file
   fileName: string;                   // Nama file untuk display
-  userRole?: string;                  // Role user (administrator, manager, dll)
+  userRole?: string;                  // Role user (admin, org_manager, dll)
   canDownload?: boolean;              // Override download permission
   canPrint?: boolean;                 // Override print permission  
   canCopy?: boolean;                  // Override copy permission

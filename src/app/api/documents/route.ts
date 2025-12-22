@@ -5,6 +5,7 @@ import { prisma } from '../../../lib/prisma';
 import { z } from 'zod';
 import { serializeForResponse } from '../../../lib/bigint-utils';
 import { trackDocumentCreated } from '../../../lib/document-history';
+import { buildDocumentAccessWhere, getUserWithGroup } from '../../../lib/document-access';
 
 // Validation schemas
 const DocumentCreateSchema = z.object({
@@ -75,144 +76,24 @@ export async function GET(request: NextRequest) {
     }
 
     // Access control - users can only see documents they have access to
-    // Always apply access control unless user is administrator
-    const userRole = session.user.role || '';
-    const isAdmin = ['admin', 'org_administrator'].includes(userRole);
+    // Get user with group information
+    const currentUser = await getUserWithGroup(session.user.id);
     
-    if (!isAdmin) {
-      const role = session.user.role || '';
-      let accessConditions = [];
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
 
-      // Define access rules based on role hierarchy
-      switch (role) {
-        case 'editor':
-          // Editors can see all documents except admin-only
-          accessConditions = [
-            { createdById: session.user.id },
-            { isPublic: true },
-            { status: { in: ['DRAFT', 'PENDING_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED'] } },
-            { accessGroups: { has: session.user.groupId || '' } },
-            { accessGroups: { has: session.user.role || '' } }
-          ];
-          break;
-
-        case 'org_dirut':
-        case 'org_administrator':
-          // High-level executives can see most documents
-          accessConditions = [
-            { createdById: session.user.id },
-            { isPublic: true },
-            { status: { in: ['PENDING_APPROVAL', 'APPROVED', 'PUBLISHED'] } },
-            { accessGroups: { has: session.user.groupId || '' } },
-            { accessGroups: { has: session.user.role || '' } }
-          ];
-          break;
-
-        case 'org_dewas':
-        case 'org_ppd':
-          // PPD and oversight roles can see approved and published documents
-          accessConditions = [
-            { createdById: session.user.id },
-            { isPublic: true },
-            { status: { in: ['APPROVED', 'PUBLISHED'] } },
-            { accessGroups: { has: session.user.groupId || '' } },
-            { accessGroups: { has: session.user.role || '' } }
-          ];
-          break;
-
-        case 'org_komite_audit':
-        case 'org_kadiv':
-        case 'org_gm':
-        case 'org_finance':
-          // Management levels can see approved and published documents
-          accessConditions = [
-            { createdById: session.user.id },
-            { isPublic: true },
-            { status: { in: ['APPROVED', 'PUBLISHED'] } },
-            { accessGroups: { has: session.user.groupId || '' } },
-            { accessGroups: { has: session.user.role || '' } }
-          ];
-          break;
-
-        case 'org_hrd':
-        case 'org_manager':
-          // Managers can see their own drafts + published documents
-          accessConditions = [
-            { createdById: session.user.id },
-            { isPublic: true },
-            { status: 'PUBLISHED' },
-            { 
-              AND: [
-                { createdById: session.user.id },
-                { status: { in: ['DRAFT', 'PENDING_REVIEW'] } }
-              ]
-            },
-            { accessGroups: { has: session.user.groupId || '' } },
-            { accessGroups: { has: session.user.role || '' } }
-          ];
-          break;
-
-        case 'org_supervisor':
-          // Supervisors only see published documents (as already implemented)
-          where.status = 'PUBLISHED';
-          return; // Early return to skip the general OR logic
-          
-        case 'org_sekretaris':
-          // Secretaries can see published and documents accessible to them
-          accessConditions = [
-            { createdById: session.user.id },
-            { isPublic: true },
-            { status: 'PUBLISHED' },
-            { accessGroups: { has: session.user.groupId || '' } },
-            { accessGroups: { has: session.user.role || '' } }
-          ];
-          break;
-
-        case 'org_staff':
-          // Staff can only see published documents and their own
-          accessConditions = [
-            { createdById: session.user.id },
-            { status: 'PUBLISHED' },
-            { isPublic: true }
-          ];
-          break;
-
-        case 'org_guest':
-        case 'viewer':
-          // Guests and viewers only see published public documents
-          accessConditions = [
-            { 
-              AND: [
-                { status: 'PUBLISHED' },
-                { isPublic: true }
-              ]
-            }
-          ];
-          break;
-
-        default:
-          // Default fallback for unknown roles
-          accessConditions = [
-            { createdById: session.user.id },
-            { 
-              AND: [
-                { status: 'PUBLISHED' },
-                { isPublic: true }
-              ]
-            }
-          ];
-          break;
-      }
-
-      // Apply access conditions
-      if (where.OR) {
-        where.AND = [
-          { OR: where.OR },
-          { OR: accessConditions }
-        ];
-        delete where.OR;
+    // Build access control where clause with user permissions
+    const userPermissions = session.user.permissions || [];
+    const accessWhere = buildDocumentAccessWhere(currentUser, userPermissions);
+    
+    // Merge access control with other filters
+    if (Object.keys(accessWhere).length > 0) {
+      if (where.OR || where.AND) {
+        where.AND = where.AND || [];
+        where.AND.push(accessWhere);
       } else {
-        where.OR = accessConditions;
+        Object.assign(where, accessWhere);
       }
     }
 

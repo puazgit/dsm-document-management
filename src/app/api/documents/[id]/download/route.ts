@@ -37,14 +37,31 @@ export async function GET(
     }
 
     // Check access permissions
+    // Get user's group name from database for proper access check
+    const userWithGroup = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { group: true }
+    });
+    
+    const userGroupName = userWithGroup?.group?.name;
+    
     const hasAccess = 
       document.isPublic ||
       document.createdById === session.user.id ||
       document.accessGroups.includes(session.user.groupId || '') ||
+      document.accessGroups.includes(userGroupName || '') ||
       document.accessGroups.includes(session.user.role || '') ||
       ['administrator', 'ADMIN', 'admin'].includes(session.user.role);
 
     if (!hasAccess) {
+      console.log('❌ Access denied. Checked:', {
+        isPublic: document.isPublic,
+        isOwner: document.createdById === session.user.id,
+        groupIdMatch: document.accessGroups.includes(session.user.groupId || ''),
+        groupNameMatch: document.accessGroups.includes(userGroupName || ''),
+        roleMatch: document.accessGroups.includes(session.user.role || ''),
+        isAdmin: ['administrator', 'ADMIN', 'admin'].includes(session.user.role)
+      });
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 

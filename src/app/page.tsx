@@ -4,10 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 
 export default function HomePage() {
   return (
-    <div className="container mx-auto p-8">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold mb-4">DSM - Document Management System</h1>
-        <p className="text-xl text-muted-foreground mb-8">
+    <div className="container p-8 mx-auto">
+      <div className="mb-12 text-center">
+        <h1 className="mb-4 text-4xl font-bold">DSMT - Dokumen Sistem Manajemen Terpadu</h1>
+        <p className="mb-8 text-xl text-muted-foreground">
           Enterprise Document Management with Role-Based Access Control
         </p>
         
@@ -21,7 +21,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+      <div className="grid grid-cols-1 gap-6 mb-12 md:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle>Document Management</CardTitle>
@@ -75,14 +75,14 @@ export default function HomePage() {
       </div>
 
       <div className="text-center">
-        <h2 className="text-2xl font-bold mb-4">Development Status</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
-          <Card className="bg-green-50 border-green-200">
+        <h2 className="mb-4 text-2xl font-bold">Development Status</h2>
+        <div className="grid max-w-4xl grid-cols-1 gap-4 mx-auto md:grid-cols-2">
+          <Card className="border-green-200 bg-green-50">
             <CardHeader>
               <CardTitle className="text-green-800">✅ Completed</CardTitle>
             </CardHeader>
             <CardContent>
-              <ul className="text-sm text-green-700 space-y-1">
+              <ul className="space-y-1 text-sm text-green-700">
                 <li>• Database schema & seeding</li>
                 <li>• Docker infrastructure</li>
                 <li>• Core utilities (Auth, Validation)</li>
@@ -92,12 +92,12 @@ export default function HomePage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-blue-50 border-blue-200">
+          <Card className="border-blue-200 bg-blue-50">
             <CardHeader>
               <CardTitle className="text-blue-800">🚧 Next Steps</CardTitle>
             </CardHeader>
             <CardContent>
-              <ul className="text-sm text-blue-700 space-y-1">
+              <ul className="space-y-1 text-sm text-blue-700">
                 <li>• Authentication system</li>
                 <li>• API routes development</li>
                 <li>• Dashboard & navigation</li>

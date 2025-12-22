@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get current user's accessible documents where clause
-    const userAccessWhere = session.user.role === 'ADMIN' ? {} : {
+    const userAccessWhere: any = session.user.role === 'ADMIN' ? {} : {
       OR: [
         { createdById: session.user.id }, // Documents they created
         { isPublic: true }, // Public documents
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       prisma.document.count({
         where: {
           ...userAccessWhere,
-          status: { not: 'ARCHIVED' },
+          status: { not: 'ARCHIVED' as const },
         },
       }),
 
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       prisma.document.count({
         where: {
           ...userAccessWhere,
-          status: 'DRAFT',
+          status: 'DRAFT' as const,
         },
       }),
 
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
       prisma.document.count({
         where: {
           ...userAccessWhere,
-          status: { in: ['APPROVED', 'PUBLISHED'] },
+          status: { in: ['APPROVED' as const, 'PUBLISHED' as const] },
         },
       }),
 
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
       prisma.document.count({
         where: {
           ...userAccessWhere,
-          status: 'ARCHIVED',
+          status: 'ARCHIVED' as const,
         },
       }),
 
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
       prisma.document.count({
         where: {
           createdById: session.user.id,
-          status: { not: 'ARCHIVED' },
+          status: { not: 'ARCHIVED' as const },
         },
       }),
 
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
       prisma.document.findMany({
         where: {
           ...userAccessWhere,
-          status: { not: 'ARCHIVED' },
+          status: { not: 'ARCHIVED' as const },
         },
         take: 10,
         orderBy: { createdAt: 'desc' },

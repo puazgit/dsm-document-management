@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { withAuth } from '@/components/auth/with-auth'
 import { DashboardLayout } from '@/components/ui/dashboard-layout'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -107,7 +107,7 @@ function PermissionsManagementPage() {
     export: 'bg-gray-100 text-gray-800'
   }
 
-  const fetchPermissions = async () => {
+  const fetchPermissions = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch('/api/permissions')
@@ -124,11 +124,11 @@ function PermissionsManagementPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     fetchPermissions()
-  }, [])
+  }, [fetchPermissions])
 
   const filteredPermissions = permissions.filter(permission => {
     const matchesSearch = 
@@ -318,6 +318,9 @@ function PermissionsManagementPage() {
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Create New Permission</DialogTitle>
+                <DialogDescription>
+                  Define a new permission with module, action, and resource
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="grid grid-cols-3 gap-2">
@@ -610,6 +613,9 @@ function PermissionsManagementPage() {
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Edit Permission</DialogTitle>
+              <DialogDescription>
+                Modify permission details and settings
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               {selectedPermission && isSystemPermission(selectedPermission) && (

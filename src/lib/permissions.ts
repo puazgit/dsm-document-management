@@ -44,7 +44,9 @@ export async function getUserWithPermissions(request?: NextRequest): Promise<Use
 
     // Flatten permissions from all user roles
     const permissions = user.userRoles.flatMap(userRole => 
-      userRole.role.rolePermissions.map(rp => rp.permission.action + '.' + rp.permission.module)
+      userRole.role.rolePermissions
+        .filter(rp => rp.isGranted) // Only include granted permissions
+        .map(rp => rp.permission.name)
     )
 
     // Remove duplicates

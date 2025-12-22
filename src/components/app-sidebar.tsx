@@ -44,6 +44,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
 import { getFilteredNavigation } from "../lib/navigation"
 import { useState, useEffect } from "react"
+import { useRoleVisibility, RoleGuard } from "../hooks/use-role-visibility"
 
 const SIDEBAR_OPEN_ITEMS_KEY = 'sidebar-open-items'
 
@@ -51,6 +52,7 @@ export function AppSidebar() {
   const { data: session } = useSession()
   const pathname = usePathname()
   const [openItems, setOpenItems] = useState<string[]>([])
+  const roleVisibility = useRoleVisibility()
 
   // Load open state from localStorage on mount
   useEffect(() => {
@@ -105,7 +107,7 @@ export function AppSidebar() {
   if (!session?.user) return null
 
   const userRole = session.user.role || 'user'
-  const userPermissions: string[] = [] // TODO: Get from session when permissions are added
+  const userPermissions = session.user.permissions || []
   
   const navigationItems = getFilteredNavigation(userRole, userPermissions)
 
@@ -139,12 +141,12 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link href="/dashboard">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                <div className="flex items-center justify-center rounded-lg aspect-square size-8 bg-sidebar-primary text-sidebar-primary-foreground">
                   <FileText className="size-4" />
                 </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">DSM</span>
-                  <span className="truncate text-xs">Document Management</span>
+                <div className="grid flex-1 text-sm leading-tight text-left">
+                  <span className="font-semibold truncate">DSMT</span>
+                  <span className="text-xs truncate">Dokumen Sistem Manajemen<p></p>Terpadu</span>
                 </div>
               </Link>
             </SidebarMenuButton>
@@ -222,15 +224,18 @@ export function AppSidebar() {
                   size="lg"
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
-                  <Avatar className="h-8 w-8 rounded-lg">
+                  <Avatar className="w-8 h-8 rounded-lg">
                     <AvatarImage src="" alt={session.user.name || "User"} />
                     <AvatarFallback className="rounded-lg">
                       {session.user.name?.[0] || "U"}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-semibold">{session.user.name}</span>
-                    <span className="truncate text-xs">{session.user.email}</span>
+                  <div className="grid flex-1 text-sm leading-tight text-left">
+                    <span className="font-semibold truncate">{session.user.name}</span>
+                    <span className="text-xs truncate">{session.user.email}</span>
+                    <span className="truncate text-[10px] text-muted-foreground font-medium">
+                      {roleVisibility.isAdmin ? '🔧 Admin' : roleVisibility.isManager ? '📋 Manager' : roleVisibility.isGuest ? '👁️ Guest' : '👤 User'}
+                    </span>
                   </div>
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
@@ -242,13 +247,29 @@ export function AppSidebar() {
               >
                 <DropdownMenuItem asChild>
                   <Link href="/profile">
-                    <UserCircle className="h-4 w-4" />
+                    <UserCircle className="w-4 h-4" />
                     Profile
                   </Link>
                 </DropdownMenuItem>
+                <RoleGuard requiredRoles={['admin', 'org_administrator']}>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/settings">
+                      <Settings className="w-4 h-4" />
+                      Admin Settings
+                    </Link>
+                  </DropdownMenuItem>
+                </RoleGuard>
+                <RoleGuard requiredRoles={['admin', 'org_administrator', 'org_ppd']}>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/users">
+                      <Users className="w-4 h-4" />
+                      Manage Users
+                    </Link>
+                  </DropdownMenuItem>
+                </RoleGuard>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => signOut({ callbackUrl: window.location.origin + "/auth/login" })}>
-                  <LogOut className="h-4 w-4" />
+                  <LogOut className="w-4 h-4" />
                   Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>

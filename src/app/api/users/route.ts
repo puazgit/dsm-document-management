@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
       group: currentUser?.group?.name
     })
 
-    // Allow access for administrators, ppd, or any user with elevated permissions
+    // Allow access for admin, org_ppd, or any user with elevated permissions
     const hasAdminAccess = currentUser?.userRoles.some(ur => 
       ['admin', 'org_ppd', 'org_manager', 'org_kadiv'].includes(ur.role.name)
     ) || currentUser?.group?.name === 'admin'

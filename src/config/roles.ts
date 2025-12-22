@@ -150,8 +150,8 @@ export function hasRoleAccess(userRole: string, requiredRoles: string[]): boolea
   const userRoleConfig = ROLES[userRole as RoleName]
   if (!userRoleConfig) return false
 
-  // Administrator always has access
-  if (userRole === 'administrator') return true
+  // Admin always has access
+  if (userRole === 'admin') return true
 
   // Check if user's role level meets any of the required role levels
   return requiredRoles.some(requiredRole => {
@@ -169,7 +169,7 @@ export function hasPermission(userRole: string, permission: string): boolean {
   const roleConfig = ROLES[userRole as RoleName]
   if (!roleConfig) return false
 
-  // Administrator has all permissions
+  // Admin has all permissions
   if (roleConfig.permissions.includes('*')) return true
 
   // Check exact permission match

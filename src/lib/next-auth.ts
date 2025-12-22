@@ -128,9 +128,9 @@ export const authOptions: NextAuthOptions = {
         try {
           console.log('📊 JWT Callback - Loading permissions for:', user.email);
           
-          // Special handling for administrator role - grant all permissions
-          if ((user as any).role === 'administrator') {
-            console.log('🔥 JWT Callback - Administrator detected, granting all permissions');
+          // Special handling for admin role - grant all permissions
+          if ((user as any).role === 'admin') {
+            console.log('🔥 JWT Callback - Admin detected, granting all permissions');
             token.permissions = [
               'users.create', 'users.read', 'users.update', 'users.delete',
               'documents.create', 'documents.read', 'documents.update', 'documents.delete', 'documents.approve',

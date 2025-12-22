@@ -36,15 +36,32 @@ export async function GET(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
+    // Get user's group name from database for proper access check
+    const userWithGroup = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { group: true }
+    });
+    
+    const userGroupName = userWithGroup?.group?.name;
+
     // Check access permissions
     const hasAccess = 
       document.isPublic ||
       document.createdById === session.user.id ||
       document.accessGroups.includes(session.user.groupId || '') ||
+      document.accessGroups.includes(userGroupName || '') ||
       document.accessGroups.includes(session.user.role || '') ||
       ['admin', 'org_administrator'].includes(session.user.role);
 
     if (!hasAccess) {
+      console.log('❌ View access denied. Checked:', {
+        isPublic: document.isPublic,
+        isOwner: document.createdById === session.user.id,
+        groupIdMatch: document.accessGroups.includes(session.user.groupId || ''),
+        groupNameMatch: document.accessGroups.includes(userGroupName || ''),
+        roleMatch: document.accessGroups.includes(session.user.role || ''),
+        isAdmin: ['admin', 'org_administrator'].includes(session.user.role)
+      });
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
@@ -114,6 +131,87 @@ export async function GET(
 
   } catch (error) {
     console.error('Error viewing document:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+// POST /api/documents/[id]/view - Log document view activity
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = params;
+
+    // Get document
+    const document = await prisma.document.findUnique({
+      where: { id }
+    });
+
+    if (!document) {
+      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+    }
+
+    // Get user's group name from database for proper access check
+    const userWithGroup = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { group: true }
+    });
+    
+    const userGroupName = userWithGroup?.group?.name;
+
+    // Check access permissions
+    const hasAccess = 
+      document.isPublic ||
+      document.createdById === session.user.id ||
+      document.accessGroups.includes(session.user.groupId || '') ||
+      document.accessGroups.includes(userGroupName || '') ||
+      document.accessGroups.includes(session.user.role || '') ||
+      ['admin', 'org_administrator'].includes(session.user.role);
+
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
+    // Use transaction to ensure both activity log and counter are updated atomically
+    const [_, activity] = await prisma.$transaction([
+      // 1. Increment view count
+      prisma.document.update({
+        where: { id },
+        data: { viewCount: { increment: 1 } },
+      }),
+      
+      // 2. Log view activity
+      prisma.documentActivity.create({
+        data: {
+          documentId: id,
+          userId: session.user.id,
+          action: 'VIEW',
+          description: `Document "${document.title}" was viewed`,
+          metadata: {
+            source: 'document_viewer',
+            timestamp: new Date().toISOString()
+          }
+        },
+      })
+    ]);
+
+    return NextResponse.json({ 
+      success: true,
+      activity: {
+        id: activity.id,
+        action: activity.action,
+        createdAt: activity.createdAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Error logging view activity:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

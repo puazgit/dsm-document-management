@@ -9,6 +9,7 @@ import {
   Activity,
   Archive
 } from 'lucide-react'
+import { hasRoleAccess } from '@/config/roles'
 
 export interface NavItem {
   title: string
@@ -84,12 +85,6 @@ export const navigationItems: NavItem[] = [
         requiredRoles: ['administrator', 'admin', 'org_administrator']
       },
       {
-        title: 'PDF Settings',
-        href: '/admin/pdf-settings',
-        icon: FileText,
-        requiredRoles: ['administrator', 'admin', 'org_administrator']
-      },
-      {
         title: 'System Settings',
         href: '/admin/settings',
         icon: Settings,
@@ -115,26 +110,46 @@ export const navigationItems: NavItem[] = [
 export function getFilteredNavigation(userRole: string, userPermissions: string[] = []): NavItem[] {
   const filterNavItems = (items: NavItem[]): NavItem[] => {
     return items.filter(item => {
-      // Check role requirements
+      // Check role requirements using role hierarchy
       if (item.requiredRoles && item.requiredRoles.length > 0) {
-        if (!item.requiredRoles.includes(userRole)) {
+        const canAccess = hasRoleAccess(userRole, item.requiredRoles)
+        if (!canAccess) {
           return false
         }
       }
 
       // Check permission requirements  
       if (item.requiredPermissions && item.requiredPermissions.length > 0) {
-        const hasPermission = item.requiredPermissions.some(permission => 
-          userPermissions.includes(permission)
-        )
-        if (!hasPermission) {
-          return false
+        // Check for wildcard permissions (admin)
+        if (userPermissions.includes('*')) {
+          // Admin has all permissions
+        } else {
+          const hasPermission = item.requiredPermissions.some(permission => {
+            // Check exact permission
+            if (userPermissions.includes(permission)) return true
+            
+            // Check module wildcard (e.g., "documents.*" covers "documents.create")
+            const [module] = permission.split('.')
+            if (userPermissions.includes(`${module}.*`)) return true
+            
+            return false
+          })
+          
+          if (!hasPermission) {
+            return false
+          }
         }
       }
 
       // Recursively filter children
       if (item.children) {
-        item.children = filterNavItems(item.children)
+        const filteredChildren = filterNavItems(item.children)
+        item.children = filteredChildren
+        
+        // If item has no accessible children and no direct href, hide it
+        if (filteredChildren.length === 0 && item.href === '#') {
+          return false
+        }
       }
 
       return true

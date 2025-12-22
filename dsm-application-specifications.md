@@ -1,7 +1,7 @@
 # Document Management System (DSM) - Spesifikasi Aplikasi
 
 ## Overview
-Document Management System (DSM) adalah aplikasi enterprise untuk mengelola dokumen-dokumen perusahaan dengan sistem otentikasi berbasis peran (role-based access control), workflow approval, dan sistem kolaborasi terintegrasi.
+Dokumen Sistem Manajemen Terpadu adalah aplikasi enterprise untuk mengelola dokumen-dokumen perusahaan dengan sistem otentikasi berbasis peran (role-based access control), workflow approval, dan sistem kolaborasi terintegrasi.
 
 ## Arsitektur Aplikasi
 
@@ -697,7 +697,7 @@ WEBSOCKET_PORT="3001"
 REDIS_URL="redis://localhost:6379"
 
 # System
-APP_NAME="Document Management System"
+APP_NAME="Dokumen Sistem Manajemen Terpadu"
 APP_URL="https://dsm.company.com"
 ADMIN_EMAIL="admin@company.com"
 ```
@@ -746,7 +746,7 @@ volumes:
 
 ## Kesimpulan
 
-Document Management System (DSM) ini menyediakan:
+Dokumen Sistem Manajemen Terpadu (DSMT) ini menyediakan:
 
 ### Fitur Lengkap
 - ✅ **Manajemen Dokumen Komprehensif** - Upload, kategorisasi, versioning

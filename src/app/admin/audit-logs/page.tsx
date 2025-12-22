@@ -1,6 +1,8 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { withAuth } from '@/components/auth/with-auth'
+import { DashboardLayout } from '@/components/ui/dashboard-layout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -8,7 +10,8 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { CalendarIcon, Search, Filter, RefreshCw, Eye } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { CalendarIcon, Search, Filter, RefreshCw, Eye, BarChart3, Shield } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { id } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -25,7 +28,29 @@ interface AuditLog {
   actor?: {
     id: string
     email: string
-    name: string | null
+    firstName: string | null
+    lastName: string | null
+  }
+}
+
+interface DocumentActivity {
+  id: string
+  action: string
+  documentId: string
+  userId: string
+  metadata: any
+  createdAt: string
+  document?: {
+    id: string
+    title: string
+    fileName: string
+    fileType: string
+  }
+  user?: {
+    id: string
+    email: string
+    firstName: string | null
+    lastName: string | null
   }
 }
 
@@ -46,6 +71,11 @@ const AUDIT_ACTIONS = [
   'PERMISSION_GRANT', 'PERMISSION_REVOKE', 'ACTIVATE', 'DEACTIVATE'
 ]
 
+const DOCUMENT_ACTIONS = [
+  'CREATE', 'UPDATE', 'DELETE', 'VIEW', 'DOWNLOAD', 'APPROVE', 
+  'REJECT', 'PUBLISH', 'COMMENT'
+]
+
 const AUDIT_RESOURCES = [
   'USER', 'ROLE', 'PERMISSION', 'DOCUMENT', 'PROJECT', 'SYSTEM'
 ]
@@ -64,11 +94,18 @@ const ACTION_COLORS = {
   PERMISSION_GRANT: 'bg-emerald-100 text-emerald-800',
   PERMISSION_REVOKE: 'bg-rose-100 text-rose-800',
   ACTIVATE: 'bg-green-100 text-green-800',
-  DEACTIVATE: 'bg-red-100 text-red-800'
+  DEACTIVATE: 'bg-red-100 text-red-800',
+  VIEW: 'bg-cyan-100 text-cyan-800',
+  DOWNLOAD: 'bg-teal-100 text-teal-800',
+  APPROVE: 'bg-lime-100 text-lime-800',
+  REJECT: 'bg-amber-100 text-amber-800',
+  PUBLISH: 'bg-violet-100 text-violet-800',
+  COMMENT: 'bg-slate-100 text-slate-800'
 }
 
-export default function AuditLogsPage() {
+function AuditLogsPage() {
   const [logs, setLogs] = useState<AuditLog[]>([])
+  const [documentActivities, setDocumentActivities] = useState<DocumentActivity[]>([])
   const [pagination, setPagination] = useState({
     total: 0,
     totalPages: 0,
@@ -76,15 +113,34 @@ export default function AuditLogsPage() {
     hasNext: false,
     hasPrev: false
   })
+  const [docPagination, setDocPagination] = useState({
+    total: 0,
+    totalPages: 0,
+    currentPage: 1,
+    hasNext: false,
+    hasPrev: false
+  })
   const [loading, setLoading] = useState(false)
+  const [docLoading, setDocLoading] = useState(false)
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
+  const [selectedActivity, setSelectedActivity] = useState<DocumentActivity | null>(null)
   
   // Filter states
   const [filters, setFilters] = useState({
-    action: '',
-    resource: '',
+    action: 'all',
+    resource: 'all',
     actorId: '',
     resourceId: '',
+    startDate: '',
+    endDate: '',
+    page: 1,
+    limit: 20
+  })
+  
+  const [docFilters, setDocFilters] = useState({
+    action: 'all',
+    documentId: '',
+    userId: '',
     startDate: '',
     endDate: '',
     page: 1,
@@ -95,37 +151,111 @@ export default function AuditLogsPage() {
   const [startDate, setStartDate] = useState<Date | undefined>()
   const [endDate, setEndDate] = useState<Date | undefined>()
 
-  const fetchAuditLogs = async (newFilters = filters) => {
+  const fetchAuditLogs = useCallback(async (newFilters = filters) => {
+    console.log('fetchAuditLogs called with filters:', newFilters)
     setLoading(true)
     try {
       const queryParams = new URLSearchParams()
       
       Object.entries(newFilters).forEach(([key, value]) => {
-        if (value && value !== '') {
+        if (value && value !== '' && value !== 'all') {
           queryParams.append(key, value.toString())
         }
       })
 
-      const response = await fetch(`/api/audit-logs?${queryParams}`)
+      const url = `/api/audit-logs?${queryParams}`
+      console.log('Fetching from URL:', url)
+      const response = await fetch(url)
+      
+      console.log('Response status:', response.status, response.statusText)
       
       if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Response error:', errorText)
         throw new Error('Failed to fetch audit logs')
       }
 
       const data: AuditLogsResponse = await response.json()
+      console.log('Audit logs response:', data)
+      console.log('Logs array:', data.logs)
+      console.log('Logs count:', data.logs?.length)
+      console.log('Pagination:', data.pagination)
       setLogs(data.logs)
       setPagination(data.pagination)
+      console.log('State updated successfully')
     } catch (error) {
       console.error('Error fetching audit logs:', error)
       toast.error('Gagal memuat log audit')
     } finally {
       setLoading(false)
     }
-  }
+  }, [filters])
 
   useEffect(() => {
+    console.log('Component mounted, calling fetchAuditLogs')
     fetchAuditLogs()
-  }, [])
+  }, [fetchAuditLogs])
+  
+  useEffect(() => {
+    console.log('Logs state changed:', logs.length, 'logs')
+  }, [logs])
+  
+  useEffect(() => {
+    console.log('Loading state changed:', loading)
+  }, [loading])
+  
+  const fetchDocumentActivities = useCallback(async (newFilters = docFilters) => {
+    console.log('fetchDocumentActivities called with filters:', newFilters)
+    setDocLoading(true)
+    try {
+      const queryParams = new URLSearchParams()
+      
+      Object.entries(newFilters).forEach(([key, value]) => {
+        if (value && value !== '' && value !== 'all') {
+          queryParams.append(key, value.toString())
+        }
+      })
+
+      const url = `/api/document-activities?${queryParams}`
+      console.log('Fetching document activities from URL:', url)
+      const response = await fetch(url)
+      
+      console.log('Document activities response status:', response.status, response.statusText)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Document activities error:', errorText)
+        throw new Error('Failed to fetch document activities')
+      }
+
+      const data = await response.json()
+      console.log('Document activities response:', data)
+      console.log('Activities array:', data.activities)
+      console.log('Activities count:', data.activities?.length)
+      console.log('Pagination:', data.pagination)
+      setDocumentActivities(data.activities)
+      setDocPagination(data.pagination)
+      console.log('Document activities state updated successfully')
+    } catch (error) {
+      console.error('Error fetching document activities:', error)
+      toast.error('Gagal memuat aktivitas dokumen')
+    } finally {
+      setDocLoading(false)
+    }
+  }, [docFilters])
+
+  useEffect(() => {
+    console.log('Component mounted, calling fetchDocumentActivities')
+    fetchDocumentActivities()
+  }, [fetchDocumentActivities])
+  
+  useEffect(() => {
+    console.log('Document activities state changed:', documentActivities.length, 'activities')
+  }, [documentActivities])
+  
+  useEffect(() => {
+    console.log('Doc loading state changed:', docLoading)
+  }, [docLoading])
 
   const handleFilterChange = (key: string, value: string) => {
     const newFilters = { ...filters, [key]: value, page: 1 }
@@ -192,14 +322,33 @@ export default function AuditLogsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Log Audit</h1>
-        <Button onClick={() => fetchAuditLogs()} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
-      </div>
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Audit System</h1>
+          <Button onClick={() => fetchAuditLogs()} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
+
+      <Tabs defaultValue="logs" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="logs" className="flex items-center gap-2">
+            <Eye className="h-4 w-4" />
+            Audit Logs
+          </TabsTrigger>
+          <TabsTrigger value="documents" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Document Activities
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Analytics
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="logs" className="space-y-6">
 
       {/* Filter Section */}
       <Card>
@@ -219,7 +368,7 @@ export default function AuditLogsPage() {
                   <SelectValue placeholder="Pilih aksi" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Semua</SelectItem>
+                  <SelectItem value="all">Semua</SelectItem>
                   {AUDIT_ACTIONS.map((action) => (
                     <SelectItem key={action} value={action}>
                       {action}
@@ -237,7 +386,7 @@ export default function AuditLogsPage() {
                   <SelectValue placeholder="Pilih resource" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Semua</SelectItem>
+                  <SelectItem value="all">Semua</SelectItem>
                   {AUDIT_RESOURCES.map((resource) => (
                     <SelectItem key={resource} value={resource}>
                       {resource}
@@ -362,7 +511,7 @@ export default function AuditLogsPage() {
                         <td className="p-2 text-sm">
                           {log.actor ? (
                             <div>
-                              <div className="font-medium">{log.actor.name || log.actor.email}</div>
+                              <div className="font-medium">{`${log.actor.firstName || ''} ${log.actor.lastName || ''}`.trim() || log.actor.email}</div>
                               <div className="text-xs text-gray-500">{log.actor.id}</div>
                             </div>
                           ) : (
@@ -481,7 +630,7 @@ export default function AuditLogsPage() {
                     <div className="bg-gray-50 p-3 rounded-md text-sm">
                       <div><strong>ID:</strong> {selectedLog.actor.id}</div>
                       <div><strong>Email:</strong> {selectedLog.actor.email}</div>
-                      <div><strong>Nama:</strong> {selectedLog.actor.name || '-'}</div>
+                      <div><strong>Nama:</strong> {`${selectedLog.actor.firstName || ''} ${selectedLog.actor.lastName || ''}`.trim() || '-'}</div>
                     </div>
                   </div>
                 )}
@@ -506,6 +655,405 @@ export default function AuditLogsPage() {
           </div>
         </div>
       )}
+        </TabsContent>
+
+        <TabsContent value="documents" className="space-y-6">
+          {/* Filter Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Filter className="h-5 w-5" />
+                Filter Aktivitas Dokumen
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Aksi</label>
+                  <Select
+                    value={docFilters.action}
+                    onValueChange={(value) => {
+                      const newFilters = { ...docFilters, action: value, page: 1 }
+                      setDocFilters(newFilters)
+                      fetchDocumentActivities(newFilters)
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih aksi" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Aksi</SelectItem>
+                      {DOCUMENT_ACTIONS.map((action) => (
+                        <SelectItem key={action} value={action}>
+                          {action}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">ID Dokumen</label>
+                  <Input
+                    placeholder="Masukkan ID dokumen"
+                    value={docFilters.documentId}
+                    onChange={(e) => {
+                      const newFilters = { ...docFilters, documentId: e.target.value, page: 1 }
+                      setDocFilters(newFilters)
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">User ID</label>
+                  <Input
+                    placeholder="Masukkan user ID"
+                    value={docFilters.userId}
+                    onChange={(e) => {
+                      const newFilters = { ...docFilters, userId: e.target.value, page: 1 }
+                      setDocFilters(newFilters)
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button 
+                  onClick={() => fetchDocumentActivities()}
+                  disabled={docLoading}
+                >
+                  <Search className="h-4 w-4 mr-2" />
+                  Cari
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    const resetFilters = {
+                      action: 'all',
+                      documentId: '',
+                      userId: '',
+                      startDate: '',
+                      endDate: '',
+                      page: 1,
+                      limit: 20
+                    }
+                    setDocFilters(resetFilters)
+                    fetchDocumentActivities(resetFilters)
+                  }}
+                >
+                  Reset
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Results */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Hasil Pencarian</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {docLoading ? (
+                <div className="text-center py-8">
+                  <RefreshCw className="h-8 w-8 animate-spin mx-auto text-gray-400" />
+                  <p className="text-gray-500 mt-2">Memuat data...</p>
+                </div>
+              ) : documentActivities.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  Tidak ada aktivitas ditemukan
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="border-b">
+                        <tr className="text-left text-sm text-gray-500">
+                          <th className="pb-3 font-medium">Waktu</th>
+                          <th className="pb-3 font-medium">Aksi</th>
+                          <th className="pb-3 font-medium">Dokumen</th>
+                          <th className="pb-3 font-medium">User</th>
+                          <th className="pb-3 font-medium">Detail</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {documentActivities.map((activity) => (
+                          <tr key={activity.id} className="text-sm hover:bg-gray-50">
+                            <td className="py-3">
+                              <div className="text-gray-900">
+                                {format(parseISO(activity.createdAt), 'dd/MM/yyyy', { locale: id })}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {format(parseISO(activity.createdAt), 'HH:mm:ss', { locale: id })}
+                              </div>
+                            </td>
+                            <td className="py-3">
+                              <Badge className={ACTION_COLORS[activity.action as keyof typeof ACTION_COLORS]}>
+                                {activity.action}
+                              </Badge>
+                            </td>
+                            <td className="py-3">
+                              {activity.document ? (
+                                <div>
+                                  <div className="font-medium text-gray-900">
+                                    {activity.document.title}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {activity.document.fileName}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </td>
+                            <td className="py-3">
+                              {activity.user ? (
+                                <div>
+                                  <div className="text-gray-900">{`${activity.user.firstName || ''} ${activity.user.lastName || ''}`.trim() || '-'}</div>
+                                  <div className="text-xs text-gray-500">{activity.user.email}</div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </td>
+                            <td className="py-3">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setSelectedActivity(activity)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination */}
+                  {docPagination.totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="text-sm text-gray-500">
+                        Halaman {docPagination.currentPage} dari {docPagination.totalPages}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={!docPagination.hasPrev}
+                          onClick={() => {
+                            const newFilters = { ...docFilters, page: docPagination.currentPage - 1 }
+                            setDocFilters(newFilters)
+                            fetchDocumentActivities(newFilters)
+                          }}
+                        >
+                          Sebelumnya
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={!docPagination.hasNext}
+                          onClick={() => {
+                            const newFilters = { ...docFilters, page: docPagination.currentPage + 1 }
+                            setDocFilters(newFilters)
+                            fetchDocumentActivities(newFilters)
+                          }}
+                        >
+                          Selanjutnya
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Detail Modal */}
+          {selectedActivity && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-auto">
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold">Detail Aktivitas</h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedActivity(null)}
+                    >
+                      ✕
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">ID Aktivitas</label>
+                        <div className="font-mono text-sm">{selectedActivity.id}</div>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Waktu</label>
+                        <div className="text-sm">
+                          {format(parseISO(selectedActivity.createdAt), 'dd/MM/yyyy HH:mm:ss', { locale: id })}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Aksi</label>
+                        <Badge className={ACTION_COLORS[selectedActivity.action as keyof typeof ACTION_COLORS]}>
+                          {selectedActivity.action}
+                        </Badge>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Dokumen ID</label>
+                        <div className="font-mono text-sm">{selectedActivity.documentId}</div>
+                      </div>
+                    </div>
+
+                    {selectedActivity.document && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Dokumen</label>
+                        <div className="bg-gray-50 p-3 rounded-md text-sm">
+                          <div><strong>Judul:</strong> {selectedActivity.document.title}</div>
+                          <div><strong>File:</strong> {selectedActivity.document.fileName}</div>
+                          <div><strong>Type:</strong> {selectedActivity.document.fileType}</div>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedActivity.user && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">User</label>
+                        <div className="bg-gray-50 p-3 rounded-md text-sm">
+                          <div><strong>ID:</strong> {selectedActivity.user.id}</div>
+                          <div><strong>Email:</strong> {selectedActivity.user.email}</div>
+                          <div><strong>Nama:</strong> {`${selectedActivity.user.firstName || ''} ${selectedActivity.user.lastName || ''}`.trim() || '-'}</div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Metadata</label>
+                      <div className="bg-gray-50 p-3 rounded-md text-sm">
+                        <pre className="whitespace-pre-wrap">
+                          {JSON.stringify(selectedActivity.metadata, null, 2)}
+                        </pre>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-gray-500">Total Aktivitas</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{logs.length}</div>
+                <p className="text-xs text-gray-500 mt-1">Dalam periode ini</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-gray-500">Pengguna Aktif</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {new Set(logs.map(log => log.actor?.id).filter(Boolean)).size}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Pengguna unik</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-gray-500">Resource Teratas</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {logs.reduce((acc, log) => {
+                    acc[log.resource] = (acc[log.resource] || 0) + 1;
+                    return acc;
+                  }, {} as Record<string, number>) && Object.entries(logs.reduce((acc, log) => {
+                    acc[log.resource] = (acc[log.resource] || 0) + 1;
+                    return acc;
+                  }, {} as Record<string, number>)).sort((a, b) => b[1] - a[1])[0]?.[0] || '-'}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Paling sering diakses</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Aktivitas per Aksi</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {Object.entries(
+                  logs.reduce((acc, log) => {
+                    acc[log.action] = (acc[log.action] || 0) + 1;
+                    return acc;
+                  }, {} as Record<string, number>)
+                ).sort((a, b) => b[1] - a[1]).map(([action, count]) => (
+                  <div key={action} className="flex items-center justify-between py-2 border-b last:border-0">
+                    <div className="flex items-center gap-2">
+                      <Badge className={getActionColor(action)}>{action}</Badge>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-32 bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-blue-600 h-2 rounded-full"
+                          style={{ width: `${(count / logs.length) * 100}%` }}
+                        />
+                      </div>
+                      <span className="text-sm font-medium w-12 text-right">{count}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Aktivitas per Resource</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {Object.entries(
+                  logs.reduce((acc, log) => {
+                    acc[log.resource] = (acc[log.resource] || 0) + 1;
+                    return acc;
+                  }, {} as Record<string, number>)
+                ).sort((a, b) => b[1] - a[1]).map(([resource, count]) => (
+                  <div key={resource} className="flex items-center justify-between py-2 border-b last:border-0">
+                    <span className="text-sm font-medium">{resource}</span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-32 bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-green-600 h-2 rounded-full"
+                          style={{ width: `${(count / logs.length) * 100}%` }}
+                        />
+                      </div>
+                      <span className="text-sm font-medium w-12 text-right">{count}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
+    </DashboardLayout>
   )
 }
+
+export default withAuth(AuditLogsPage, {
+  requiredRoles: ['administrator', 'admin', 'org_administrator'],
+  redirectTo: '/unauthorized'
+})

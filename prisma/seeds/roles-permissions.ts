@@ -93,6 +93,11 @@ export async function seedRolesAndPermissions() {
     { name: 'roles.delete', displayName: 'Delete Roles', module: 'roles', action: 'delete', resource: 'all' },
     { name: 'roles.assign', displayName: 'Assign Roles', module: 'roles', action: 'assign', resource: 'all' },
 
+    // Audit Permissions
+    { name: 'audit.read', displayName: 'View Audit Logs', module: 'audit', action: 'read', resource: 'all' },
+    { name: 'audit.export', displayName: 'Export Audit Reports', module: 'audit', action: 'export', resource: 'all' },
+    { name: 'audit.analytics', displayName: 'View Audit Analytics', module: 'audit', action: 'analytics', resource: 'all' },
+
     // System Permissions
     { name: 'system.admin', displayName: 'System Administration', module: 'system', action: 'admin', resource: 'all' },
     { name: 'system.settings', displayName: 'System Settings', module: 'system', action: 'settings', resource: 'all' },

@@ -15,6 +15,7 @@ import { PDFSecurityTest } from '../../components/security/pdf-security-test';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '../../components/ui/sidebar'
 import { AppSidebar } from '../../components/app-sidebar'
 import { Header } from '../../components/ui/header';
+import { useRoleVisibility, FeatureToggle, RoleGuard } from '../../hooks/use-role-visibility';
 
 // Document status color mapping
 const statusColors = {
@@ -30,6 +31,7 @@ const statusColors = {
 
 export default function DocumentsPage() {
   const { data: session, status } = useSession();
+  const roleVisibility = useRoleVisibility();
   const [documents, setDocuments] = useState<any[]>([]);
   const [documentTypes, setDocumentTypes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -299,18 +301,20 @@ export default function DocumentsPage() {
           <Header />
           <main className="flex-1 p-6 overflow-y-auto">
           <div className="container mx-auto space-y-6">
-            {/* Upload Button */}
-            <div className="flex justify-end">
-              <Button 
-                onClick={() => setShowUploadDialog(true)}
-                className="md:w-auto"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Upload Document
-              </Button>
-            </div>
+            {/* Upload Button - Role-based visibility */}
+            <FeatureToggle feature="canUpload">
+              <div className="flex justify-end">
+                <Button 
+                  onClick={() => setShowUploadDialog(true)}
+                  className="md:w-auto"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Upload Document
+                </Button>
+              </div>
+            </FeatureToggle>
 
             {/* Stats Cards */}
             {stats && (
@@ -429,11 +433,12 @@ export default function DocumentsPage() {
                       <SelectValue placeholder="Sort By" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="createdAt">Created Date</SelectItem>
+                      {/* <SelectItem value=""></SelectItem> */}
+                      <SelectItem value="createdAt">CreatedDate</SelectItem>
                       <SelectItem value="updatedAt">Updated Date</SelectItem>
                       <SelectItem value="title">Title</SelectItem>
-                      <SelectItem value="downloadCount">Downloads</SelectItem>
-                      <SelectItem value="viewCount">Views</SelectItem>
+                      {/* <SelectItem value="downloadCount">Downloads</SelectItem>
+                      <SelectItem value="viewCount">Views</SelectItem> */}
                     </SelectContent>
                   </Select>
 

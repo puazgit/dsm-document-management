@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { withAuth } from '@/components/auth/with-auth'
 import { DashboardLayout } from '@/components/ui/dashboard-layout'
 import { Button } from '@/components/ui/button'
@@ -71,14 +71,15 @@ function GroupsManagementPage() {
     level: 0
   })
 
-  const fetchGroups = async () => {
+  const fetchGroups = useCallback(async () => {
     try {
-      const response = await fetch('/api/groups')
+      const response = await fetch('/api/groups?includeUsers=true')
       if (!response.ok) {
         throw new Error('Failed to fetch groups')
       }
-      const groupsData = await response.json()
-      setGroups(Array.isArray(groupsData) ? groupsData : [])
+      const data = await response.json()
+      const groupsList = data.groups || data || []
+      setGroups(Array.isArray(groupsList) ? groupsList : [])
     } catch (error) {
       console.error('Error fetching groups:', error)
       toast({
@@ -89,11 +90,11 @@ function GroupsManagementPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [toast])
 
   useEffect(() => {
     fetchGroups()
-  }, [])
+  }, [fetchGroups])
 
   const handleCreateGroup = async () => {
     try {

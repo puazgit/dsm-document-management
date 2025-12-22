@@ -34,14 +34,25 @@ export async function GET(
     }
 
     // Check access permissions
+    const userPermissions = session.user.permissions || [];
+    
+    // Check if user has full document access (5 core permissions)
+    const hasFullDocumentAccess = userPermissions.includes('*') || 
+      (userPermissions.includes('documents.read') &&
+       userPermissions.includes('documents.create') &&
+       userPermissions.includes('documents.update') &&
+       userPermissions.includes('documents.approve') &&
+       userPermissions.includes('documents.delete'));
+    
     const userRole = session.user.role || '';
     const isAdmin = ['admin', 'org_administrator'].includes(userRole);
     const isOwner = document.createdById === session.user.id;
     const hasRoleAccess = document.accessGroups.includes(session.user.role || '');
     const hasGroupAccess = document.accessGroups.includes(session.user.groupId || '');
     const isPublished = document.status === 'PUBLISHED';
+    const canReadDocuments = userPermissions.includes('documents.read') || userPermissions.includes('documents.view');
 
-    if (!isAdmin && !isOwner && !hasRoleAccess && !hasGroupAccess && !document.isPublic && !isPublished) {
+    if (!hasFullDocumentAccess && !isAdmin && !isOwner && !hasRoleAccess && !hasGroupAccess && !document.isPublic && !isPublished && !canReadDocuments) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 

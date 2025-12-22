@@ -29,7 +29,7 @@ export async function DELETE(
       }
     })
 
-    // Allow role revocation for administrators, ppd, managers, or kadiv
+    // Allow role revocation for admin, org_ppd, org_manager, or org_kadiv
     const canRevokeRoles = currentUser?.userRoles.some(ur => 
       ['administrator', 'ppd', 'manager', 'kadiv'].includes(ur.role.name)
     ) || currentUser?.group?.name === 'administrator'

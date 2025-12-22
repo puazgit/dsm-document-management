@@ -8,7 +8,7 @@ import { z } from 'zod'
 const updateRoleSchema = z.object({
   name: z.string().min(3).max(100).optional(),
   displayName: z.string().min(3).max(255).optional(),
-  description: z.string().optional(),
+  description: z.string().nullable().optional(),
   level: z.number().int().min(0).max(100).optional(),
   isActive: z.boolean().optional(),
   permissions: z.array(z.string()).optional(),
@@ -99,16 +99,17 @@ export const PUT = requireRoles(['administrator'])(
       }
     }
 
-    // Update role basic fields
+    // Update role basic fields - only include defined fields
+    const updateData: any = {}
+    if (validatedData.name !== undefined) updateData.name = validatedData.name
+    if (validatedData.displayName !== undefined) updateData.displayName = validatedData.displayName
+    if (validatedData.description !== undefined) updateData.description = validatedData.description
+    if (validatedData.level !== undefined) updateData.level = validatedData.level
+    if (validatedData.isActive !== undefined) updateData.isActive = validatedData.isActive
+    
     const updatedRole = await prisma.role.update({
       where: { id: params.id },
-      data: {
-        name: validatedData.name,
-        displayName: validatedData.displayName,
-        description: validatedData.description,
-        level: validatedData.level,
-        isActive: validatedData.isActive,
-      },
+      data: updateData,
     })
 
     // Update permissions if provided

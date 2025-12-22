@@ -60,14 +60,14 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="flex items-center justify-center min-h-screen px-4 py-12 bg-gray-50 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md space-y-8">
         <div className="text-center">
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            Sign in to DSM
+            Sign in to DSMT
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            Document Management System
+            Dokumen Sistem Manajemen Terpadu
           </p>
         </div>
 
@@ -118,9 +118,9 @@ export default function LoginPage() {
             </form>
 
             <div className="mt-6">
-              <div className="text-center text-sm text-gray-600">
+              <div className="text-sm text-center text-gray-600">
                 <p>Demo Credentials:</p>
-                <div className="mt-2 p-3 bg-gray-100 rounded-md">
+                <div className="p-3 mt-2 bg-gray-100 rounded-md">
                   <p className="font-mono text-xs">
                     <strong>Admin:</strong> admin@dsm.com / admin123<br />
                     <strong>PPD:</strong> ppd@dsm.com / ppd123<br />

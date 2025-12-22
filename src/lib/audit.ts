@@ -144,16 +144,17 @@ export async function getAuditLogs({
   ])
 
   return {
-    auditLogs: auditLogs.map((log: any) => ({
+    logs: auditLogs.map((log: any) => ({
       ...log,
       details: log.details ? JSON.parse(log.details) : null,
       metadata: log.metadata ? JSON.parse(log.metadata) : null,
     })),
     pagination: {
-      page,
-      limit,
       total,
       totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      hasNext: page < Math.ceil(total / limit),
+      hasPrev: page > 1
     },
   }
 }
