@@ -7,9 +7,9 @@ import { auditHelpers } from '../../../../lib/audit'
 import { z } from 'zod'
 
 const updateGroupSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
   displayName: z.string().min(1).max(255).optional(),
-  description: z.string().optional(),
-  level: z.number().int().min(0).max(10).optional(),
+  description: z.string().optional()
   // Removed permissions - Groups are now purely organizational
 })
 
@@ -26,7 +26,7 @@ export async function GET(
 
     // Check if user has admin role
     const userRole = session.user.role?.toLowerCase()
-    if (!userRole || userRole !== 'administrator') {
+    if (!userRole || !['admin', 'administrator'].includes(userRole)) {
       return NextResponse.json(
         { error: 'Forbidden - Admin access required' },
         { status: 403 }
@@ -81,7 +81,15 @@ export async function PUT(
 
     // Check if user has admin role
     const userRole = session.user.role?.toLowerCase()
-    if (!userRole || userRole !== 'administrator') {
+    console.log('🔍 PUT /api/groups/[id] - Debug:', { 
+      email: session.user.email, 
+      role: session.user.role, 
+      userRole, 
+      check: ['admin', 'administrator'].includes(userRole || '')
+    })
+    
+    if (!userRole || !['admin', 'administrator'].includes(userRole)) {
+      console.log('❌ PUT /api/groups/[id] - Access DENIED')
       return NextResponse.json(
         { error: 'Forbidden - Admin access required' },
         { status: 403 }
@@ -101,22 +109,34 @@ export async function PUT(
     console.log('PUT /api/groups/[id] - Group ID:', params.id)
     console.log('PUT /api/groups/[id] - User role:', session.user.role)
     
-    const validatedData = updateGroupSchema.parse(body)
+    let validatedData
+    try {
+      validatedData = updateGroupSchema.parse(body)
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.error('❌ Validation error:', error.errors)
+        return NextResponse.json(
+          { error: 'Validation error', details: error.errors },
+          { status: 400 }
+        )
+      }
+      throw error
+    }
 
     // Get original data for audit
     const originalData = {
+      name: group.name,
       displayName: group.displayName,
-      description: group.description,
-      level: group.level
+      description: group.description
     }
 
     // Update the group (organizational structure only)
     const updatedGroup = await prisma.group.update({
       where: { id: params.id },
       data: {
+        ...(validatedData.name && { name: validatedData.name }),
         ...(validatedData.displayName && { displayName: validatedData.displayName }),
-        ...(validatedData.description !== undefined && { description: validatedData.description }),
-        ...(validatedData.level !== undefined && { level: validatedData.level })
+        ...(validatedData.description !== undefined && { description: validatedData.description })
       }
     })
 
@@ -169,7 +189,7 @@ export async function DELETE(
 
     // Check if user has admin role
     const userRole = session.user.role?.toLowerCase()
-    if (!userRole || userRole !== 'administrator') {
+    if (!userRole || !['admin', 'administrator'].includes(userRole)) {
       return NextResponse.json(
         { error: 'Forbidden - Admin access required' },
         { status: 403 }
@@ -222,8 +242,7 @@ export async function DELETE(
       session.user.id,
       {
         name: group.name,
-        displayName: group.displayName,
-        level: group.level
+        displayName: group.displayName
       },
       clientIp,
       userAgent

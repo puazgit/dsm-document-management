@@ -235,7 +235,7 @@ export async function POST(request: NextRequest) {
           mimeType: file.type,
           documentTypeId,
           createdById: currentUser.id,
-          isPublic,
+          isPublic: false, // Always false on upload, will be true when status becomes PUBLISHED
           accessGroups,
           tags,
           metadata,

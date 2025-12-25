@@ -622,7 +622,7 @@ export function DocumentsList({
           setShowViewer(false);
           setSelectedDocument(null);
         }}>
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
+          <DialogContent className="max-w-7xl max-h-[98vh] overflow-hidden">
             <DialogHeader>
               <div className="flex items-center justify-between">
                 <div>
@@ -662,59 +662,7 @@ export function DocumentsList({
               </div>
             </DialogHeader>
             
-            {/* Minimalist Document Details - Always shown above PDF */}
-            <div className="p-4 mb-4 border rounded-lg bg-gray-50">
-              <div className="grid grid-cols-2 gap-4 text-sm md:grid-cols-4">
-                <div>
-                  <span className="text-gray-500">File Name:</span>
-                  <div className="font-medium truncate">{selectedDocument.fileName || 'N/A'}</div>
-                </div>
-                <div>
-                  <span className="text-gray-500">Type:</span>
-                  <div className="font-medium">{selectedDocument.documentType?.name || 'N/A'}</div>
-                </div>
-                <div>
-                  <span className="text-gray-500">Status:</span>
-                  <div>
-                    <Badge variant="outline" className="text-xs">
-                      {(selectedDocument.status || 'DRAFT').replace('_', ' ')}
-                    </Badge>
-                  </div>
-                </div>
-                <div>
-                  <span className="text-gray-500">Size:</span>
-                  <div className="font-medium">{formatFileSize(selectedDocument.fileSize ? Number(selectedDocument.fileSize) : 0)}</div>
-                </div>
-                <div>
-                  <span className="text-gray-500">Created:</span>
-                  <div className="font-medium">{selectedDocument.createdAt ? formatDate(selectedDocument.createdAt) : 'N/A'}</div>
-                </div>
-                <div>
-                  <span className="text-gray-500">Created By:</span>
-                  <div className="font-medium">{selectedDocument.createdBy?.firstName || 'Unknown'} {selectedDocument.createdBy?.lastName || ''}</div>
-                </div>
-                {selectedDocument.description && (
-                  <div className="col-span-2">
-                    <span className="text-gray-500">Description:</span>
-                    <div className="font-medium">{selectedDocument.description}</div>
-                  </div>
-                )}
-                {selectedDocument.tags && selectedDocument.tags.length > 0 && (
-                  <div className="col-span-2">
-                    <span className="text-gray-500">Tags:</span>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {selectedDocument.tags.map((tag: string, index: number) => (
-                        <Badge key={index} variant="outline" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="overflow-y-auto max-h-[60vh]">
+            <div className="overflow-y-auto max-h-[85vh]">
               {isPDFFile(selectedDocument) ? (
                 <SecurePDFViewer
                   fileUrl={`/api/documents/${selectedDocument.id}/download`}

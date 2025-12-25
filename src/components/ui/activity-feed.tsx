@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { formatDistanceToNow } from "date-fns"
 import { 
   FileText, 
@@ -8,101 +9,105 @@ import {
   Settings, 
   Eye,
   MessageCircle,
-  UserPlus 
+  UserPlus,
+  CheckCircle,
+  XCircle,
+  Archive,
+  Download as DownloadIcon
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./card"
+import { Skeleton } from "./skeleton"
+import Link from "next/link"
 
 interface ActivityItem {
   id: string
-  type: "upload" | "view" | "comment" | "user_added" | "settings_changed"
+  type: string
   user: string
+  userId?: string
   description: string
-  timestamp: Date
+  timestamp: string
   target?: string
+  documentId?: string
 }
 
 export function ActivityFeed() {
-  // Mock data - will be replaced with real API calls later
-  const activities: ActivityItem[] = [
-    {
-      id: "1",
-      type: "upload",
-      user: "John Doe", 
-      description: "uploaded Project Proposal 2024.pdf",
-      timestamp: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
-      target: "Project Proposal 2024.pdf",
-    },
-    {
-      id: "2",
-      type: "comment",
-      user: "Jane Smith",
-      description: "commented on Financial Report Q3.xlsx",
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-      target: "Financial Report Q3.xlsx",
-    },
-    {
-      id: "3", 
-      type: "view",
-      user: "Mike Johnson",
-      description: "viewed Marketing Strategy.docx",
-      timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
-      target: "Marketing Strategy.docx",
-    },
-    {
-      id: "4",
-      type: "user_added",
-      user: "Admin",
-      description: "added new user Sarah Wilson",
-      timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
-      target: "Sarah Wilson",
-    },
-    {
-      id: "5",
-      type: "upload",
-      user: "David Brown",
-      description: "uploaded System Architecture.png", 
-      timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000), // 8 hours ago
-      target: "System Architecture.png",
-    },
-    {
-      id: "6",
-      type: "settings_changed",
-      user: "Admin",
-      description: "updated system settings",
-      timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000), // 12 hours ago
-    },
-  ]
+  const [activities, setActivities] = useState<ActivityItem[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  const getActivityIcon = (type: ActivityItem["type"]) => {
+  useEffect(() => {
+    async function fetchActivities() {
+      try {
+        setIsLoading(true)
+        const response = await fetch('/api/activities/recent?limit=10')
+        if (!response.ok) throw new Error('Failed to fetch activities')
+        const data = await response.json()
+        setActivities(data)
+      } catch (err) {
+        console.error('Error fetching activities:', err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchActivities()
+    // Refresh activities every 30 seconds
+    const interval = setInterval(fetchActivities, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const getActivityIcon = (type: string) => {
     const iconProps = { className: "h-4 w-4" }
     
-    switch (type) {
+    switch (type.toLowerCase()) {
+      case "created":
       case "upload":
         return <Upload {...iconProps} className="h-4 w-4 text-blue-600" />
+      case "viewed":
       case "view":
         return <Eye {...iconProps} className="h-4 w-4 text-green-600" />
+      case "commented":
       case "comment":
         return <MessageCircle {...iconProps} className="h-4 w-4 text-purple-600" />
+      case "approved":
+        return <CheckCircle {...iconProps} className="h-4 w-4 text-green-600" />
+      case "rejected":
+        return <XCircle {...iconProps} className="h-4 w-4 text-red-600" />
+      case "downloaded":
+        return <DownloadIcon {...iconProps} className="h-4 w-4 text-indigo-600" />
+      case "archived":
+        return <Archive {...iconProps} className="h-4 w-4 text-gray-600" />
       case "user_added":
         return <UserPlus {...iconProps} className="h-4 w-4 text-orange-600" />
       case 'settings_changed':
+      case 'updated':
         return <Settings {...iconProps} className="h-4 w-4 text-muted-foreground" />
       default:
         return <FileText {...iconProps} className="h-4 w-4 text-muted-foreground" />
     }
   }
 
-  const getActivityColor = (type: ActivityItem["type"]) => {
-    switch (type) {
+  const getActivityColor = (type: string) => {
+    switch (type.toLowerCase()) {
+      case "created":
       case "upload":
         return "border-blue-200 bg-blue-50"
+      case "viewed":
       case "view":
         return "border-green-200 bg-green-50"
       case "comment":
         return "border-purple-200 bg-purple-50"
+      case "approved":
+        return "border-green-200 bg-green-50"
+      case "rejected":
+        return "border-red-200 bg-red-50"
+      case "downloaded":
+        return "border-indigo-200 bg-indigo-50"
+      case "archived":
+        return "border-gray-200 bg-gray-50"
       case "user_added":
         return "border-orange-200 bg-orange-50"
       case "settings_changed":
+      case "updated":
         return "border-gray-200 bg-gray-50"
       default:
         return "border-gray-200 bg-gray-50"
@@ -118,30 +123,62 @@ export function ActivityFeed() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          {activities.map((activity) => (
-            <div key={activity.id} className="flex items-start space-x-3">
-              <div className={`p-2 rounded-full border ${getActivityColor(activity.type)}`}>
-                {getActivityIcon(activity.type)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm text-foreground">
-                  <span className="font-medium">{activity.user}</span>{" "}
-                  {activity.description}
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {formatDistanceToNow(activity.timestamp, { addSuffix: true })}
+        {isLoading ? (
+          <div className="space-y-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-start space-x-3">
+                <Skeleton className="h-10 w-10 rounded-full" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-4 w-[200px]" />
+                  <Skeleton className="h-3 w-[150px]" />
                 </div>
               </div>
+            ))}
+          </div>
+        ) : activities.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            No recent activity
+          </div>
+        ) : (
+          <>
+            <div className="space-y-4">
+              {activities.map((activity) => (
+                <div key={activity.id} className="flex items-start space-x-3">
+                  <div className={`p-2 rounded-full border ${getActivityColor(activity.type)}`}>
+                    {getActivityIcon(activity.type)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-foreground">
+                      <span className="font-medium">{activity.user}</span>{" "}
+                      {activity.documentId ? (
+                        <Link 
+                          href={`/documents/${activity.documentId}`}
+                          className="hover:underline text-blue-600"
+                        >
+                          {activity.description}
+                        </Link>
+                      ) : (
+                        <span>{activity.description}</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-            View all activity
-          </button>
-        </div>
+            
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <Link 
+                href="/documents" 
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                View all activity
+              </Link>
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   )

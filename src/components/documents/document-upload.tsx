@@ -430,7 +430,6 @@ export function DocumentUpload({ open, onClose, onSuccess, documentTypes }: Docu
                         />
                         <div className="flex-1 min-w-0">
                           <div className="font-medium truncate">{group.displayName}</div>
-                          <div className="text-xs text-muted-foreground">Lv.{group.level}</div>
                         </div>
                       </label>
                     ))}

@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { checkApiPermission } from '@/lib/permissions'
 import { auditHelpers } from '@/lib/audit'
 import { requireRoles, checkRoleAccess } from '@/lib/auth-utils'
+import { canManageUsers, type CapabilityUser } from '@/lib/capabilities'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { serializeForResponse } from '../../../lib/bigint-utils'
@@ -61,18 +62,26 @@ export async function GET(request: NextRequest) {
       group: currentUser?.group?.name
     })
 
-    // Allow access for admin, org_ppd, or any user with elevated permissions
-    const hasAdminAccess = currentUser?.userRoles.some(ur => 
-      ['admin', 'org_ppd', 'org_manager', 'org_kadiv'].includes(ur.role.name)
-    ) || currentUser?.group?.name === 'admin'
+    // Check capability-based access
+    const capUser: CapabilityUser = {
+      id: currentUser!.id,
+      email: currentUser!.email,
+      roles: currentUser!.userRoles.map(ur => ({
+        id: ur.role.id,
+        name: ur.role.name,
+        level: ur.role.level
+      }))
+    };
+    
+    const hasUserManageCapability = await canManageUsers(capUser);
 
-    console.log('🔑 Access check:', { hasAdminAccess, userRoles: currentUser?.userRoles.length })
+    console.log('🔑 Access check:', { hasUserManageCapability, userRoles: currentUser?.userRoles.length })
 
-    if (!hasAdminAccess) {
+    if (!hasUserManageCapability) {
       console.log('❌ Access denied for user:', currentUser?.email)
       return NextResponse.json({ 
         error: 'Insufficient permissions', 
-        details: 'User management requires admin, org_ppd, org_manager, or org_kadiv role'
+        details: 'User management requires USER_MANAGE capability'
       }, { status: 403 })
     }
 

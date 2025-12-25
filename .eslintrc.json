@@ -3,6 +3,9 @@
   "rules": {
     "no-console": "off",
     "react/no-unescaped-entities": "off",
-    "@next/next/no-assign-module-variable": "off"
+    "@next/next/no-assign-module-variable": "off",
+    "react-hooks/exhaustive-deps": ["warn", {
+      "additionalHooks": "(useCallback|useMemo)"
+    }]
   }
 }

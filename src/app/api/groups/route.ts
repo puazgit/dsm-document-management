@@ -10,15 +10,13 @@ import { z } from 'zod'
 const createGroupSchema = z.object({
   name: z.string().min(1).max(100),
   displayName: z.string().min(1).max(255),
-  description: z.string().optional(),
-  level: z.number().int().min(0).max(10)
+  description: z.string().optional()
   // Removed permissions - Groups are now purely organizational
 })
 
 const updateGroupSchema = z.object({
   displayName: z.string().min(1).max(255).optional(),
-  description: z.string().optional(),
-  level: z.number().int().min(0).max(10).optional()
+  description: z.string().optional()
   // Removed permissions - Groups are organizational structure only
 })
 
@@ -46,11 +44,14 @@ export async function GET(request: NextRequest) {
         name: true,
         displayName: true,
         description: true,
-        level: true,
         isActive: true,
+        ...(includeUsers && {
+          _count: {
+            select: { users: true }
+          }
+        })
       },
       orderBy: [
-        { level: 'desc' },
         { name: 'asc' }
       ]
     })
@@ -96,8 +97,7 @@ export const POST = requireRoles(['administrator'])(async function(request: Next
       data: {
         name: validatedData.name,
         displayName: validatedData.displayName,
-        description: validatedData.description,
-        level: validatedData.level
+        description: validatedData.description
         // No permissions - Groups are organizational structure only
       }
     })
@@ -115,8 +115,7 @@ export const POST = requireRoles(['administrator'])(async function(request: Next
         currentUser.user.id,
         {
           name: group.name,
-          displayName: group.displayName,
-          level: group.level
+          displayName: group.displayName
         },
         clientIp,
         userAgent

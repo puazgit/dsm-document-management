@@ -4,6 +4,7 @@ import { authOptions } from '../../../../../lib/next-auth';
 import { prisma } from '../../../../../lib/prisma';
 import { z } from 'zod';
 import { serializeForResponse } from '../../../../../lib/bigint-utils';
+import { hasCapability, type CapabilityUser } from '@/lib/capabilities';
 import { 
   DocumentStatus, 
   isTransitionAllowed, 
@@ -67,6 +68,7 @@ export async function POST(
           include: {
             role: {
               select: {
+                id: true,
                 level: true,
                 name: true
               }
@@ -81,16 +83,27 @@ export async function POST(
       return Math.max(maxLevel, userRole.role.level);
     }, 0) || 0;
     
-    // Add administrator special handling
-    const effectivePermissions = userRole === 'administrator' || userRole === 'admin' ? 
+    // Check capability-based admin access
+    const capUser: CapabilityUser = { 
+      id: session.user.id, 
+      email: session.user.email || '', 
+      roles: currentUser?.userRoles.map(ur => ({
+        id: ur.role.id,
+        name: ur.role.name,
+        level: ur.role.level
+      })) || []
+    };
+    const hasAdminCapability = await hasCapability(capUser, 'ADMIN_ACCESS');
+    
+    const effectivePermissions = hasAdminCapability ? 
       ['*', 'documents.create', 'documents.read', 'documents.update', 'documents.delete', 'documents.approve'] : 
       userPermissions;
 
     const currentStatus = document.status as DocumentStatus;
-    const isAllowed = isTransitionAllowed(currentStatus, newStatus, userRole, effectivePermissions, userLevel);
+    const isAllowed = await isTransitionAllowed(currentStatus, newStatus, userRole, effectivePermissions, userLevel);
 
     if (!isAllowed) {
-      const allowedTransitions = getAllowedTransitions(currentStatus, userRole, effectivePermissions, userLevel);
+      const allowedTransitions = await getAllowedTransitions(currentStatus, userRole, effectivePermissions, userLevel);
       return NextResponse.json({ 
         error: `Status transition from ${currentStatus} to ${newStatus} is not allowed for your role (level ${userLevel})`,
         allowedTransitions: allowedTransitions.map(t => ({
@@ -114,6 +127,7 @@ export async function POST(
       updateData.approvedAt = new Date();
     } else if (newStatus === DocumentStatus.PUBLISHED) {
       updateData.publishedAt = new Date();
+      updateData.isPublic = true; // Auto-set to public when published
     }
 
     // Update document status
@@ -318,6 +332,7 @@ export async function GET(
           include: {
             role: {
               select: {
+                id: true,
                 level: true,
                 name: true,
                 displayName: true
@@ -335,13 +350,24 @@ export async function GET(
     
     const highestRole = currentUser?.userRoles.find(ur => ur.role.level === userLevel)?.role;
     
-    // Add administrator special handling
-    const effectivePermissions = (userRole === 'administrator' || userRole === 'admin') ? 
+    // Check capability-based admin access for GET endpoint
+    const capUserGet: CapabilityUser = { 
+      id: session.user.id, 
+      email: session.user.email || '', 
+      roles: currentUser?.userRoles.map(ur => ({
+        id: ur.role.id,
+        name: ur.role.name,
+        level: ur.role.level
+      })) || []
+    };
+    const hasAdminCapabilityGet = await hasCapability(capUserGet, 'ADMIN_ACCESS');
+    
+    const effectivePermissions = hasAdminCapabilityGet ? 
       ['*', 'documents.create', 'documents.read', 'documents.update', 'documents.delete', 'documents.approve'] : 
       userPermissions;
 
     const currentStatus = document.status as DocumentStatus;
-    const allowedTransitions = getAllowedTransitions(currentStatus, userRole, effectivePermissions, userLevel);
+    const allowedTransitions = await getAllowedTransitions(currentStatus, userRole, effectivePermissions, userLevel);
 
     return NextResponse.json(serializeForResponse({
       document: {

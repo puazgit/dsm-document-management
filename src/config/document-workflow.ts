@@ -2,7 +2,11 @@
  * Document Status Workflow Configuration
  * 
  * Defines the document lifecycle and status transitions based on roles and permissions
+ * Now queries database for workflow transitions with in-memory caching
  */
+
+import { hasCapability, getUserRoleLevel, type CapabilityUser } from '@/lib/capabilities';
+import { prisma } from '@/lib/prisma';
 
 export enum DocumentStatus {
   DRAFT = 'DRAFT',
@@ -172,17 +176,81 @@ export const DOCUMENT_STATUS_WORKFLOW: StatusTransition[] = [
 ]
 
 /**
+ * Workflow transition cache
+ * Cache workflow transitions from database for 10 minutes
+ */
+interface WorkflowTransitionCache {
+  transitions: StatusTransition[];
+  timestamp: number;
+}
+
+let workflowCache: WorkflowTransitionCache | null = null;
+const WORKFLOW_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+/**
+ * Get workflow transitions from database with caching
+ * Falls back to hardcoded config if database query fails
+ */
+async function getWorkflowTransitionsFromDB(): Promise<StatusTransition[]> {
+  // Check cache first
+  if (workflowCache && (Date.now() - workflowCache.timestamp) < WORKFLOW_CACHE_TTL) {
+    return workflowCache.transitions;
+  }
+
+  try {
+    // Query database for active workflow transitions
+    const dbTransitions = await prisma.workflowTransition.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: 'asc' }
+    });
+
+    // Transform database records to StatusTransition format
+    const transitions: StatusTransition[] = dbTransitions.map(t => ({
+      from: t.fromStatus as DocumentStatus,
+      to: t.toStatus as DocumentStatus,
+      minLevel: t.minLevel,
+      requiredPermissions: t.requiredPermission ? [t.requiredPermission] : [],
+      description: t.description || '',
+      allowedBy: t.allowedByLabel ? t.allowedByLabel.split(',').map(s => s.trim()) : []
+    }));
+
+    // Update cache
+    workflowCache = {
+      transitions,
+      timestamp: Date.now()
+    };
+
+    return transitions;
+  } catch (error) {
+    console.warn('Failed to load workflow transitions from database, using fallback:', error);
+    // Fallback to hardcoded config
+    return DOCUMENT_STATUS_WORKFLOW;
+  }
+}
+
+/**
+ * Clear workflow cache
+ * Call this after updating workflow transitions in the database
+ */
+export function clearWorkflowCache(): void {
+  workflowCache = null;
+}
+
+/**
  * Get allowed transitions for a document from its current status
- * Now uses level-based access control from database
+ * Now queries database for workflow transitions with caching
  * Users with sufficient document permissions can bypass level check
  */
-export function getAllowedTransitions(
+export async function getAllowedTransitions(
   currentStatus: DocumentStatus,
   userRole: string,
   userPermissions: string[],
   userLevel?: number // Optional: pass user's role level from database
-): StatusTransition[] {
-  return DOCUMENT_STATUS_WORKFLOW.filter(transition => {
+): Promise<StatusTransition[]> {
+  // Get transitions from database (with caching)
+  const allTransitions = await getWorkflowTransitionsFromDB();
+
+  return allTransitions.filter(transition => {
     if (transition.from !== currentStatus) return false
     
     // Check permission first
@@ -210,10 +278,7 @@ export function getAllowedTransitions(
       return userLevel >= transition.minLevel
     }
     
-    // Fallback: admin role always has access
-    if (userRole === 'administrator' || userRole === 'admin') {
-      return true
-    }
+    // Note: Removed hardcoded admin check - use capabilities instead
     
     return false
   })
@@ -221,17 +286,20 @@ export function getAllowedTransitions(
 
 /**
  * Check if a status transition is allowed
- * Now uses level-based access control
+ * Now queries database for workflow transitions with caching
  * Users with sufficient document permissions can bypass level check
  */
-export function isTransitionAllowed(
+export async function isTransitionAllowed(
   from: DocumentStatus,
   to: DocumentStatus,
   userRole: string,
   userPermissions: string[],
   userLevel?: number // Optional: pass user's role level from database
-): boolean {
-  const transition = DOCUMENT_STATUS_WORKFLOW.find(t => t.from === from && t.to === to)
+): Promise<boolean> {
+  // Get transitions from database (with caching)
+  const allTransitions = await getWorkflowTransitionsFromDB();
+  
+  const transition = allTransitions.find(t => t.from === from && t.to === to)
   if (!transition) return false
   
   // Check permission
@@ -259,10 +327,7 @@ export function isTransitionAllowed(
     return userLevel >= transition.minLevel
   }
   
-  // Fallback: admin role always has access
-  if (userRole === 'administrator' || userRole === 'admin') {
-    return true
-  }
+  // Note: Removed hardcoded admin check - use capabilities instead
   
   return false
 }

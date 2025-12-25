@@ -74,6 +74,33 @@ function AdminDashboard() {
           </Card>
         </Link>
 
+        <Link href="/admin/capabilities">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-blue-50 border-blue-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Capabilities</CardTitle>
+              <Shield className="h-4 w-4 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">
+                Manage role capabilities (NEW)
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/admin/workflows">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-green-50 border-green-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Workflows</CardTitle>
+              <Activity className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">
+                Manage workflow transitions (NEW)
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
 
 
         <Link href="/admin/settings">

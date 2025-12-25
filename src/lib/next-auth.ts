@@ -5,6 +5,7 @@ import { prisma } from "./prisma"
 import { verifyPassword } from "./auth"
 import { auditHelpers } from "./audit"
 import { getUserWithPermissions } from "./permissions"
+import { isAdmin as checkIsAdmin, type CapabilityUser } from "./capabilities"
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),

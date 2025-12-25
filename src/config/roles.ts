@@ -9,7 +9,6 @@
 
 export interface RoleConfig {
   name: string
-  displayName: string
   level: number
   permissions: string[]
   description: string
@@ -22,21 +21,18 @@ export interface RoleConfig {
 export const ROLES: Record<string, RoleConfig> = {
   admin: {
     name: 'admin',
-    displayName: 'Administrator',
     level: 100,
     permissions: ['*'], // All permissions
     description: 'Full system access and administration privileges'
   },
   org_administrator: {
     name: 'org_administrator',
-    displayName: 'Organization Administrator',
     level: 100,
     permissions: ['*'],
     description: 'Full organizational system access'
   },
   org_ppd: {
     name: 'org_ppd',
-    displayName: 'Penanggung Jawab Dokumen',
     level: 90,
     permissions: [
       'users.read', 'users.create', 'users.update',
@@ -48,7 +44,6 @@ export const ROLES: Record<string, RoleConfig> = {
   },
   org_kadiv: {
     name: 'org_kadiv',
-    displayName: 'Kepala Divisi',
     level: 80,
     permissions: [
       'documents.create', 'documents.read', 'documents.update', 'documents.approve',
@@ -59,7 +54,6 @@ export const ROLES: Record<string, RoleConfig> = {
   },
   org_gm: {
     name: 'org_gm',
-    displayName: 'General Manager',
     level: 70,
     permissions: [
       'documents.read', 'documents.approve',
@@ -70,7 +64,6 @@ export const ROLES: Record<string, RoleConfig> = {
   },
   org_manager: {
     name: 'org_manager',
-    displayName: 'Manager',
     level: 60,
     permissions: [
       'documents.create', 'documents.read', 'documents.update',
@@ -81,7 +74,6 @@ export const ROLES: Record<string, RoleConfig> = {
   },
   org_dirut: {
     name: 'org_dirut',
-    displayName: 'Direktur Utama',
     level: 50,
     permissions: [
       'documents.read', 'documents.approve',
@@ -91,7 +83,6 @@ export const ROLES: Record<string, RoleConfig> = {
   },
   org_dewas: {
     name: 'org_dewas',
-    displayName: 'Dewan Pengawas',
     level: 40,
     permissions: [
       'documents.read',
@@ -101,7 +92,6 @@ export const ROLES: Record<string, RoleConfig> = {
   },
   org_komite_audit: {
     name: 'org_komite_audit',
-    displayName: 'Komite Audit',
     level: 30,
     permissions: [
       'documents.read',
@@ -111,7 +101,6 @@ export const ROLES: Record<string, RoleConfig> = {
   },
   org_guest: {
     name: 'org_guest',
-    displayName: 'Guest',
     level: 25,
     permissions: [
       'documents.read'
@@ -120,7 +109,6 @@ export const ROLES: Record<string, RoleConfig> = {
   },
   members: {
     name: 'members',
-    displayName: 'Members',
     level: 20,
     permissions: [
       'documents.read'
@@ -129,7 +117,6 @@ export const ROLES: Record<string, RoleConfig> = {
   },
   viewer: {
     name: 'viewer',
-    displayName: 'Viewer',
     level: 10,
     permissions: [
       'documents.read'
@@ -166,6 +153,7 @@ export function hasRoleAccess(userRole: string, requiredRoles: string[]): boolea
  * Check if user role has specific permission
  */
 export function hasPermission(userRole: string, permission: string): boolean {
+  // Note: This function is deprecated, use capability-based checks instead
   const roleConfig = ROLES[userRole as RoleName]
   if (!roleConfig) return false
 

@@ -275,9 +275,6 @@ export function UserGroupAssignment({ user, isOpen, onClose, onUpdate }: UserGro
               ) : (
                 <div className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center space-x-3">
-                    <Badge variant={getGroupBadgeVariant((currentUser || user)?.group?.level || 0)}>
-                      Level {(currentUser || user)?.group?.level}
-                    </Badge>
                     <div>
                       <p className="text-sm font-medium">{(currentUser || user)?.group?.displayName}</p>
                       <p className="text-xs text-muted-foreground">
@@ -322,15 +319,9 @@ export function UserGroupAssignment({ user, isOpen, onClose, onUpdate }: UserGro
                     </SelectTrigger>
                     <SelectContent>
                       {availableGroups
-                        .sort((a, b) => b.level - a.level)
                         .map((group) => (
                           <SelectItem key={group.id} value={group.id}>
-                            <div className="flex items-center space-x-2">
-                              <Badge variant={getGroupBadgeVariant(group.level)} className="text-xs">
-                                L{group.level}
-                              </Badge>
-                              <span>{group.displayName}</span>
-                            </div>
+                            <span>{group.displayName}</span>
                           </SelectItem>
                         ))}
                     </SelectContent>

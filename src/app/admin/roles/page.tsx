@@ -39,6 +39,7 @@ interface Role {
   name: string
   displayName: string
   description: string
+  level: number
   isSystem: boolean
   createdAt: string
   _count: {
@@ -53,6 +54,7 @@ interface RoleFormData {
   name: string
   displayName: string
   description: string
+  level: number
   permissions: string[]
 }
 
@@ -68,6 +70,7 @@ export default function RolesManagementPage() {
     name: '',
     displayName: '',
     description: '',
+    level: 10,
     permissions: []
   })
   const { toast } = useToast()
@@ -143,7 +146,7 @@ export default function RolesManagementPage() {
 
       await fetchRoles()
       setIsCreateDialogOpen(false)
-      setFormData({ name: '', displayName: '', description: '', permissions: [] })
+      setFormData({ name: '', displayName: '', description: '', level: 10, permissions: [] })
       
       toast({
         title: 'Success',
@@ -183,7 +186,7 @@ export default function RolesManagementPage() {
       await fetchRoles()
       setIsEditDialogOpen(false)
       setSelectedRole(null)
-      setFormData({ name: '', displayName: '', description: '', permissions: [] })
+      setFormData({ name: '', displayName: '', description: '', level: 10, permissions: [] })
       
       // Trigger session refresh for affected users
       await fetch('/api/auth/refresh-sessions', {
@@ -236,6 +239,7 @@ export default function RolesManagementPage() {
       name: role.name,
       displayName: role.displayName,
       description: role.description,
+      level: role.level || 10,
       permissions: role.rolePermissions?.map(rp => rp.permission.id) || []
     })
     setIsEditDialogOpen(true)
@@ -255,23 +259,8 @@ export default function RolesManagementPage() {
       return {} as Record<string, Permission[]>
     }
     
-    // Filter only permissions that are actually used in the documents table functionality
-    const documentRelevantPermissions = [
-      'documents.create', 'documents.read', 'documents.update', 'documents.delete', 'documents.download',
-      'documents.update.own', 'documents.delete.own', 'documents.read.own',
-      'pdf.view', 'pdf.download', 'pdf.print', 'pdf.copy', 'pdf.watermark',
-      'admin.access', 'admin.systemConfig',
-      'users.create', 'users.read', 'users.update', 'users.delete', 'users.update.own',
-      'roles.create', 'roles.read', 'roles.update', 'roles.delete', 'roles.assign',
-      'system.admin', 'system.analytics', 'system.logs', 'system.settings',
-      'document-types.create', 'document-types.read', 'document-types.update', 'document-types.delete'
-    ]
-    
-    const relevantPermissions = permissions.filter(permission => 
-      documentRelevantPermissions.includes(`${permission.module}.${permission.action}`)
-    )
-    
-    const grouped = relevantPermissions.reduce((acc, permission) => {
+    // Group all permissions by module (no filtering)
+    const grouped = permissions.reduce((acc, permission) => {
       const module = permission.module
       if (!acc[module]) {
         acc[module] = []
@@ -287,7 +276,7 @@ export default function RolesManagementPage() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Role Management</h1>
             <p className="text-muted-foreground">
@@ -297,7 +286,7 @@ export default function RolesManagementPage() {
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
               <Button>
-                <Plus className="mr-2 h-4 w-4" />
+                <Plus className="w-4 h-4 mr-2" />
                 Create Role
               </Button>
             </DialogTrigger>
@@ -337,14 +326,29 @@ export default function RolesManagementPage() {
                   />
                 </div>
                 <div>
+                  <Label htmlFor="level">Level (0-100)</Label>
+                  <Input
+                    id="level"
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={formData.level}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, level: parseInt(e.target.value) || 10 })}
+                    placeholder="10"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Higher level = more authority. Admin=100, Manager=70, Editor=50, Viewer=10
+                  </p>
+                </div>
+                <div>
                   <Label>Permissions</Label>
-                  <div className="mt-2 space-y-4 border rounded-lg p-4 max-h-60 overflow-y-auto">
-                  <div className="text-sm text-gray-600 mb-3 p-2 bg-blue-50 rounded">
+                  <div className="p-4 mt-2 space-y-4 overflow-y-auto border rounded-lg max-h-60">
+                  <div className="p-2 mb-3 text-sm text-gray-600 rounded bg-blue-50">
                     <strong>Info:</strong> Permissions shown below are actually used in the Documents table at /documents
                   </div>
                     {Object.entries(getPermissionsByModule()).map(([module, modulePermissions]) => (
                       <div key={module}>
-                        <h4 className="font-medium mb-2 capitalize text-blue-700">
+                        <h4 className="mb-2 font-medium text-blue-700 capitalize">
                           {module === 'documents' ? '📄 Documents Management' : 
                            module === 'pdf' ? '📋 PDF Controls' :
                            module === 'users' ? '👥 User Management' :
@@ -356,7 +360,7 @@ export default function RolesManagementPage() {
                         </h4>
                         <div className="grid grid-cols-1 gap-2">
                           {(modulePermissions || []).map((permission) => (
-                            <label key={permission.id} className="flex items-center space-x-2 text-sm p-2 hover:bg-gray-50 rounded">
+                            <label key={permission.id} className="flex items-center p-2 space-x-2 text-sm rounded hover:bg-gray-50">
                               <input
                                 type="checkbox"
                                 checked={formData.permissions.includes(permission.id)}
@@ -368,7 +372,7 @@ export default function RolesManagementPage() {
                                 {permission.resource && permission.resource !== 'all' && permission.resource !== 'null' && 
                                   ` (${permission.resource})`}
                               </span>
-                              <span className="text-gray-500 text-xs">- {permission.description}</span>
+                              <span className="text-xs text-gray-500">- {permission.description}</span>
                             </label>
                           ))}
                         </div>
@@ -393,7 +397,7 @@ export default function RolesManagementPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 left-3 top-1/2" />
               <Input
                 placeholder="Search roles..."
                 value={searchTerm}
@@ -408,16 +412,17 @@ export default function RolesManagementPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
-              <Shield className="mr-2 h-5 w-5" />
+              <Shield className="w-5 h-5 mr-2" />
               Roles ({filteredRoles.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border">
+            <div className="border rounded-md">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Role</TableHead>
+                    <TableHead>Level</TableHead>
                     <TableHead>Users</TableHead>
                     <TableHead>Permissions</TableHead>
                     <TableHead>Type</TableHead>
@@ -429,15 +434,15 @@ export default function RolesManagementPage() {
                   {loading ? (
                     Array.from({ length: 3 }).map((_, i) => (
                       <TableRow key={i}>
-                        <TableCell colSpan={6}>
+                        <TableCell colSpan={7}>
                           <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
                         </TableCell>
                       </TableRow>
                     ))
                   ) : filteredRoles.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8">
-                        <Shield className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                      <TableCell colSpan={7} className="py-8 text-center">
+                        <Shield className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                         <p className="text-muted-foreground">No roles found</p>
                       </TableCell>
                     </TableRow>
@@ -451,21 +456,26 @@ export default function RolesManagementPage() {
                               {role.name}
                             </div>
                             {role.description && (
-                              <div className="text-xs text-muted-foreground mt-1">
+                              <div className="mt-1 text-xs text-muted-foreground">
                                 {role.description}
                               </div>
                             )}
                           </div>
                         </TableCell>
                         <TableCell>
+                          <Badge variant="outline" className="font-mono">
+                            {role.level}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
                           <div className="flex items-center">
-                            <Users className="mr-1 h-4 w-4" />
+                            <Users className="w-4 h-4 mr-1" />
                             {role._count?.userRoles || 0}
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center">
-                            <Key className="mr-1 h-4 w-4" />
+                            <Key className="w-4 h-4 mr-1" />
                             {role.rolePermissions?.length || 0}
                           </div>
                         </TableCell>
@@ -480,13 +490,13 @@ export default function RolesManagementPage() {
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <MoreHorizontal className="h-4 w-4" />
+                              <Button variant="ghost" className="w-8 h-8 p-0">
+                                <MoreHorizontal className="w-4 h-4" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => openEditDialog(role)}>
-                                <Edit className="mr-2 h-4 w-4" />
+                                <Edit className="w-4 h-4 mr-2" />
                                 Edit
                               </DropdownMenuItem>
                               {!role.isSystem && (
@@ -494,7 +504,7 @@ export default function RolesManagementPage() {
                                   className="text-destructive"
                                   onClick={() => handleDeleteRole(role.id, role.displayName)}
                                 >
-                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  <Trash2 className="w-4 h-4 mr-2" />
                                   Delete
                                 </DropdownMenuItem>
                               )}
@@ -546,14 +556,29 @@ export default function RolesManagementPage() {
                 />
               </div>
               <div>
+                <Label htmlFor="editLevel">Level (0-100)</Label>
+                <Input
+                  id="editLevel"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={formData.level}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, level: parseInt(e.target.value) || 10 })}
+                  disabled={selectedRole?.isSystem}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Higher level = more authority. Admin=100, Manager=70, Editor=50, Viewer=10
+                </p>
+              </div>
+              <div>
                 <Label>Permissions</Label>
-                <div className="mt-2 space-y-4 border rounded-lg p-4 max-h-60 overflow-y-auto">
-                  <div className="text-sm text-gray-600 mb-3 p-2 bg-blue-50 rounded">
+                <div className="p-4 mt-2 space-y-4 overflow-y-auto border rounded-lg max-h-60">
+                  <div className="p-2 mb-3 text-sm text-gray-600 rounded bg-blue-50">
                     <strong>Info:</strong> Permissions shown below are actually used in the Documents table at /documents
                   </div>
                   {Object.entries(getPermissionsByModule()).map(([module, modulePermissions]) => (
                     <div key={module}>
-                      <h4 className="font-medium mb-2 capitalize text-blue-700">
+                      <h4 className="mb-2 font-medium text-blue-700 capitalize">
                         {module === 'documents' ? '📄 Documents Management' : 
                          module === 'pdf' ? '📋 PDF Controls' :
                          module === 'users' ? '👥 User Management' :
@@ -565,7 +590,7 @@ export default function RolesManagementPage() {
                       </h4>
                       <div className="grid grid-cols-1 gap-2">
                         {(modulePermissions || []).map((permission) => (
-                          <label key={permission.id} className="flex items-center space-x-2 text-sm p-2 hover:bg-gray-50 rounded">
+                          <label key={permission.id} className="flex items-center p-2 space-x-2 text-sm rounded hover:bg-gray-50">
                             <input
                               type="checkbox"
                               checked={formData.permissions.includes(permission.id)}
@@ -577,7 +602,7 @@ export default function RolesManagementPage() {
                               {permission.resource && permission.resource !== 'all' && permission.resource !== 'null' && 
                                 ` (${permission.resource})`}
                             </span>
-                            <span className="text-gray-500 text-xs">- {permission.description}</span>
+                            <span className="text-xs text-gray-500">- {permission.description}</span>
                           </label>
                         ))}
                       </div>

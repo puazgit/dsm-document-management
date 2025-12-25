@@ -4,6 +4,7 @@ import { authOptions } from '../../../../../lib/next-auth';
 import { prisma } from '../../../../../lib/prisma';
 import { z } from 'zod';
 import { serializeForResponse } from '../../../../../lib/bigint-utils';
+import { canManageDocuments, type CapabilityUser } from '@/lib/capabilities';
 
 // Validation schema for approval
 const ApprovalSchema = z.object({
@@ -32,11 +33,15 @@ export async function POST(
     const userRole = session.user.role || '';
     
     const hasApprovalPermission = userPermissions.includes('documents.approve');
-    const isAdministrator = userRole === 'admin';
+    
+    // Check capability-based access
+    const capUser: CapabilityUser = { id: session.user.id, email: session.user.email || '', roles: [] };
+    const canManage = await canManageDocuments(capUser);
+    
     const isManagementRole = ['admin', 'manager'].includes(userRole);
     const isOrganizationalLeader = ['org_dirut', 'org_gm', 'org_kadiv', 'org_administrator', 'org_ppd'].includes(userRole);
     
-    if (!hasApprovalPermission && !isAdministrator && !isManagementRole && !isOrganizationalLeader) {
+    if (!hasApprovalPermission && !canManage && !isManagementRole && !isOrganizationalLeader) {
       return NextResponse.json({ 
         error: 'Tidak memiliki permission untuk approve/reject dokumen' 
       }, { status: 403 });

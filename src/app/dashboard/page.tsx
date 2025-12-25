@@ -5,6 +5,13 @@ import { useSession } from 'next-auth/react';
 import { DashboardStats } from "../../components/ui/dashboard-stats"
 import { RecentDocuments } from "../../components/ui/recent-documents"
 import { ActivityFeed } from "../../components/ui/activity-feed"
+import { DocumentStatusChart } from "../../components/ui/document-status-chart"
+import { MonthlyTrendChart } from "../../components/ui/monthly-trend-chart"
+import { PendingApprovals } from "../../components/ui/pending-approvals"
+import { UserPerformanceWidget } from "../../components/ui/user-performance"
+import { NotificationsWidget } from "../../components/ui/notifications-widget"
+import { DocumentTimeline } from "../../components/ui/document-timeline"
+import { TopDocuments } from "../../components/ui/top-documents"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card"
 import { SidebarProvider, SidebarInset } from '../../components/ui/sidebar'
 import { AppSidebar } from '../../components/app-sidebar'
@@ -77,56 +84,35 @@ export default function DashboardPage() {
           {/* Stats Cards */}
           <DashboardStats />
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* Recent Documents - Takes 2 columns */}
-          <div className="lg:col-span-2">
+          {/* Top Documents Row - Most Viewed & Most Downloaded */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <TopDocuments type="views" />
+            <TopDocuments type="downloads" />
+          </div>
+
+          {/* Charts Row */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <DocumentStatusChart />
+            <MonthlyTrendChart />
+          </div>
+
+          {/* Performance & Notifications Row */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <UserPerformanceWidget />
+            <NotificationsWidget />
+          </div>
+
+          {/* Pending Approvals - Full Width */}
+          <PendingApprovals />
+
+          {/* Timeline & Recent Documents Row */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <DocumentTimeline />
             <RecentDocuments />
           </div>
 
-          {/* Activity Feed - Takes 1 column */}
-          <div>
-            <ActivityFeed />
-          </div>
-        </div>
-
-        {/* Development Status */}
-        <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 dark:border-blue-800">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-blue-900 dark:text-blue-100">
-              🎉 Enhanced Dashboard Complete!
-            </CardTitle>
-            <CardDescription className="text-blue-700 dark:text-blue-300">
-              Full-featured dashboard with responsive navigation and real-time updates
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div>
-                <h4 className="mb-3 font-semibold text-green-800">✅ New Features:</h4>
-                <ul className="space-y-1 text-sm text-green-700">
-                  <li>• Responsive sidebar navigation</li>
-                  <li>• User menu with dropdown</li>
-                  <li>• Statistics overview cards</li>
-                  <li>• Recent documents table</li>
-                  <li>• Real-time activity feed</li>
-                  <li>• Mobile-responsive design</li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="mb-3 font-semibold text-blue-800">� Ready to Use:</h4>
-                <ul className="space-y-1 text-sm text-blue-700">
-                  <li>• Navigation: Sidebar with 7 menu items</li>
-                  <li>• Layout: Mobile & desktop responsive</li>
-                  <li>• Components: Reusable UI library</li>
-                  <li>• Notifications: Badge with count</li>
-                  <li>• User Experience: Smooth interactions</li>
-                  <li>• Design: Modern and professional</li>
-                </ul>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Activity Feed - Full Width */}
+          <ActivityFeed />
             </div>
           </main>
         </SidebarInset>

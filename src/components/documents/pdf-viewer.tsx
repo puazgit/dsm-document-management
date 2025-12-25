@@ -1,14 +1,60 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useSession } from 'next-auth/react';
+import logger from '@/lib/logger';
+
+// Constants
+const PDF_VIEWER_HEIGHT = '1200px';
+const WATERMARK_OPACITY = 0.1;
+const WATERMARK_ROTATION = 45;
+const DEFAULT_PERMISSIONS = {
+  canDownload: false,
+  canPrint: false,
+  canCopy: false,
+  showWatermark: true
+};
+
+// TypeScript Interfaces
+interface DocumentType {
+  id: string;
+  name: string;
+}
+
+interface User {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+interface Document {
+  id: string;
+  title: string;
+  fileName: string;
+  fileSize?: number | bigint;
+  status?: string;
+  description?: string;
+  tags?: string[];
+  createdAt: Date | string;
+  createdById: string;
+  createdBy?: User;
+  documentType?: DocumentType;
+}
+
+interface PDFPermissions {
+  canDownload: boolean;
+  canPrint: boolean;
+  canCopy: boolean;
+  showWatermark: boolean;
+}
 
 interface SecurePDFViewerProps {
   fileUrl: string;
   fileName: string;
   userRole: string;
   canDownload?: boolean;
-  document?: any;
+  document?: Document;
 }
 
 function SecurePDFViewer({ 
@@ -20,37 +66,22 @@ function SecurePDFViewer({
 }: SecurePDFViewerProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
-  const pdfContainerRef = React.useRef<HTMLDivElement>(null);
+  const [roleDisplayName, setRoleDisplayName] = useState<string>('');
 
-  // Memoized helper function to get display name for role
-  const getRoleDisplayName = useCallback((role: string): string => {
-    const roleMap: Record<string, string> = {
-      'admin': 'Administrator',
-      'administrator': 'Administrator',
-      'editor': 'Editor',
-      'viewer': 'Viewer',
-      'manager': 'Manager',
-      'reviewer': 'Reviewer',
-      'guest': 'Guest',
-      'org_administrator': 'Organization Administrator',
-      'org_dirut': 'Direktur Utama',
-      'org_dewas': 'Dewan Pengawas',
-      'org_ppd': 'PPD',
-      'org_komite_audit': 'Komite Audit',
-      'org_gm': 'General Manager',
-      'org_kadiv': 'Kepala Divisi',
-      'org_manager': 'Manager',
-      'org_finance': 'Finance',
-      'org_hrd': 'HRD',
-      'org_supervisor': 'Supervisor',
-      'org_sekretaris': 'Sekretaris',
-      'org_staff': 'Staff',
-      'org_guest': 'Guest'
-    };
-    return roleMap[role.toLowerCase()] || role.charAt(0).toUpperCase() + role.slice(1);
+  // Fetch role display name from database
+  const fetchRoleDisplayName = useCallback(async (role: string): Promise<string> => {
+    try {
+      const response = await fetch(`/api/roles/display-name/${encodeURIComponent(role)}`);
+      if (response.ok) {
+        const data = await response.json();
+        return data.displayName;
+      }
+    } catch (error) {
+      logger.error('Error fetching role display name', 'PDFViewer', error, { role });
+    }
+    // Fallback: capitalize role name
+    return role.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   }, []);
 
   // Sanitize filename to prevent XSS
@@ -67,22 +98,15 @@ function SecurePDFViewer({
     e.preventDefault();
   };
 
-  // Enhanced right-click prevention - Component level only
-  const preventAllContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    return false;
-  };
-
   // State for dynamic permissions from database
-  const [currentPermissions, setCurrentPermissions] = useState({
-    canDownload: false,
-    canPrint: false,
-    canCopy: false,
-    showWatermark: true
-  });
+  const [currentPermissions, setCurrentPermissions] = useState<PDFPermissions>(DEFAULT_PERMISSIONS);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
   const { data: session } = useSession();
+
+  // Fetch role display name when component mounts
+  useEffect(() => {
+    fetchRoleDisplayName(userRole).then(setRoleDisplayName);
+  }, [userRole, fetchRoleDisplayName]);
 
   // Load user permissions from database
   useEffect(() => {
@@ -93,13 +117,8 @@ function SecurePDFViewer({
           const fallbackPermissions = await getFallbackPermissions(userRole);
           setCurrentPermissions(fallbackPermissions);
         } catch (error) {
-          console.error('Error loading fallback permissions:', error);
-          setCurrentPermissions({
-            canDownload: false,
-            canPrint: false,
-            canCopy: false,
-            showWatermark: true
-          });
+          logger.error('Error loading fallback permissions', 'PDFViewer', error);
+          setCurrentPermissions(DEFAULT_PERMISSIONS);
         }
         setPermissionsLoaded(true);
         return;
@@ -107,7 +126,7 @@ function SecurePDFViewer({
 
       try {
         // Debug: Log session data in PDF viewer
-        console.log('🔍 PDF Viewer - Session Analysis:', {
+        logger.debug('Session Analysis', 'PDFViewer', {
           hasSession: !!session,
           hasUser: !!session?.user,
           email: session?.user?.email,
@@ -130,7 +149,7 @@ function SecurePDFViewer({
         // pdf.watermark controls whether watermark is shown (false = no watermark, true/missing = show watermark)
         const showWatermark = !userPermissions.includes('pdf.watermark');
 
-        console.log('🎯 PDF Viewer - Permission Decision:', {
+        logger.debug('Permission Decision', 'PDFViewer', {
           canDownload,
           canPrint,
           canCopy,
@@ -146,26 +165,21 @@ function SecurePDFViewer({
           showWatermark
         });
       } catch (error) {
-        console.error('Error loading permissions:', error);
+        logger.error('Error loading permissions', 'PDFViewer', error);
         // Fallback to database permissions for backwards compatibility
-        console.log('⚠️ PDF Viewer - Using Fallback Permissions for role:', userRole);
+        logger.debug('Using Fallback Permissions', 'PDFViewer', { userRole });
         try {
           const fallbackPermissions = await getFallbackPermissions(userRole);
-          console.log('🎯 PDF Viewer - Fallback Permission Decision:', {
+          logger.debug('Fallback Permission Decision', 'PDFViewer', {
             ...fallbackPermissions,
             userRole,
             fallbackUsed: true
           });
           setCurrentPermissions(fallbackPermissions);
         } catch (fallbackError) {
-          console.error('Error loading fallback permissions:', fallbackError);
+          logger.error('Error loading fallback permissions', 'PDFViewer', fallbackError);
           // Last resort: use safe defaults
-          setCurrentPermissions({
-            canDownload: false,
-            canPrint: false,
-            canCopy: false,
-            showWatermark: true
-          });
+          setCurrentPermissions(DEFAULT_PERMISSIONS);
         }
       } finally {
         setPermissionsLoaded(true);
@@ -175,74 +189,36 @@ function SecurePDFViewer({
     loadPermissions();
   }, [session, userRole]);
 
-  // Fetch permissions from database based on role
-  const getFallbackPermissions = async (role: string): Promise<{
-    canDownload: boolean;
-    canPrint: boolean;
-    canCopy: boolean;
-    showWatermark: boolean;
-  }> => {
+  /**
+   * Fetches PDF permissions from the API based on user role
+   * @param role - The user role to fetch permissions for
+   * @returns Promise resolving to PDFPermissions object
+   * @throws Will use hardcoded fallback if API call fails
+   */
+  const getFallbackPermissions = useCallback(async (role: string): Promise<PDFPermissions> => {
     try {
-      console.log('🔄 Fetching fallback permissions from database for role:', role);
+      logger.debug('Fetching fallback permissions from API', 'PDFViewer', { role });
       
       // Fetch from API
       const response = await fetch(`/api/roles/${encodeURIComponent(role)}/permissions-summary`);
       
       if (!response.ok) {
-        console.warn('⚠️ Failed to fetch role permissions from API, using hardcoded fallback');
-        return getHardcodedFallbackPermissions(role);
+        logger.warn('Failed to fetch role permissions from API, using default permissions', 'PDFViewer', { 
+          role, 
+          status: response.status 
+        });
+        return DEFAULT_PERMISSIONS;
       }
       
       const permissions = await response.json();
-      console.log('✅ Fetched permissions from database:', permissions);
+      logger.debug('Fetched permissions from database', 'PDFViewer', { role, permissions });
       
       return permissions;
     } catch (error) {
-      console.error('❌ Error fetching role permissions:', error);
-      return getHardcodedFallbackPermissions(role);
+      logger.error('Error fetching role permissions from API', 'PDFViewer', error, { role });
+      return DEFAULT_PERMISSIONS;
     }
-  };
-
-  // Hardcoded fallback as last resort (synced with database as of Dec 2024)
-  // This should ONLY be used if both session and API calls fail
-  const getHardcodedFallbackPermissions = (role: string) => {
-    const rolePermissions = {
-      // Core roles (synced with database)
-      'administrator': { canDownload: true, canPrint: true, canCopy: true, showWatermark: false },
-      'admin': { canDownload: true, canPrint: true, canCopy: true, showWatermark: false },
-      'manager': { canDownload: true, canPrint: true, canCopy: true, showWatermark: true }, // No pdf.watermark in DB
-      'editor': { canDownload: true, canPrint: false, canCopy: false, showWatermark: true }, // No pdf.watermark in DB
-      'viewer': { canDownload: true, canPrint: true, canCopy: true, showWatermark: false }, // Has pdf.watermark in DB
-      'reviewer': { canDownload: false, canPrint: false, canCopy: false, showWatermark: true },
-      'ppd': { canDownload: true, canPrint: true, canCopy: true, showWatermark: false },
-      'kadiv': { canDownload: true, canPrint: true, canCopy: false, showWatermark: true },
-      'guest': { canDownload: false, canPrint: false, canCopy: false, showWatermark: true },
-      // Organizational roles mapping (synced with database)
-      'org_administrator': { canDownload: true, canPrint: true, canCopy: true, showWatermark: false },
-      'org_dirut': { canDownload: true, canPrint: true, canCopy: true, showWatermark: false },
-      'org_dewas': { canDownload: true, canPrint: true, canCopy: true, showWatermark: false },
-      'org_ppd': { canDownload: true, canPrint: true, canCopy: true, showWatermark: false },
-      'org_komite_audit': { canDownload: true, canPrint: true, canCopy: false, showWatermark: false },
-      'org_gm': { canDownload: true, canPrint: true, canCopy: false, showWatermark: false },
-      'org_kadiv': { canDownload: true, canPrint: true, canCopy: false, showWatermark: true },
-      'org_manager': { canDownload: true, canPrint: true, canCopy: true, showWatermark: true },
-      'org_finance': { canDownload: true, canPrint: true, canCopy: true, showWatermark: false },
-      'org_hrd': { canDownload: true, canPrint: true, canCopy: true, showWatermark: false },
-      'org_supervisor': { canDownload: true, canPrint: true, canCopy: true, showWatermark: false },
-      'org_sekretaris': { canDownload: true, canPrint: true, canCopy: true, showWatermark: false },
-      'org_staff': { canDownload: true, canPrint: true, canCopy: true, showWatermark: false },
-      'org_guest': { canDownload: false, canPrint: false, canCopy: false, showWatermark: true }
-    };
-    
-    console.warn('⚠️ Using hardcoded fallback permissions for role:', role, '- This should rarely happen!');
-    
-    return rolePermissions[role.toLowerCase() as keyof typeof rolePermissions] || {
-      canDownload: false,
-      canPrint: false,
-      canCopy: false,
-      showWatermark: true
-    };
-  };
+  }, []);
 
   // Security: Disable keyboard shortcuts
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -258,13 +234,6 @@ function SecurePDFViewer({
   // Security: Disable drag and drop
   const handleDragStart = (e: React.DragEvent) => {
     e.preventDefault();
-  };
-
-  // Security: Disable text selection if copy not allowed
-  const handleSelectStart = (e: React.SyntheticEvent) => {
-    if (!currentPermissions.canCopy) {
-      e.preventDefault();
-    }
   };
 
   // Utility function to check if file is PDF
@@ -301,38 +270,23 @@ function SecurePDFViewer({
     return colors[role.toLowerCase() as keyof typeof colors] || colors['guest'];
   };
 
-  // Handle page navigation
-  const handlePageUp = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
-  const handlePageDown = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
-
   // Handle download functionality
   const handleDownload = async () => {
     // Ensure we're running in the browser with document available
     if (typeof window === 'undefined') {
-      console.error('❌ Download failed: Not running in browser environment');
-      alert('Download failed: Please try again');
+      logger.error('Download failed: Not running in browser environment', 'PDFViewer');
       return;
     }
 
     // Get safe reference to browser document object (avoid prop naming conflict)
     const browserDocument = typeof window !== 'undefined' && typeof window.document !== 'undefined' ? window.document : null;
     if (!browserDocument) {
-      console.error('❌ Download failed: Browser document not available');
-      alert('Download failed: Please try again');
+      logger.error('Download failed: Browser document not available', 'PDFViewer');
       return;
     }
 
     if (!currentPermissions.canDownload) {
-      alert('Download not permitted for your role.');
+      logger.warn('Download not permitted for role', 'PDFViewer', { userRole });
       return;
     }
 
@@ -340,7 +294,7 @@ function SecurePDFViewer({
 
     setIsDownloading(true);
     try {
-      console.log('🔄 Starting download for:', fileName);
+      logger.debug('Starting download', 'PDFViewer', { fileName });
       const response = await fetch(fileUrl);
       if (!response.ok) {
         throw new Error(`Download failed: ${response.status} ${response.statusText}`);
@@ -356,11 +310,9 @@ function SecurePDFViewer({
       window.URL.revokeObjectURL(url);
       browserDocument.body.removeChild(a);
       
-      // Show success feedback
-      console.log('✅ Download completed successfully');
+      logger.info('Download completed successfully', 'PDFViewer', { fileName: safeFileName });
     } catch (error) {
-      console.error('❌ Download failed:', error);
-      alert(`Download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error('Download failed', 'PDFViewer', error, { fileName });
     } finally {
       setIsDownloading(false);
     }
@@ -425,7 +377,7 @@ function SecurePDFViewer({
       </div>
 
       {/* Content */}
-      <div className="p-6">
+      <div className="p-3">
         {error ? (
           <div className="p-4 text-center text-red-600 border border-red-200 rounded-lg bg-red-50">
             <p className="font-medium">{error}</p>
@@ -442,9 +394,19 @@ function SecurePDFViewer({
         ) : (
           <div className="space-y-4">
             {/* PDF Viewer with Enhanced Security */}
-            <div className="relative bg-white border rounded pdf-secure-viewer" style={{ minHeight: '600px' }}>
+            <div 
+              className="relative bg-white border rounded pdf-secure-viewer" 
+              style={{ minHeight: PDF_VIEWER_HEIGHT }}
+              role="region"
+              aria-label="PDF Document Viewer"
+            >
               {isLoading && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-100 rounded">
+                <div 
+                  className="absolute inset-0 z-10 flex items-center justify-center bg-gray-100 rounded"
+                  role="status"
+                  aria-live="polite"
+                  aria-label="Loading PDF document"
+                >
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 border-b-2 border-blue-600 rounded-full animate-spin"></div>
                     <span className="text-gray-600">Loading PDF preview...</span>
@@ -456,6 +418,7 @@ function SecurePDFViewer({
               {currentPermissions.showWatermark && (
                 <div 
                   className="absolute inset-0 z-20 pointer-events-none"
+                  aria-hidden="true"
                   style={{
                     background: `repeating-linear-gradient(
                       45deg,
@@ -468,28 +431,30 @@ function SecurePDFViewer({
                 >
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div 
-                      className="text-6xl font-bold text-gray-400 transform rotate-45 pointer-events-none select-none"
+                      className="text-6xl font-bold text-gray-400 transform pointer-events-none select-none"
                       style={{ 
-                        opacity: 0.1,
+                        opacity: WATERMARK_OPACITY,
+                        transform: `rotate(${WATERMARK_ROTATION}deg)`,
                         textShadow: '2px 2px 4px rgba(0,0,0,0.1)',
                         letterSpacing: '0.2em'
                       }}
                     >
-                      {getRoleDisplayName(userRole).toUpperCase()}
+                      {roleDisplayName.toUpperCase()}
                     </div>
                   </div>
                 </div>
               )}
               
               <div 
-                ref={pdfContainerRef}
                 className="relative pdf-viewer-container"
                 style={{ 
                   width: "100%", 
-                  height: "600px", 
+                  height: PDF_VIEWER_HEIGHT, 
                   overflowY: "auto",
                   overflowX: "hidden"
                 }}
+                role="document"
+                aria-label="PDF content container"
               >
                 <iframe
                   src={`${fileUrl.replace('/download', '/view')}#toolbar=0&navpanes=0&scrollbar=1`}
@@ -511,6 +476,7 @@ function SecurePDFViewer({
                     onClick={handleDownload}
                     disabled={isDownloading}
                     className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-label={isDownloading ? 'Downloading PDF document' : 'Download PDF document'}
                   >
                     {isDownloading ? (
                       <>
@@ -530,24 +496,22 @@ function SecurePDFViewer({
               </div>
 
               <div className="text-sm text-gray-500">
-                Role: <span className="font-medium">{getRoleDisplayName(userRole)}</span>
+                Role: <span className="font-medium">{roleDisplayName || userRole}</span>
               </div>
             </div>
 
-            {/* Security Notice */}
+            {/* Subtle Access Notice - only shown when download permission is restricted */}
             {!currentPermissions.canDownload && (
-              <div className="p-3 border border-blue-200 rounded-lg bg-blue-50">
-                <div className="flex items-start gap-2">
-                  <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,7C13.4,7 14.8,8.6 14.8,10V11.5C15.4,11.5 16,12.1 16,12.7V16.7C16,17.4 15.4,18 14.8,18H9.2C8.6,18 8,17.4 8,16.8V12.8C8,12.2 8.6,11.6 9.2,11.6V10C9.2,8.6 10.6,7 12,7M12,8.2C11.2,8.2 10.5,8.7 10.5,10V11.5H13.5V10C13.5,8.7 12.8,8.2 12,8.2Z" />
-                  </svg>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-blue-900">Document Access Restricted</p>
-                    <p className="mt-1 text-xs text-blue-700">
-                      Your current role ({userRole}) allows viewing only. Contact an administrator for download access.
-                    </p>
-                  </div>
-                </div>
+              <div 
+                className="flex items-center gap-2 px-3 py-2 text-xs text-gray-600 border-l-2 border-gray-400 rounded-r bg-gray-50"
+                role="status"
+                aria-live="polite"
+                aria-label="Access restriction notice"
+              >
+                <svg className="w-3.5 h-3.5 flex-shrink-0 text-gray-500" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                <span>View-only access. Need download permission? Contact your administrator.</span>
               </div>
             )}
           </div>

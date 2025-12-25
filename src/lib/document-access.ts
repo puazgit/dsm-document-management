@@ -6,6 +6,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { hasFullDocumentAccess as checkFullDocAccess, hasCapability, type CapabilityUser } from '@/lib/capabilities';
 
 const prisma = new PrismaClient();
 
@@ -13,6 +14,7 @@ interface User {
   id: string;
   email: string;
   role?: string;
+  level?: number;
   groupId?: string | null;
   group?: {
     name: string;
@@ -46,8 +48,9 @@ export async function canAccessDocument(
   document: Document,
   userPermissions?: string[]
 ): Promise<boolean> {
-  // Rule 1: Admin can access everything
-  if (user.role === 'admin' || user.role === 'org_administrator' || user.group?.name === 'administrator') {
+  // Rule 1: Check capability-based access (admin or full document access)
+  const capUser: CapabilityUser = { id: user.id, email: user.email, roles: [] };
+  if (await checkFullDocAccess(capUser)) {
     return true;
   }
 
@@ -56,7 +59,6 @@ export async function canAccessDocument(
     const hasFullDocumentAccess = userPermissions.includes('*') || 
       (userPermissions.includes('documents.update') && 
        userPermissions.includes('documents.approve') && 
-       userPermissions.includes('documents.delete') &&
        userPermissions.includes('documents.read') &&
        userPermissions.includes('documents.create'));
     
@@ -82,9 +84,9 @@ export async function canAccessDocument(
     }
     
     // User not in allowed groups - check if high-level role can override
-    const highLevelRoles = ['org_dirut', 'org_dewas', 'org_ppd', 'org_komite_audit'];
-    if (highLevelRoles.includes(user.role || '')) {
-      // High-level roles can access if document is approved/published
+    const userLevel = user.level || 0;
+    if (userLevel >= 70) {
+      // Level 70+ (Manager+) can access if document is approved/published
       return ['APPROVED', 'PUBLISHED'].includes(document.status);
     }
     
@@ -98,8 +100,9 @@ export async function canAccessDocument(
     return canAccessByStatus(user, document, userPermissions);
   }
 
-  // Private document with no specific groups - only higher roles can access
-  const canAccessPrivate = ['editor', 'org_ppd', 'org_kadiv', 'org_gm', 'org_dirut', 'org_dewas'].includes(user.role || '') ||
+  // Private document with no specific groups - level 50+ can access
+  const userLevel = user.level || 0;
+  const canAccessPrivate = userLevel >= 50 ||
     (userPermissions && userPermissions.includes('documents.read'));
     
   if (canAccessPrivate) {
@@ -110,17 +113,18 @@ export async function canAccessDocument(
 }
 
 /**
- * Check if user can access document based on status and role
+ * Check if user can access document based on status and role level
+ * Uses level-based access control consistent with workflow system
+ * Level hierarchy: admin=100, manager=70-90, editor=50, viewer=10-40
  */
 function canAccessByStatus(user: User, document: Document, userPermissions?: string[]): boolean {
-  const role = user.role || '';
+  const userLevel = user.level || 0;
 
-  // Check if user has full document permissions (bypass role check)
+  // Check if user has full document permissions (bypass level check)
   if (userPermissions) {
     const hasFullDocumentAccess = userPermissions.includes('*') || 
       (userPermissions.includes('documents.update') && 
        userPermissions.includes('documents.approve') && 
-       userPermissions.includes('documents.delete') &&
        userPermissions.includes('documents.read') &&
        userPermissions.includes('documents.create'));
     
@@ -129,33 +133,32 @@ function canAccessByStatus(user: User, document: Document, userPermissions?: str
     }
   }
 
+  // Permission-based check as fallback
+  const hasReadPermission = userPermissions && userPermissions.includes('documents.read');
+
   switch (document.status) {
     case 'DRAFT':
     case 'PENDING_REVIEW':
-      // Only creator, editors, and high-level roles can see drafts
-      return ['editor', 'org_ppd', 'org_kadiv', 'org_gm', 'org_dirut'].includes(role) ||
-        Boolean(userPermissions && userPermissions.includes('documents.read'));
+      // Level 50+ (Editor+) can see drafts and pending review
+      return userLevel >= 50 || Boolean(hasReadPermission);
 
     case 'PENDING_APPROVAL':
-      // Approval flow roles can see
-      return ['editor', 'org_ppd', 'org_kadiv', 'org_gm', 'org_dirut', 'org_dewas'].includes(role) ||
-        Boolean(userPermissions && userPermissions.includes('documents.read'));
+      // Level 70+ (Manager+) can see pending approval
+      return userLevel >= 70 || Boolean(hasReadPermission);
 
     case 'APPROVED':
     case 'PUBLISHED':
-      // Most roles can see published documents
-      return !['org_guest'].includes(role);
+      // Level 10+ (all except guest) can see published documents
+      return userLevel >= 10;
 
     case 'REJECTED':
-      // Only creator and admin roles can see rejected
-      return ['editor', 'org_ppd', 'org_dirut'].includes(role) ||
-        Boolean(userPermissions && userPermissions.includes('documents.read'));
+      // Level 50+ (Editor+) can see rejected documents
+      return userLevel >= 50 || Boolean(hasReadPermission);
 
     case 'ARCHIVED':
     case 'EXPIRED':
-      // Higher roles and creator can see archived/expired
-      return ['editor', 'org_ppd', 'org_kadiv', 'org_gm', 'org_dirut', 'org_dewas'].includes(role) ||
-        Boolean(userPermissions && userPermissions.includes('documents.read'));
+      // Level 50+ (Editor+) can see archived/expired
+      return userLevel >= 50 || Boolean(hasReadPermission);
 
     default:
       return false;
@@ -185,7 +188,6 @@ export function buildDocumentAccessWhere(user: User, userPermissions?: string[])
     const hasFullDocumentAccess = userPermissions.includes('*') || 
       (userPermissions.includes('documents.update') && 
        userPermissions.includes('documents.approve') && 
-       userPermissions.includes('documents.delete') &&
        userPermissions.includes('documents.read') &&
        userPermissions.includes('documents.create'));
     
@@ -199,32 +201,33 @@ export function buildDocumentAccessWhere(user: User, userPermissions?: string[])
     { createdById: user.id }
   ];
 
+  const userLevel = user.level || 0;
+
   // Add group-specific access
   if (userGroupName) {
     accessConditions.push({
       AND: [
         { accessGroups: { has: userGroupName } },
-        ...getStatusConditionsForRole(role, userPermissions)
+        ...getStatusConditionsForRole(role, userPermissions, userLevel)
       ]
     });
   }
 
-  // Add public documents access based on role
+  // Add public documents access based on role level
   accessConditions.push({
     AND: [
       { isPublic: true },
       { accessGroups: { isEmpty: true } }, // No specific group restrictions
-      ...getStatusConditionsForRole(role, userPermissions)
+      ...getStatusConditionsForRole(role, userPermissions, userLevel)
     ]
   });
 
-  // Add role-based access for documents without group restrictions
-  if (['editor', 'org_ppd', 'org_kadiv', 'org_gm', 'org_dirut', 'org_dewas'].includes(role) ||
-      (userPermissions && userPermissions.includes('documents.read'))) {
+  // Add level-based access for documents without group restrictions
+  if (userLevel >= 50 || (userPermissions && userPermissions.includes('documents.read'))) {
     accessConditions.push({
       AND: [
         { accessGroups: { isEmpty: true } },
-        ...getStatusConditionsForRole(role, userPermissions)
+        ...getStatusConditionsForRole(role, userPermissions, userLevel)
       ]
     });
   }
@@ -233,15 +236,16 @@ export function buildDocumentAccessWhere(user: User, userPermissions?: string[])
 }
 
 /**
- * Get status conditions based on role
+ * Get status conditions based on role level
+ * Uses level-based access control for consistency with workflow system
+ * Note: This function now requires user object with level, passed through buildDocumentAccessWhere
  */
-function getStatusConditionsForRole(role: string, userPermissions?: string[]): any[] {
+function getStatusConditionsForRole(role: string, userPermissions?: string[], userLevel?: number): any[] {
   // Users with full document permissions can see all statuses
   if (userPermissions) {
     const hasFullDocumentAccess = userPermissions.includes('*') || 
       (userPermissions.includes('documents.update') && 
        userPermissions.includes('documents.approve') && 
-       userPermissions.includes('documents.delete') &&
        userPermissions.includes('documents.read') &&
        userPermissions.includes('documents.create'));
     
@@ -252,48 +256,46 @@ function getStatusConditionsForRole(role: string, userPermissions?: string[]): a
     }
   }
 
-  switch (role) {
-    case 'editor':
-    case 'org_ppd':
-      return [
-        { status: { in: ['DRAFT', 'PENDING_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED'] } }
-      ];
+  const level = userLevel || 0;
 
-    case 'org_dirut':
-    case 'org_dewas':
-      return [
-        { status: { in: ['PENDING_APPROVAL', 'APPROVED', 'PUBLISHED'] } }
-      ];
-
-    case 'org_kadiv':
-    case 'org_gm':
-    case 'org_komite_audit':
-      return [
-        { status: { in: ['APPROVED', 'PUBLISHED'] } }
-      ];
-
-    case 'org_manager':
-    case 'org_staff':
-      return [
-        { status: 'PUBLISHED' }
-      ];
-
-    case 'viewer':
-    case 'org_guest':
-      return [
-        { status: 'PUBLISHED' },
-        { isPublic: true }
-      ];
-
-    default:
-      return [
-        { status: 'PUBLISHED' }
-      ];
+  // Level-based access control
+  if (level >= 100) {
+    // Admin (100+): All statuses
+    return [
+      { status: { in: ['DRAFT', 'PENDING_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED', 'ARCHIVED', 'EXPIRED'] } }
+    ];
+  } else if (level >= 70) {
+    // Manager+ (70-99): All except archived
+    return [
+      { status: { in: ['DRAFT', 'PENDING_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED'] } }
+    ];
+  } else if (level >= 50) {
+    // Editor (50-69): Draft through published, rejected
+    return [
+      { status: { in: ['DRAFT', 'PENDING_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED'] } }
+    ];
+  } else if (level >= 40) {
+    // Higher viewers (40-49): Approved and published
+    return [
+      { status: { in: ['APPROVED', 'PUBLISHED'] } }
+    ];
+  } else if (level >= 10) {
+    // Regular users (10-39): Only published
+    return [
+      { status: 'PUBLISHED' }
+    ];
+  } else {
+    // Guest (0-9): Only published and public
+    return [
+      { status: 'PUBLISHED' },
+      { isPublic: true }
+    ];
   }
 }
 
 /**
- * Get user with group information
+ * Get user with group and role level information
+ * Fetches highest role level for level-based access control
  */
 export async function getUserWithGroup(userId: string): Promise<User | null> {
   const user = await prisma.user.findUnique({
@@ -312,7 +314,8 @@ export async function getUserWithGroup(userId: string): Promise<User | null> {
         include: {
           role: {
             select: {
-              name: true
+              name: true,
+              level: true
             }
           }
         }
@@ -322,13 +325,19 @@ export async function getUserWithGroup(userId: string): Promise<User | null> {
 
   if (!user) return null;
 
-  // Get primary role
+  // Get highest role level from all user roles
+  const userLevel = user.userRoles.reduce((maxLevel, userRole) => {
+    return Math.max(maxLevel, userRole.role.level);
+  }, 0);
+
+  // Get primary role name
   const primaryRole = user.userRoles?.[0]?.role?.name || user.group?.name || 'user';
 
   return {
     id: user.id,
     email: user.email,
     role: primaryRole,
+    level: userLevel,
     groupId: user.groupId,
     group: user.group
   };

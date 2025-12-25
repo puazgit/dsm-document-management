@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -180,7 +180,7 @@ export default function DocumentsPage() {
   }, [session]);
 
   // Fetch documents
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     if (!session) return;
 
     setLoading(true);
@@ -218,10 +218,10 @@ export default function DocumentsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [session, currentPage, sortBy, sortOrder, searchQuery, selectedType, selectedStatus]);
 
   // Fetch stats
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     if (!session) return;
 
     try {
@@ -233,15 +233,15 @@ export default function DocumentsPage() {
     } catch (error) {
       console.error('Error fetching stats:', error);
     }
-  };
+  }, [session]);
 
   useEffect(() => {
     fetchDocuments();
-  }, [session, currentPage, sortBy, sortOrder, selectedType, selectedStatus]);
+  }, [fetchDocuments]);
 
   useEffect(() => {
     fetchStats();
-  }, [session]);
+  }, [fetchStats]);
 
   // Handle search
   const handleSearch = () => {

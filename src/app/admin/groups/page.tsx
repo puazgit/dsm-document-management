@@ -40,7 +40,6 @@ interface Group {
   name: string
   displayName: string
   description: string | null
-  level: number
   isActive: boolean
   createdAt: string
   _count?: {
@@ -52,7 +51,6 @@ interface GroupFormData {
   name: string
   displayName: string
   description: string
-  level: number
 }
 
 function GroupsManagementPage() {
@@ -67,8 +65,7 @@ function GroupsManagementPage() {
   const [formData, setFormData] = useState<GroupFormData>({
     name: '',
     displayName: '',
-    description: '',
-    level: 0
+    description: ''
   })
 
   const fetchGroups = useCallback(async () => {
@@ -101,8 +98,7 @@ function GroupsManagementPage() {
       const createData = {
         name: formData.name,
         displayName: formData.displayName,
-        description: formData.description,
-        level: formData.level
+        description: formData.description
       }
 
       const response = await fetch('/api/groups', {
@@ -141,8 +137,7 @@ function GroupsManagementPage() {
     setFormData({
       name: group.name,
       displayName: group.displayName,
-      description: group.description || '',
-      level: group.level
+      description: group.description || ''
     })
     setIsEditDialogOpen(true)
   }
@@ -152,9 +147,9 @@ function GroupsManagementPage() {
 
     try {
       const updateData = {
+        name: formData.name,
         displayName: formData.displayName,
-        description: formData.description,
-        level: formData.level
+        description: formData.description
       }
 
       const response = await fetch(`/api/groups/${selectedGroup.id}`, {
@@ -234,28 +229,22 @@ function GroupsManagementPage() {
     group.displayName.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const getLevelBadgeColor = (level: number) => {
-    if (level >= 9) return 'bg-red-500 hover:bg-red-600'
-    if (level >= 7) return 'bg-orange-500 hover:bg-orange-600'
-    if (level >= 5) return 'bg-yellow-500 hover:bg-yellow-600'
-    if (level >= 3) return 'bg-blue-500 hover:bg-blue-600'
-    return 'bg-gray-500 hover:bg-gray-600'
-  }
+
 
   if (loading) {
-    return <div className="flex justify-center items-center h-64">Loading organizational structure...</div>
+    return <div className="flex items-center justify-center h-64">Loading organizational structure...</div>
   }
 
   return (
     <DashboardLayout>
-      <div className="container mx-auto py-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="container py-6 mx-auto">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Building className="h-8 w-8" />
+          <h1 className="flex items-center gap-2 text-3xl font-bold">
+            <Building className="w-8 h-8" />
             Organizational Groups
           </h1>
-          <p className="text-gray-600 mt-2">
+          <p className="mt-2 text-gray-600">
             Manage organizational structure and hierarchy levels. 
             <br />
             <span className="text-sm text-blue-600">Note: Permissions are now managed separately via Role system.</span>
@@ -265,7 +254,7 @@ function GroupsManagementPage() {
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
+              <Plus className="w-4 h-4" />
               Create Group
             </Button>
           </DialogTrigger>
@@ -278,7 +267,7 @@ function GroupsManagementPage() {
             </DialogHeader>
             
             <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
+              <div className="grid items-center grid-cols-4 gap-4">
                 <Label htmlFor="name" className="text-right">Name</Label>
                 <Input
                   id="name"
@@ -289,7 +278,7 @@ function GroupsManagementPage() {
                 />
               </div>
               
-              <div className="grid grid-cols-4 items-center gap-4">
+              <div className="grid items-center grid-cols-4 gap-4">
                 <Label htmlFor="displayName" className="text-right">Display Name</Label>
                 <Input
                   id="displayName"
@@ -300,21 +289,7 @@ function GroupsManagementPage() {
                 />
               </div>
               
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="level" className="text-right">Level</Label>
-                <Input
-                  id="level"
-                  type="number"
-                  min="0"
-                  max="10"
-                  value={formData.level}
-                  onChange={(e) => setFormData({...formData, level: parseInt(e.target.value)})}
-                  className="col-span-3"
-                  placeholder="0-10"
-                />
-              </div>
-              
-              <div className="grid grid-cols-4 items-start gap-4">
+              <div className="grid items-start grid-cols-4 gap-4">
                 <Label htmlFor="description" className="text-right">Description</Label>
                 <Textarea
                   id="description"
@@ -372,7 +347,6 @@ function GroupsManagementPage() {
               <TableRow>
                 <TableHead>Group Name</TableHead>
                 <TableHead>Display Name</TableHead>
-                <TableHead>Level</TableHead>
                 <TableHead>Members</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Actions</TableHead>
@@ -381,25 +355,19 @@ function GroupsManagementPage() {
             <TableBody>
               {filteredGroups.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={5} className="py-8 text-center text-gray-500">
                     No organizational groups found
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredGroups
-                  .sort((a, b) => b.level - a.level)
                   .map((group) => (
                     <TableRow key={group.id}>
                       <TableCell className="font-medium">{group.name}</TableCell>
                       <TableCell>{group.displayName}</TableCell>
                       <TableCell>
-                        <Badge className={getLevelBadgeColor(group.level)}>
-                          Level {group.level}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
                         <div className="flex items-center gap-1">
-                          <Users className="h-4 w-4" />
+                          <Users className="w-4 h-4" />
                           {group._count?.users || 0}
                         </div>
                       </TableCell>
@@ -413,7 +381,7 @@ function GroupsManagementPage() {
                             size="sm"
                             onClick={() => handleEditGroup(group)}
                           >
-                            <Pencil className="h-4 w-4" />
+                            <Pencil className="w-4 h-4" />
                           </Button>
                           <Button
                             variant="outline"
@@ -421,7 +389,7 @@ function GroupsManagementPage() {
                             onClick={() => handleDeleteGroup(group.id)}
                             className="text-red-600 hover:text-red-700"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -444,7 +412,18 @@ function GroupsManagementPage() {
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
+            <div className="grid items-center grid-cols-4 gap-4">
+              <Label htmlFor="edit-name" className="text-right">Name</Label>
+              <Input
+                id="edit-name"
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                className="col-span-3"
+                placeholder="group-name (lowercase, no spaces)"
+              />
+            </div>
+
+            <div className="grid items-center grid-cols-4 gap-4">
               <Label htmlFor="edit-displayName" className="text-right">Display Name</Label>
               <Input
                 id="edit-displayName"
@@ -454,20 +433,7 @@ function GroupsManagementPage() {
               />
             </div>
             
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-level" className="text-right">Level</Label>
-              <Input
-                id="edit-level"
-                type="number"
-                min="0"
-                max="10"
-                value={formData.level}
-                onChange={(e) => setFormData({...formData, level: parseInt(e.target.value)})}
-                className="col-span-3"
-              />
-            </div>
-            
-            <div className="grid grid-cols-4 items-start gap-4">
+            <div className="grid items-start grid-cols-4 gap-4">
               <Label htmlFor="edit-description" className="text-right">Description</Label>
               <Textarea
                 id="edit-description"

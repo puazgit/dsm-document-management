@@ -52,7 +52,6 @@ interface Group {
   name: string
   displayName: string
   description: string
-  level: number
   _count?: {
     users: number
   }
@@ -83,7 +82,6 @@ interface User {
     name: string
     displayName: string
     description: string | null
-    level: number
     isActive: boolean
   }
   groupId?: string | null

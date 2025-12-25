@@ -58,43 +58,49 @@ export const navigationItems: NavItem[] = [
     href: '/admin',
     icon: Shield,
     description: 'Administrative functions',
-    requiredRoles: ['admin', 'org_administrator'],
+    requiredRoles: ['admin', 'org_administrator', 'ppd.pusat', 'org_ppd'],
     children: [
       {
         title: 'User Management',
         href: '/admin/users',
         icon: Users,
-        requiredRoles: ['admin', 'org_administrator', 'org_ppd']
+        requiredRoles: ['admin', 'org_administrator', 'ppd.pusat', 'org_ppd']
       },
       {
         title: 'Group Management',
         href: '/admin/groups',
         icon: Users,
-        requiredRoles: ['administrator', 'admin', 'org_administrator']
+        requiredRoles: ['administrator', 'admin', 'org_administrator', 'ppd.pusat', 'org_ppd']
       },
       {
         title: 'Role Management',
         href: '/admin/roles',
         icon: Shield,
-        requiredRoles: ['administrator', 'admin', 'org_administrator']
+        requiredRoles: ['administrator', 'admin', 'org_administrator', 'ppd.pusat', 'org_ppd']
       },
       {
         title: 'Permissions',
         href: '/admin/permissions',
         icon: Shield,
-        requiredRoles: ['administrator', 'admin', 'org_administrator']
+        requiredRoles: ['administrator', 'admin', 'org_administrator', 'ppd.pusat', 'org_ppd']
+      },
+      {
+        title: 'Capabilities',
+        href: '/admin/capabilities',
+        icon: Shield,
+        requiredRoles: ['administrator', 'admin', 'org_administrator', 'ppd.pusat', 'org_ppd']
       },
       {
         title: 'System Settings',
         href: '/admin/settings',
         icon: Settings,
-        requiredRoles: ['administrator', 'admin', 'org_administrator']
+        requiredRoles: ['administrator', 'admin', 'org_administrator', 'ppd.pusat', 'org_ppd']
       },
       {
         title: 'Audit Logs',
         href: '/admin/audit-logs',
         icon: Activity,
-        requiredRoles: ['administrator', 'admin', 'org_administrator']
+        requiredRoles: ['administrator', 'admin', 'org_administrator', 'ppd.pusat', 'org_ppd']
       }
     ]
   },
