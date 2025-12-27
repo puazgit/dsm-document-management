@@ -179,7 +179,7 @@ export function buildDocumentAccessWhere(user: User, userPermissions?: string[])
   const userGroupName = user.group?.name;
   
   // Admin sees everything
-  if (role === 'admin' || role === 'org_administrator' || userGroupName === 'administrator') {
+  if (role === 'admin' || role === 'administrator' || userGroupName === 'administrator') {
     return {};
   }
 

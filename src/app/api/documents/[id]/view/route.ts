@@ -51,7 +51,7 @@ export async function GET(
       document.accessGroups.includes(session.user.groupId || '') ||
       document.accessGroups.includes(userGroupName || '') ||
       document.accessGroups.includes(session.user.role || '') ||
-      ['admin', 'org_administrator'].includes(session.user.role);
+      ['admin', 'administrator'].includes(session.user.role);
 
     if (!hasAccess) {
       console.log('❌ View access denied. Checked:', {
@@ -60,7 +60,7 @@ export async function GET(
         groupIdMatch: document.accessGroups.includes(session.user.groupId || ''),
         groupNameMatch: document.accessGroups.includes(userGroupName || ''),
         roleMatch: document.accessGroups.includes(session.user.role || ''),
-        isAdmin: ['admin', 'org_administrator'].includes(session.user.role)
+        isAdmin: ['admin', 'administrator'].includes(session.user.role)
       });
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
@@ -80,15 +80,17 @@ export async function GET(
         data: { viewCount: { increment: 1 } },
       });
 
-      // Log view activity
-      await prisma.documentActivity.create({
-        data: {
-          documentId: id,
-          userId: session.user.id,
-          action: 'VIEW',
-          description: `Document "${document.title}" was viewed`,
-        },
-      });
+      // Log view activity only for published documents
+      if (document.status === 'PUBLISHED') {
+        await prisma.documentActivity.create({
+          data: {
+            documentId: id,
+            userId: session.user.id,
+            action: 'VIEW',
+            description: `Document "${document.title}" was viewed`,
+          },
+        });
+      }
 
       // Set appropriate headers for inline viewing without download toolbar
       const headers = new Headers();
@@ -172,42 +174,50 @@ export async function POST(
       document.accessGroups.includes(session.user.groupId || '') ||
       document.accessGroups.includes(userGroupName || '') ||
       document.accessGroups.includes(session.user.role || '') ||
-      ['admin', 'org_administrator'].includes(session.user.role);
+      ['admin', 'administrator'].includes(session.user.role);
 
     if (!hasAccess) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
     // Use transaction to ensure both activity log and counter are updated atomically
-    const [_, activity] = await prisma.$transaction([
+    // Only log activity for published documents
+    const transactionOps = [
       // 1. Increment view count
       prisma.document.update({
         where: { id },
         data: { viewCount: { increment: 1 } },
-      }),
-      
-      // 2. Log view activity
-      prisma.documentActivity.create({
-        data: {
-          documentId: id,
-          userId: session.user.id,
-          action: 'VIEW',
-          description: `Document "${document.title}" was viewed`,
-          metadata: {
-            source: 'document_viewer',
-            timestamp: new Date().toISOString()
-          }
-        },
       })
-    ]);
+    ];
+    
+    // 2. Log view activity only for published documents
+    if (document.status === 'PUBLISHED') {
+      transactionOps.push(
+        prisma.documentActivity.create({
+          data: {
+            documentId: id,
+            userId: session.user.id,
+            action: 'VIEW',
+            description: `Document "${document.title}" was viewed`,
+            metadata: {
+              source: 'document_viewer',
+              timestamp: new Date().toISOString()
+            }
+          },
+        })
+      );
+    }
+    
+    const results = await prisma.$transaction(transactionOps);
+    const activity = document.status === 'PUBLISHED' ? results[1] : null;
 
     return NextResponse.json({ 
       success: true,
-      activity: {
+      activity: activity ? {
         id: activity.id,
         action: activity.action,
         createdAt: activity.createdAt
-      }
+      } : null
     });
 
   } catch (error) {

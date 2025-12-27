@@ -210,30 +210,30 @@ export const LEGACY_ROLE_MAPPINGS = {
   ADMINISTRATOR: ['admin'],
   
   // Management patterns - map to modern org_ prefixed roles
-  manager: ['org_manager', 'org_kadiv', 'org_gm'],
-  MANAGER: ['org_manager', 'org_kadiv', 'org_gm'],
-  kadiv: ['org_kadiv'],
-  KADIV: ['org_kadiv'],
-  gm: ['org_gm'],
-  GM: ['org_gm'],
+  manager: ['manager', 'kadiv', 'gm'],
+  MANAGER: ['manager', 'kadiv', 'gm'],
+  kadiv: ['kadiv'],
+  KADIV: ['kadiv'],
+  gm: ['gm'],
+  GM: ['gm'],
   
   // Document responsibility patterns
-  ppd: ['org_ppd'],
-  PPD: ['org_ppd'],
+  ppd: ['ppd'],
+  PPD: ['ppd'],
   
   // Director patterns
-  dirut: ['org_dirut'],
-  DIRUT: ['org_dirut'],
+  dirut: ['dirut'],
+  DIRUT: ['dirut'],
   
   // Audit patterns
-  dewas: ['org_dewas'],
-  DEWAS: ['org_dewas'],
-  komite_audit: ['org_komite_audit'],
-  KOMITE_AUDIT: ['org_komite_audit'],
+  dewas: ['dewas'],
+  DEWAS: ['dewas'],
+  komite_audit: ['komite_audit'],
+  KOMITE_AUDIT: ['komite_audit'],
   
   // Guest patterns
-  guest: ['org_guest'],
-  GUEST: ['org_guest'],
+  guest: ['guest'],
+  GUEST: ['guest'],
   
   // Viewer patterns
   viewer: ['viewer', 'members'],

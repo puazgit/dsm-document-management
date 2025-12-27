@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { withAuth } from '@/components/auth/with-auth'
-import { DashboardLayout } from '@/components/ui/dashboard-layout'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -178,19 +177,16 @@ function SystemSettingsPage() {
 
   if (loading) {
     return (
-      <DashboardLayout>
         <div className="flex h-96 items-center justify-center">
           <div className="text-center">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
             <p>Loading system settings...</p>
           </div>
         </div>
-      </DashboardLayout>
-    )
+  )
   }
 
   return (
-    <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -450,8 +446,10 @@ function SystemSettingsPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
   )
 }
 
-export default withAuth(SystemSettingsPage, { requiredRoles: ['administrator', 'admin', 'org_administrator'] })
+// Protect page with SYSTEM_CONFIG capability (changed from role-based)
+export default withAuth(SystemSettingsPage, {
+  requiredCapabilities: ['SYSTEM_CONFIG']
+});

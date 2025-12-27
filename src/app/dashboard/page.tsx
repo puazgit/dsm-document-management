@@ -1,25 +1,34 @@
 "use client"
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
+import { withAuth } from '@/components/auth/with-auth'
 import { DashboardStats } from "../../components/ui/dashboard-stats"
-import { RecentDocuments } from "../../components/ui/recent-documents"
-import { ActivityFeed } from "../../components/ui/activity-feed"
-import { DocumentStatusChart } from "../../components/ui/document-status-chart"
-import { MonthlyTrendChart } from "../../components/ui/monthly-trend-chart"
-import { PendingApprovals } from "../../components/ui/pending-approvals"
-import { UserPerformanceWidget } from "../../components/ui/user-performance"
-import { NotificationsWidget } from "../../components/ui/notifications-widget"
-import { DocumentTimeline } from "../../components/ui/document-timeline"
-import { TopDocuments } from "../../components/ui/top-documents"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card"
-import { SidebarProvider, SidebarInset } from '../../components/ui/sidebar'
-import { AppSidebar } from '../../components/app-sidebar'
-import { Header } from '../../components/ui/header';
-import { Spinner } from '../../components/ui/loading';
+import { Card, CardContent } from "../../components/ui/card"
+import { Skeleton } from "../../components/ui/skeleton"
 
-export default function DashboardPage() {
-  const { data: session, status } = useSession();
+// Lazy load heavy components for better initial load performance
+const RecentDocuments = lazy(() => import("../../components/ui/recent-documents").then(m => ({ default: m.RecentDocuments })))
+const ActivityFeed = lazy(() => import("../../components/ui/activity-feed").then(m => ({ default: m.ActivityFeed })))
+const DocumentStatusChart = lazy(() => import("../../components/ui/document-status-chart").then(m => ({ default: m.DocumentStatusChart })))
+const MonthlyTrendChart = lazy(() => import("../../components/ui/monthly-trend-chart").then(m => ({ default: m.MonthlyTrendChart })))
+const PendingApprovals = lazy(() => import("../../components/ui/pending-approvals").then(m => ({ default: m.PendingApprovals })))
+const UserPerformanceWidget = lazy(() => import("../../components/ui/user-performance").then(m => ({ default: m.UserPerformanceWidget })))
+const NotificationsWidget = lazy(() => import("../../components/ui/notifications-widget").then(m => ({ default: m.NotificationsWidget })))
+const DocumentTimeline = lazy(() => import("../../components/ui/document-timeline").then(m => ({ default: m.DocumentTimeline })))
+const TopDocuments = lazy(() => import("../../components/ui/top-documents").then(m => ({ default: m.TopDocuments })))
+
+// Loading component for lazy loaded sections
+const ChartSkeleton = () => (
+  <Card>
+    <CardContent className="pt-6">
+      <Skeleton className="h-[300px] w-full" />
+    </CardContent>
+  </Card>
+)
+
+function DashboardPage() {
+  const { data: session } = useSession();
 
   // Security: Disable right-click context menu
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -65,58 +74,66 @@ export default function DashboardPage() {
 
   return (
     <div 
-      className="document-secure-page"
+      className="document-secure-page container mx-auto space-y-6"
       onContextMenu={handleContextMenu}
       onKeyDown={handleKeyDown}
     >
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          <Header />
-          <main className="flex-1 p-6 overflow-y-auto">
-            <div className="container mx-auto space-y-6">
-          {/* Welcome Section */}
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Welcome back!</h1>
-            <p className="text-muted-foreground">Here's an overview of your document management system.</p>
-          </div>
+      {/* Welcome Section */}
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Welcome back!</h1>
+        <p className="text-muted-foreground">Here's an overview of your document management system.</p>
+      </div>
 
-          {/* Stats Cards */}
-          <DashboardStats />
+      {/* Stats Cards - Load immediately (most important) */}
+      <DashboardStats />
 
-          {/* Top Documents Row - Most Viewed & Most Downloaded */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <TopDocuments type="views" />
-            <TopDocuments type="downloads" />
-          </div>
+      {/* Top Documents Row - Lazy loaded */}
+      <Suspense fallback={<div className="grid grid-cols-1 gap-6 lg:grid-cols-2"><ChartSkeleton /><ChartSkeleton /></div>}>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <TopDocuments type="views" />
+          <TopDocuments type="downloads" />
+        </div>
+      </Suspense>
 
-          {/* Charts Row */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <DocumentStatusChart />
-            <MonthlyTrendChart />
-          </div>
+      {/* Charts Row - Lazy loaded */}
+      <Suspense fallback={<div className="grid grid-cols-1 gap-6 lg:grid-cols-2"><ChartSkeleton /><ChartSkeleton /></div>}>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <DocumentStatusChart />
+          <MonthlyTrendChart />
+        </div>
+      </Suspense>
 
-          {/* Performance & Notifications Row */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <UserPerformanceWidget />
-            <NotificationsWidget />
-          </div>
+      {/* Performance & Notifications Row - Lazy loaded */}
+      <Suspense fallback={<div className="grid grid-cols-1 gap-6 lg:grid-cols-2"><ChartSkeleton /><ChartSkeleton /></div>}>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <UserPerformanceWidget />
+          <NotificationsWidget />
+        </div>
+      </Suspense>
 
-          {/* Pending Approvals - Full Width */}
-          <PendingApprovals />
+      {/* Pending Approvals - Lazy loaded */}
+      <Suspense fallback={<ChartSkeleton />}>
+        <PendingApprovals />
+      </Suspense>
 
-          {/* Timeline & Recent Documents Row */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <DocumentTimeline />
-            <RecentDocuments />
-          </div>
+      {/* Timeline & Recent Documents Row - Lazy loaded */}
+      <Suspense fallback={<div className="grid grid-cols-1 gap-6 lg:grid-cols-2"><ChartSkeleton /><ChartSkeleton /></div>}>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <DocumentTimeline />
+          <RecentDocuments />
+        </div>
+      </Suspense>
 
-          {/* Activity Feed - Full Width */}
-          <ActivityFeed />
-            </div>
-          </main>
-        </SidebarInset>
-      </SidebarProvider>
+      {/* Activity Feed - Lazy loaded last */}
+      <Suspense fallback={<ChartSkeleton />}>
+        <ActivityFeed />
+      </Suspense>
     </div>
   )
 }
+
+// Export with capability-based authentication
+export default withAuth(DashboardPage, {
+  requiredCapabilities: ['DASHBOARD_VIEW'],
+  redirectTo: '/unauthorized'
+})

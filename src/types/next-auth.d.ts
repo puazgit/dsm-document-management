@@ -12,6 +12,7 @@ declare module "next-auth" {
       divisiId: string
       isActive: boolean
       permissions?: string[]
+      capabilities?: string[]
     }
   }
 
@@ -24,6 +25,7 @@ declare module "next-auth" {
     divisiId: string
     isActive: boolean
     permissions?: string[]
+    capabilities?: string[]
   }
 }
 
@@ -34,5 +36,6 @@ declare module "next-auth/jwt" {
     divisiId: string
     isActive: boolean
     permissions?: string[]
+    capabilities?: string[]
   }
 }

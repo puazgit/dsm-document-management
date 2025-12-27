@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { withAuth } from '@/components/auth/with-auth'
-import { DashboardLayout } from '@/components/ui/dashboard-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -236,18 +235,17 @@ function GroupsManagementPage() {
   }
 
   return (
-    <DashboardLayout>
-      <div className="container py-6 mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      <div className="container py-4 sm:py-6 mx-auto px-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
         <div>
-          <h1 className="flex items-center gap-2 text-3xl font-bold">
-            <Building className="w-8 h-8" />
+          <h1 className="flex items-center gap-2 text-xl sm:text-2xl md:text-3xl font-bold">
+            <Building className="w-6 h-6 sm:w-8 sm:h-8" />
             Organizational Groups
           </h1>
-          <p className="mt-2 text-gray-600">
-            Manage organizational structure and hierarchy levels. 
-            <br />
-            <span className="text-sm text-blue-600">Note: Permissions are now managed separately via Role system.</span>
+          <p className="mt-2 text-sm sm:text-base text-gray-600">
+            Manage organizational structure and hierarchy levels.
+            <span className="block sm:inline"> </span>
+            <span className="text-xs sm:text-sm text-blue-600">Note: Permissions are now managed separately via Role system.</span>
           </p>
         </div>
         
@@ -336,68 +334,118 @@ function GroupsManagementPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Organizational Groups ({filteredGroups.length})</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-base sm:text-lg">Organizational Groups ({filteredGroups.length})</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
             Company organizational structure and hierarchy
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Group Name</TableHead>
-                <TableHead>Display Name</TableHead>
-                <TableHead>Members</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredGroups.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-gray-500">
-                    No organizational groups found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredGroups
-                  .map((group) => (
-                    <TableRow key={group.id}>
-                      <TableCell className="font-medium">{group.name}</TableCell>
-                      <TableCell>{group.displayName}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Users className="w-4 h-4" />
-                          {group._count?.users || 0}
-                        </div>
-                      </TableCell>
-                      <TableCell className="max-w-xs truncate">
-                        {group.description || '-'}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditGroup(group)}
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteGroup(group.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+        <CardContent className="p-3 sm:p-6">
+          {filteredGroups.length === 0 ? (
+            <div className="py-8 text-center text-gray-500">
+              <Building className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+              <p>No organizational groups found</p>
+            </div>
+          ) : (
+            <>
+              {/* Mobile Card View */}
+              <div className="block lg:hidden space-y-3">
+                {filteredGroups.map((group) => (
+                  <div key={group.id} className="border rounded-lg p-3 sm:p-4 space-y-3 bg-card hover:bg-muted/50 transition-colors">
+                    {/* Group Header */}
+                    <div className="space-y-1">
+                      <div className="font-medium text-sm sm:text-base">{group.displayName}</div>
+                      <div className="text-xs sm:text-sm text-muted-foreground">{group.name}</div>
+                    </div>
+
+                    {/* Description */}
+                    {group.description && (
+                      <div className="text-xs text-muted-foreground line-clamp-2 pt-2 border-t">
+                        {group.description}
+                      </div>
+                    )}
+
+                    {/* Members and Actions */}
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <div className="flex items-center gap-1 text-sm">
+                        <Users className="w-4 h-4" />
+                        <span>{group._count?.users || 0} members</span>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditGroup(group)}
+                          className="h-8 px-2 sm:px-3"
+                        >
+                          <Pencil className="w-3 h-3 sm:mr-1" />
+                          <span className="hidden sm:inline">Edit</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteGroup(group.id)}
+                          className="h-8 px-2 text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden lg:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Group Name</TableHead>
+                      <TableHead>Display Name</TableHead>
+                      <TableHead>Members</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
-                  ))
-              )}
-            </TableBody>
-          </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredGroups.map((group) => (
+                      <TableRow key={group.id}>
+                        <TableCell className="font-medium">{group.name}</TableCell>
+                        <TableCell>{group.displayName}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Users className="w-4 h-4" />
+                            {group._count?.users || 0}
+                          </div>
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate">
+                          {group.description || '-'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditGroup(group)}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteGroup(group.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -459,10 +507,10 @@ function GroupsManagementPage() {
         </DialogContent>
       </Dialog>
       </div>
-    </DashboardLayout>
   )
 }
 
-export default withAuth(GroupsManagementPage, { 
-  requiredRoles: ['administrator', 'admin', 'org_administrator', 'ppd', 'manager'] 
-})
+// Protect with ORGANIZATION_MANAGE capability (changed from role-based)
+export default withAuth(GroupsManagementPage, {
+  requiredCapabilities: ['ORGANIZATION_MANAGE']
+});

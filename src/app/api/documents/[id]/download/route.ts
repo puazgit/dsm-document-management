@@ -137,15 +137,17 @@ export async function GET(
         data: { downloadCount: { increment: 1 } },
       });
 
-      // Log download activity
-      await prisma.documentActivity.create({
-        data: {
-          documentId: id,
-          userId: session.user.id,
-          action: 'DOWNLOAD',
-          description: `Document "${document.title}" was downloaded`,
-        },
-      });
+      // Log download activity only for published documents
+      if (document.status === 'PUBLISHED') {
+        await prisma.documentActivity.create({
+          data: {
+            documentId: id,
+            userId: session.user.id,
+            action: 'DOWNLOAD',
+            description: `Document "${document.title}" was downloaded`,
+          },
+        });
+      }
 
       // Set appropriate headers for file download
       const headers = new Headers();

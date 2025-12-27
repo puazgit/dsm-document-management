@@ -45,7 +45,7 @@ export function useRoleVisibility(): RoleVisibilityConfig {
   const { data: session, status } = useSession();
   
   return useMemo(() => {
-    const userRole = session?.user?.role || 'org_guest';
+    const userRole = session?.user?.role || 'guest';
     const userPermissions = session?.user?.permissions || [];
     const roleConfig = ROLES[userRole as keyof typeof ROLES];
     const userLevel = roleConfig?.level || 0;
@@ -85,23 +85,23 @@ export function useRoleVisibility(): RoleVisibilityConfig {
       return permissions.every(perm => hasPermission(perm));
     };
     
-    // Role classifications
-    const adminRoles = ['admin', 'org_administrator', 'ppd.pusat', 'org_ppd'];
-    const managerRoles = ['admin', 'org_administrator', 'org_ppd', 'ppd.pusat', 'org_manager', 'org_kadiv'];
-    const guestRoles = ['org_guest', 'viewer'];
+    // Role classifications based on level
+    const adminRoles = ['admin', 'administrator'];
+    const managerRoles = ['ppd', 'kadiv', 'gm', 'manager'];
+    const guestRoles = ['guest', 'viewer', 'staff'];
     
-    const isAdmin = adminRoles.includes(userRole);
-    const isManager = managerRoles.includes(userRole);
-    const isGuest = guestRoles.includes(userRole);
+    const isAdmin = userLevel >= 100; // admin, administrator
+    const isManager = userLevel >= 60 && userLevel < 100; // ppd to manager
+    const isGuest = userLevel <= 25; // guest, staff, viewer
     
-    // Feature permissions
-    const canUpload = hasAnyPermission(['documents.create', '*']) || showComponent(['admin', 'org_administrator', 'ppd.pusat', 'org_ppd', 'org_kadiv', 'org_manager']);
-    const canEdit = hasAnyPermission(['documents.update', '*']) || showComponent(['admin', 'org_administrator', 'ppd.pusat', 'org_ppd', 'org_kadiv']);
-    const canDelete = hasAnyPermission(['documents.delete', '*']) || showComponent(['admin', 'org_administrator', 'ppd.pusat', 'org_ppd']);
-    const canApprove = hasAnyPermission(['documents.approve', '*']) || showComponent(['admin', 'org_administrator', 'org_kadiv', 'org_gm', 'org_dirut']);
-    const canViewAnalytics = hasAnyPermission(['analytics.read', '*']) || showComponent(['admin', 'org_administrator', 'ppd.pusat', 'org_ppd', 'org_manager', 'org_kadiv']);
-    const canManageUsers = hasAnyPermission(['users.create', 'users.update', '*']) || showComponent(['admin', 'org_administrator', 'ppd.pusat', 'org_ppd']);
-    const canAccessAdmin = showComponent(['admin', 'org_administrator', 'ppd.pusat', 'org_ppd']);
+    // Feature permissions based on actual roles
+    const canUpload = hasAnyPermission(['documents.create', '*']) || userLevel >= 60;
+    const canEdit = hasAnyPermission(['documents.update', '*']) || userLevel >= 60;
+    const canDelete = hasAnyPermission(['documents.delete', '*']) || userLevel >= 90;
+    const canApprove = hasAnyPermission(['documents.approve', '*']) || showComponent(['admin', 'administrator', 'kadiv', 'gm', 'dirut']);
+    const canViewAnalytics = hasAnyPermission(['analytics.read', '*']) || userLevel >= 60;
+    const canManageUsers = hasAnyPermission(['users.create', 'users.update', '*']) || userLevel >= 90;
+    const canAccessAdmin = userLevel >= 90;
     
     // Navigation visibility
     const showAdminNav = canAccessAdmin;

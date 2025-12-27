@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { withAuth } from '@/components/auth/with-auth'
-import { DashboardLayout } from '@/components/ui/dashboard-layout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -322,33 +321,35 @@ function AuditLogsPage() {
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Audit System</h1>
-          <Button onClick={() => fetchAuditLogs()} disabled={loading}>
+      <div className="container mx-auto space-y-4 sm:space-y-6 p-4 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-xl sm:text-2xl font-bold">Audit System</h1>
+          <Button onClick={() => fetchAuditLogs()} disabled={loading} size="sm" className="w-full sm:w-auto">
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
 
-      <Tabs defaultValue="logs" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="logs" className="flex items-center gap-2">
-            <Eye className="h-4 w-4" />
-            Audit Logs
+      <Tabs defaultValue="logs" className="space-y-4 sm:space-y-6">
+        <TabsList className="grid w-full grid-cols-3 h-auto">
+          <TabsTrigger value="logs" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2">
+            <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Audit Logs</span>
+            <span className="sm:hidden">Logs</span>
           </TabsTrigger>
-          <TabsTrigger value="documents" className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
-            Document Activities
+          <TabsTrigger value="documents" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2">
+            <Shield className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Document Activities</span>
+            <span className="sm:hidden">Docs</span>
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Analytics
+          <TabsTrigger value="analytics" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2">
+            <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Analytics</span>
+            <span className="sm:hidden">Stats</span>
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="logs" className="space-y-6">
+        <TabsContent value="logs" className="space-y-4 sm:space-y-6">
 
       {/* Filter Section */}
       <Card>
@@ -476,9 +477,9 @@ function AuditLogsPage() {
       {/* Audit Logs Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Log Audit ({pagination.total} total)</CardTitle>
+          <CardTitle className="text-base sm:text-lg">Log Audit ({pagination.total} total)</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-3 sm:p-6">
           {loading ? (
             <div className="flex justify-center py-8">
               <RefreshCw className="h-8 w-8 animate-spin" />
@@ -489,7 +490,66 @@ function AuditLogsPage() {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              {/* Mobile Card View */}
+              <div className="block lg:hidden space-y-3">
+                {logs.map((log) => (
+                  <div key={log.id} className="border rounded-lg p-3 space-y-2 bg-card hover:bg-muted/50 transition-colors">
+                    {/* Time and Action */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="text-xs text-muted-foreground">
+                        {format(parseISO(log.createdAt), 'dd/MM/yyyy HH:mm:ss', { locale: id })}
+                      </div>
+                      <Badge className={`${getActionColor(log.action)} text-xs flex-shrink-0`}>
+                        {log.action}
+                      </Badge>
+                    </div>
+
+                    {/* Actor */}
+                    <div className="space-y-1">
+                      <div className="text-xs text-muted-foreground">Aktor</div>
+                      {log.actor ? (
+                        <div>
+                          <div className="font-medium text-sm">{`${log.actor.firstName || ''} ${log.actor.lastName || ''}`.trim() || log.actor.email}</div>
+                          <div className="text-xs text-muted-foreground font-mono truncate">{log.actor.id}</div>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-500">System</span>
+                      )}
+                    </div>
+
+                    {/* Resource Info */}
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t">
+                      <div className="space-y-1">
+                        <div className="text-xs text-muted-foreground">Resource</div>
+                        <div className="text-sm">{log.resource}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-xs text-muted-foreground">Resource ID</div>
+                        <div className="text-xs font-mono truncate">{log.resourceId || '-'}</div>
+                      </div>
+                    </div>
+
+                    {/* IP and Detail */}
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <div className="text-xs font-mono text-muted-foreground truncate flex-1">
+                        IP: {log.ipAddress || '-'}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSelectedLog(log)}
+                        className="h-8 px-2 sm:px-3 flex-shrink-0"
+                      >
+                        <Eye className="h-3 w-3 sm:mr-1" />
+                        <span className="hidden sm:inline">Detail</span>
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden lg:block overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="border-b">
@@ -547,8 +607,8 @@ function AuditLogsPage() {
 
               {/* Pagination */}
               {pagination.totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <div className="text-sm text-gray-500">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 pt-3 border-t">
+                  <div className="text-xs sm:text-sm text-gray-500">
                     Halaman {pagination.currentPage} dari {pagination.totalPages}
                   </div>
                   <div className="flex gap-2">
@@ -657,19 +717,19 @@ function AuditLogsPage() {
       )}
         </TabsContent>
 
-        <TabsContent value="documents" className="space-y-6">
+        <TabsContent value="documents" className="space-y-4 sm:space-y-6">
           {/* Filter Section */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Filter className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Filter className="h-4 w-4 sm:h-5 sm:w-5" />
                 Filter Aktivitas Dokumen
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <CardContent className="space-y-4 p-3 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Aksi</label>
+                  <label className="text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 block">Aksi</label>
                   <Select
                     value={docFilters.action}
                     onValueChange={(value) => {
@@ -678,7 +738,7 @@ function AuditLogsPage() {
                       fetchDocumentActivities(newFilters)
                     }}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-9 text-sm">
                       <SelectValue placeholder="Pilih aksi" />
                     </SelectTrigger>
                     <SelectContent>
@@ -693,7 +753,7 @@ function AuditLogsPage() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium mb-2 block">ID Dokumen</label>
+                  <label className="text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 block">ID Dokumen</label>
                   <Input
                     placeholder="Masukkan ID dokumen"
                     value={docFilters.documentId}
@@ -701,11 +761,12 @@ function AuditLogsPage() {
                       const newFilters = { ...docFilters, documentId: e.target.value, page: 1 }
                       setDocFilters(newFilters)
                     }}
+                    className="h-9 text-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium mb-2 block">User ID</label>
+                  <label className="text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 block">User ID</label>
                   <Input
                     placeholder="Masukkan user ID"
                     value={docFilters.userId}
@@ -713,20 +774,25 @@ function AuditLogsPage() {
                       const newFilters = { ...docFilters, userId: e.target.value, page: 1 }
                       setDocFilters(newFilters)
                     }}
+                    className="h-9 text-sm"
                   />
                 </div>
               </div>
 
-              <div className="flex gap-2 pt-4">
+              <div className="flex flex-col sm:flex-row gap-2 pt-2 sm:pt-4">
                 <Button 
                   onClick={() => fetchDocumentActivities()}
                   disabled={docLoading}
+                  size="sm"
+                  className="w-full sm:w-auto"
                 >
-                  <Search className="h-4 w-4 mr-2" />
+                  <Search className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                   Cari
                 </Button>
                 <Button 
                   variant="outline"
+                  size="sm"
+                  className="w-full sm:w-auto"
                   onClick={() => {
                     const resetFilters = {
                       action: 'all',
@@ -750,9 +816,9 @@ function AuditLogsPage() {
           {/* Results */}
           <Card>
             <CardHeader>
-              <CardTitle>Hasil Pencarian</CardTitle>
+              <CardTitle className="text-base sm:text-lg">Hasil Pencarian</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 sm:p-6">
               {docLoading ? (
                 <div className="text-center py-8">
                   <RefreshCw className="h-8 w-8 animate-spin mx-auto text-gray-400" />
@@ -764,7 +830,66 @@ function AuditLogsPage() {
                 </div>
               ) : (
                 <>
-                  <div className="overflow-x-auto">
+                  {/* Mobile Card View */}
+                  <div className="block lg:hidden space-y-3">
+                    {documentActivities.map((activity) => (
+                      <div key={activity.id} className="border rounded-lg p-3 space-y-3 bg-card hover:bg-muted/50 transition-colors">
+                        {/* Time and Action */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="text-xs text-muted-foreground">
+                              {format(parseISO(activity.createdAt), 'dd/MM/yyyy HH:mm:ss', { locale: id })}
+                            </div>
+                          </div>
+                          <Badge className={`${ACTION_COLORS[activity.action as keyof typeof ACTION_COLORS]} text-xs flex-shrink-0`}>
+                            {activity.action}
+                          </Badge>
+                        </div>
+
+                        {/* Document */}
+                        <div className="space-y-1 pt-2 border-t">
+                          <div className="text-xs text-muted-foreground">Dokumen</div>
+                          {activity.document ? (
+                            <div>
+                              <div className="font-medium text-sm">{activity.document.title}</div>
+                              <div className="text-xs text-muted-foreground truncate">{activity.document.fileName}</div>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-400">-</span>
+                          )}
+                        </div>
+
+                        {/* User */}
+                        <div className="space-y-1 pt-2 border-t">
+                          <div className="text-xs text-muted-foreground">User</div>
+                          {activity.user ? (
+                            <div>
+                              <div className="text-sm">{`${activity.user.firstName || ''} ${activity.user.lastName || ''}`.trim() || '-'}</div>
+                              <div className="text-xs text-muted-foreground truncate">{activity.user.email}</div>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-400">-</span>
+                          )}
+                        </div>
+
+                        {/* Detail Button */}
+                        <div className="flex justify-end pt-2 border-t">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSelectedActivity(activity)}
+                            className="h-8"
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
+                            Detail
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop Table View */}
+                  <div className="hidden lg:block overflow-x-auto">
                     <table className="w-full">
                       <thead className="border-b">
                         <tr className="text-left text-sm text-gray-500">
@@ -832,8 +957,8 @@ function AuditLogsPage() {
 
                   {/* Pagination */}
                   {docPagination.totalPages > 1 && (
-                    <div className="flex items-center justify-between mt-4">
-                      <div className="text-sm text-gray-500">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 pt-3 border-t">
+                      <div className="text-xs sm:text-sm text-gray-500">
                         Halaman {docPagination.currentPage} dari {docPagination.totalPages}
                       </div>
                       <div className="flex gap-2">
@@ -1049,11 +1174,11 @@ function AuditLogsPage() {
         </TabsContent>
       </Tabs>
     </div>
-    </DashboardLayout>
   )
 }
 
+// Protect with AUDIT_VIEW capability (changed from role-based)
 export default withAuth(AuditLogsPage, {
-  requiredRoles: ['administrator', 'admin', 'org_administrator'],
+  requiredCapabilities: ['AUDIT_VIEW'],
   redirectTo: '/unauthorized'
 })

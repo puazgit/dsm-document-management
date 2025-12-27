@@ -125,7 +125,8 @@ export function NavigationMenu({ className }: NavigationMenuProps) {
                 className="flex items-center flex-1 cursor-pointer"
                 onClick={() => {
                   // Navigate to parent href if it's not just a container
-                  if (item.href !== '/admin') {
+                  // Validate to prevent open redirect - only allow relative URLs
+                  if (item.href !== '/admin' && item.href.startsWith('/') && !item.href.startsWith('//')) {
                     window.location.href = item.href
                   }
                 }}

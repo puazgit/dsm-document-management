@@ -8,6 +8,7 @@ import { RoleGuard } from '@/components/auth/role-guard'
 interface WithAuthOptions {
   requiredRoles?: string[]
   requiredPermissions?: string[]
+  requiredCapabilities?: string[]
   redirectTo?: string
   fallback?: ComponentType
 }
@@ -22,6 +23,7 @@ export function withAuth<P extends object>(
       <ProtectedRoute
         requiredRoles={options.requiredRoles}
         requiredPermissions={options.requiredPermissions}
+        requiredCapabilities={options.requiredCapabilities}
         redirectTo={options.redirectTo}
       >
         <WrappedComponent {...props} />

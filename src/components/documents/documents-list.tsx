@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
@@ -130,6 +130,12 @@ export function DocumentsList({
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedDocumentForHistory, setSelectedDocumentForHistory] = useState<any>(null);
   const { toast } = useToast();
+  
+  // Scroll indicators for mobile
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [showLeftShadow, setShowLeftShadow] = useState(false);
+  const [showRightShadow, setShowRightShadow] = useState(true);
+  const [showScrollHint, setShowScrollHint] = useState(true);
 
   // Debug: Log userSession in DocumentsList
   console.log('📋 DocumentsList userSession:', {
@@ -137,6 +143,38 @@ export function DocumentsList({
     permissions: userSession?.user?.permissions,
     hasPdfDownload: userSession?.user?.permissions?.includes('pdf.download')
   });
+
+  // Handle scroll to show/hide shadow indicators
+  const handleScroll = () => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const { scrollLeft, scrollWidth, clientWidth } = container;
+    
+    // Show left shadow when scrolled right
+    setShowLeftShadow(scrollLeft > 10);
+    
+    // Show right shadow when not at the end
+    setShowRightShadow(scrollLeft < scrollWidth - clientWidth - 10);
+    
+    // Hide scroll hint after first scroll
+    if (scrollLeft > 0 && showScrollHint) {
+      setShowScrollHint(false);
+    }
+  };
+
+  // Check initial scroll state
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      const { scrollWidth, clientWidth } = container;
+      // Only show indicators if content is scrollable
+      if (scrollWidth <= clientWidth) {
+        setShowRightShadow(false);
+        setShowScrollHint(false);
+      }
+    }
+  }, [documents]);
 
   const formatFileSize = (bytes: number | null) => {
     if (!bytes) return 'Unknown';
@@ -337,22 +375,22 @@ export function DocumentsList({
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="border rounded-md">
-            <Table>
+          <div className="relative w-full overflow-auto">
+            <Table className="min-w-[1200px]">
               <TableHeader>
-                <TableRow className="border-b">
-                  <TableHead className="h-12 px-4 font-medium">Document</TableHead>
-                  <TableHead className="h-12 px-4 font-medium w-[120px]">Type</TableHead>
-                  <TableHead className="h-12 px-4 font-medium w-[160px]">Status</TableHead>
-                  <TableHead className="h-12 px-4 font-medium w-[80px]">Size</TableHead>
-                  <TableHead className="h-12 px-4 font-medium w-[120px]">Created</TableHead>
-                  <TableHead className="h-12 px-4 font-medium w-[80px] text-right">Actions</TableHead>
+                <TableRow>
+                  <TableHead className="w-[400px]">Document</TableHead>
+                  <TableHead className="w-[150px]">Type</TableHead>
+                  <TableHead className="w-[200px]">Status</TableHead>
+                  <TableHead className="w-[120px]">Size</TableHead>
+                  <TableHead className="w-[200px]">Created</TableHead>
+                  <TableHead className="w-[130px] text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {[1, 2, 3, 4, 5].map((i) => (
                   <TableRow key={i}>
-                    <TableCell className="px-4 py-4">
+                    <TableCell>
                       <div className="flex items-start gap-3">
                         <Skeleton className="w-10 h-10 rounded-lg" />
                         <div className="space-y-2">
@@ -361,22 +399,22 @@ export function DocumentsList({
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="px-4 py-4">
+                    <TableCell>
                       <Skeleton className="w-20 h-4" />
                     </TableCell>
-                    <TableCell className="px-4 py-4">
+                    <TableCell>
                       <Skeleton className="w-24 h-6 rounded-full" />
                     </TableCell>
-                    <TableCell className="px-4 py-4">
+                    <TableCell>
                       <Skeleton className="w-16 h-4" />
                     </TableCell>
-                    <TableCell className="px-4 py-4">
+                    <TableCell>
                       <div className="space-y-1">
                         <Skeleton className="w-20 h-4" />
                         <Skeleton className="w-24 h-3" />
                       </div>
                     </TableCell>
-                    <TableCell className="px-4 py-4 text-right">
+                    <TableCell className="text-right">
                       <Skeleton className="w-8 h-8 ml-auto rounded" />
                     </TableCell>
                   </TableRow>
@@ -423,111 +461,116 @@ export function DocumentsList({
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-lg font-semibold">Documents</CardTitle>
-              <CardDescription className="text-sm text-muted-foreground">
+              <CardDescription>
                 {documents.length} document{documents.length !== 1 ? 's' : ''} found
               </CardDescription>
             </div>
           </div>
         </CardHeader>
+        
         <CardContent className="p-0">
-          <div className="border rounded-md">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-b">
-                  <TableHead className="h-12 px-4 font-medium">Document</TableHead>
-                  <TableHead className="h-12 px-4 font-medium w-[120px]">Type</TableHead>
-                  <TableHead className="h-12 px-4 font-medium w-[160px]">Status</TableHead>
-                  <TableHead className="h-12 px-4 font-medium w-[80px]">Size</TableHead>
-                  <TableHead className="h-12 px-4 font-medium w-[120px]">Created</TableHead>
-                  <TableHead className="h-12 px-4 font-medium w-[80px] text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {documents.map((document) => (
-                  <TableRow key={document.id} className="hover:bg-muted/50">
-                    <TableCell className="px-4 py-3">
-                      <div className="flex items-start gap-3">
-                        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-muted">
-                          {isPDFFile(document) ? (
-                            <span className="text-xs font-semibold text-red-600">PDF</span>
-                          ) : (
-                            <span className="text-xs font-semibold text-muted-foreground">DOC</span>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium truncate">{document.title}</p>
-                            {isPDFFile(document) && (
-                              <Badge variant="secondary" className="h-5 text-xs">
-                                PDF
-                              </Badge>
-                            )}
-                          </div>
-                          {document.description && (
-                            <p className="max-w-md mt-1 text-sm truncate text-muted-foreground">
-                              {document.description}
-                            </p>
-                          )}
-                          {document.tags && document.tags.length > 0 && (
-                            <div className="flex gap-1 mt-2">
-                              {document.tags.slice(0, 2).map((tag: string, index: number) => (
-                                <Badge key={index} variant="outline" className="h-5 text-xs">
-                                  {tag}
-                                </Badge>
-                              ))}
-                              {document.tags.length > 2 && (
-                                <Badge variant="outline" className="h-5 text-xs">
-                                  +{document.tags.length - 2}
-                                </Badge>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{document.documentType?.name || 'Unknown'}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="px-4 py-3">
-                      <DocumentStatusWorkflow
-                        document={{
-                          id: document.id,
-                          title: document.title,
-                          status: document.status || 'DRAFT'
-                        }}
-                        onStatusChange={onRefresh}
-                        className="w-full"
-                      />
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-sm text-muted-foreground">
-                      {formatFileSize(document.fileSize ? Number(document.fileSize) : 0)}
-                    </TableCell>
-                    <TableCell className="px-4 py-3">
-                      <div className="text-sm font-medium">
+          {/* Mobile Card View */}
+          <div className="md:hidden">
+            <div className="divide-y">
+              {documents.map((document) => (
+                <div key={document.id} className="p-4 space-y-3">
+                  {/* Document Header */}
+                  <div className="flex items-start gap-3">
+                    <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-muted shrink-0">
+                      {isPDFFile(document) ? (
+                        <span className="text-sm font-semibold text-red-600">PDF</span>
+                      ) : (
+                        <span className="text-sm font-semibold text-muted-foreground">DOC</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold leading-tight">{document.title}</h3>
+                      {document.description && (
+                        <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+                          {document.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Tags */}
+                  {document.tags && document.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {document.tags.slice(0, 3).map((tag: string, index: number) => (
+                        <Badge key={index} variant="outline" className="text-xs">
+                          {tag}
+                        </Badge>
+                      ))}
+                      {document.tags.length > 3 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{document.tags.length - 3}
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Document Info Grid */}
+                  <div className="grid grid-cols-2 gap-3 pt-2 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Type</p>
+                      <p className="font-medium">{document.documentType?.name || 'Unknown'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Size</p>
+                      <p className="font-medium">
+                        {formatFileSize(document.fileSize ? Number(document.fileSize) : 0)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Created</p>
+                      <p className="font-medium">
                         {document.createdAt ? formatDate(document.createdAt) : 'N/A'}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">By</p>
+                      <p className="font-medium truncate">
                         {document.createdBy?.firstName || 'Unknown'} {document.createdBy?.lastName || ''}
-                      </div>
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-right">
-                      {/* Check if user has any permissions for actions */}
-                      {(roleVisibility.hasAnyPermission(['documents.read', 'documents.update', 'documents.delete', 'pdf.view', 'pdf.download']) || 
-                        document?.createdById === userSession?.user?.id || 
-                        !roleVisibility.isGuest) ? (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="w-8 h-8 p-0" disabled={actionLoading === document.id}>
-                              <span className="sr-only">Open menu</span>
-                              {actionLoading === document.id ? (
-                                <span className="text-xs">...</span>
-                              ) : (
-                                <span className="text-xs">⋮</span>
-                              )}
-                            </Button>
-                          </DropdownMenuTrigger>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Status */}
+                  <div className="pt-2">
+                    <DocumentStatusWorkflow
+                      document={{
+                        id: document.id,
+                        title: document.title,
+                        status: document.status || 'DRAFT'
+                      }}
+                      onStatusChange={onRefresh}
+                      className="w-full"
+                    />
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => handleViewDocument(document)}
+                    >
+                      {isPDFFile(document) ? 'Preview' : 'View'}
+                    </Button>
+                    {(roleVisibility.hasAnyPermission(['documents.read', 'documents.update', 'documents.delete', 'pdf.view', 'pdf.download']) || 
+                      document?.createdById === userSession?.user?.id || 
+                      !roleVisibility.isGuest) && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            disabled={actionLoading === document.id}
+                          >
+                            {actionLoading === document.id ? '...' : 'More'}
+                          </Button>
+                        </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <ActionMenuItem 
                             document={document} 
@@ -575,8 +618,165 @@ export function DocumentsList({
                           />
                         </DropdownMenuContent>
                       </DropdownMenu>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="">Document</TableHead>
+                  <TableHead className="">Type</TableHead>
+                  <TableHead className="">Status</TableHead>
+                  <TableHead className="">Size</TableHead>
+                  <TableHead className="">Created</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {documents.map((document) => (
+                  <TableRow key={document.id}>
+                    <TableCell>
+                      <div className="flex items-start gap-3">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-muted shrink-0">
+                          {isPDFFile(document) ? (
+                            <span className="text-xs font-semibold text-red-600">PDF</span>
+                          ) : (
+                            <span className="text-xs font-semibold text-muted-foreground">DOC</span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium truncate">{document.title}</p>
+                            {isPDFFile(document) && (
+                              <Badge variant="secondary" className="h-5 text-xs shrink-0">
+                                PDF
+                              </Badge>
+                            )}
+                          </div>
+                          {document.description && (
+                            <p className="max-w-md mt-1 text-sm truncate text-muted-foreground">
+                              {document.description}
+                            </p>
+                          )}
+                          {document.tags && document.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {document.tags.slice(0, 2).map((tag: string, index: number) => (
+                                <Badge key={index} variant="outline" className="h-5 text-xs">
+                                  {tag}
+                                </Badge>
+                              ))}
+                              {document.tags.length > 2 && (
+                                <Badge variant="outline" className="h-5 text-xs">
+                                  +{document.tags.length - 2}
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm font-medium">
+                        {document.documentType?.name || 'Unknown'}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <DocumentStatusWorkflow
+                        document={{
+                          id: document.id,
+                          title: document.title,
+                          status: document.status || 'DRAFT'
+                        }}
+                        onStatusChange={onRefresh}
+                        className="w-full"
+                      />
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {formatFileSize(document.fileSize ? Number(document.fileSize) : 0)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm font-medium">
+                        {document.createdAt ? formatDate(document.createdAt) : 'N/A'}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {document.createdBy?.firstName || 'Unknown'} {document.createdBy?.lastName || ''}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {(roleVisibility.hasAnyPermission(['documents.read', 'documents.update', 'documents.delete', 'pdf.view', 'pdf.download']) || 
+                        document?.createdById === userSession?.user?.id || 
+                        !roleVisibility.isGuest) ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="w-8 h-8 p-0" 
+                              disabled={actionLoading === document.id}
+                            >
+                              <span className="sr-only">Open menu</span>
+                              {actionLoading === document.id ? (
+                                <span className="text-xs">...</span>
+                              ) : (
+                                <span className="text-xs">⋮</span>
+                              )}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <ActionMenuItem 
+                              document={document} 
+                              action="view" 
+                              onClick={() => handleViewDocument(document)} 
+                              label={isPDFFile(document) ? 'Preview PDF' : 'View Details'}
+                              userSession={userSession}
+                              roleVisibility={roleVisibility}
+                            />
+                            <ActionMenuItem 
+                              document={document} 
+                              action="history" 
+                              onClick={() => {
+                                setSelectedDocumentForHistory(document);
+                                setShowHistoryModal(true);
+                              }} 
+                              label="History"
+                              userSession={userSession}
+                              roleVisibility={roleVisibility}
+                            />
+                            <ActionMenuItem 
+                              document={document} 
+                              action="edit" 
+                              onClick={() => handleEdit(document)} 
+                              label="Edit"
+                              userSession={userSession}
+                              roleVisibility={roleVisibility}
+                            />
+                            <ActionMenuItem 
+                              document={document} 
+                              action="download" 
+                              onClick={() => handleDownload(document)} 
+                              label="Download"
+                              userSession={userSession}
+                              roleVisibility={roleVisibility}
+                            />
+                            <ActionMenuItem 
+                              document={document} 
+                              action="delete" 
+                              onClick={() => handleDelete(document)} 
+                              label="Delete"
+                              className="text-red-600"
+                              userSession={userSession}
+                              roleVisibility={roleVisibility}
+                            />
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       ) : (
-                        <span className="text-xs text-gray-400">No actions</span>
+                        <span className="text-xs text-muted-foreground">No actions</span>
                       )}
                     </TableCell>
                   </TableRow>
@@ -585,36 +785,34 @@ export function DocumentsList({
             </Table>
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between px-6 py-4 border-t">
-              <div className="text-sm text-muted-foreground">
-                Page {currentPage} of {totalPages}
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onPageChange(currentPage - 1)}
-                  disabled={currentPage <= 1}
-                  className="h-8"
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onPageChange(currentPage + 1)}
-                  disabled={currentPage >= totalPages}
-                  className="h-8"
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+    {/* Pagination */}
+    {totalPages > 1 && (
+      <div className="flex items-center justify-between gap-2 px-4 py-4 border-t sm:px-6">
+        <p className="text-sm text-muted-foreground">
+          Page {currentPage} of {totalPages}
+        </p>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage <= 1}
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage >= totalPages}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+    )}
+  </CardContent>
+</Card>
 
       {/* Document Viewer Dialog */}
       {showViewer && selectedDocument && (

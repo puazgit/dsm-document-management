@@ -210,17 +210,19 @@ export async function POST(
       },
     });
 
-    // Log comment activity
-    await prisma.documentActivity.create({
-      data: {
-        documentId,
-        userId: session.user.id,
-        action: 'COMMENT',
-        description: data.parentId 
-          ? `Replied to a comment on document "${document.title}"`
-          : `Added a comment to document "${document.title}"`,
-      },
-    });
+    // Log comment activity only for published documents
+    if (document.status === 'PUBLISHED') {
+      await prisma.documentActivity.create({
+        data: {
+          documentId,
+          userId: session.user.id,
+          action: 'COMMENT',
+          description: data.parentId 
+            ? `Replied to a comment on document "${document.title}"`
+            : `Added a comment to document "${document.title}"`,
+        },
+      });
+    }
 
     // Create notification for document owner (if not the commenter)
     if (document.createdById !== session.user.id) {

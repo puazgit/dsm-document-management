@@ -5,7 +5,7 @@ import { prisma } from '../../../lib/prisma'
 import { serializeForResponse } from '../../../lib/bigint-utils'
 import { requireRoles } from '@/lib/auth-utils'
 
-export const GET = requireRoles(['admin', 'org_manager', 'org_ppd'])(async function(request: NextRequest) {
+export const GET = requireRoles(['admin', 'manager', 'ppd'])(async function(request: NextRequest) {
   try {
 
     const { searchParams } = new URL(request.url)

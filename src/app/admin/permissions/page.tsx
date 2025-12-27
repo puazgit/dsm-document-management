@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { withAuth } from '@/components/auth/with-auth'
-import { DashboardLayout } from '@/components/ui/dashboard-layout'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -298,13 +297,12 @@ function PermissionsManagementPage() {
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
+      <div className="container mx-auto space-y-4 sm:space-y-6 p-4 sm:p-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
           <div>
-            <h1 className="text-2xl font-bold">Permission Management</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-xl sm:text-2xl font-bold">Permission Management</h1>
+            <p className="text-sm text-muted-foreground mt-1">
               Manage system permissions and access control
             </p>
           </div>
@@ -500,111 +498,192 @@ function PermissionsManagementPage() {
         {/* Permissions Table */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <Key className="mr-2 h-5 w-5" />
+            <CardTitle className="flex items-center text-base sm:text-lg">
+              <Key className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
               Permissions ({filteredPermissions.length})
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Permission</TableHead>
-                    <TableHead>Module</TableHead>
-                    <TableHead>Action</TableHead>
-                    <TableHead>Resource</TableHead>
-                    <TableHead>Usage</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    Array.from({ length: 5 }).map((_, i) => (
-                      <TableRow key={i}>
-                        <TableCell colSpan={7}>
-                          <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : filteredPermissions.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8">
-                        <Key className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                        <p className="text-muted-foreground">No permissions found</p>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredPermissions.map((permission) => (
-                      <TableRow key={permission.id}>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{permission.displayName}</div>
-                            <div className="text-sm text-muted-foreground font-mono">
-                              {permission.name}
-                            </div>
-                            {permission.description && (
-                              <div className="text-xs text-muted-foreground mt-1">
-                                {permission.description}
-                              </div>
-                            )}
+          <CardContent className="p-3 sm:p-6">
+            {loading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="p-4 border rounded-lg">
+                    <div className="h-16 bg-gray-200 rounded animate-pulse"></div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredPermissions.length === 0 ? (
+              <div className="text-center py-8">
+                <Key className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <p className="text-muted-foreground">No permissions found</p>
+              </div>
+            ) : (
+              <>
+                {/* Mobile Card View */}
+                <div className="block lg:hidden space-y-3">
+                  {filteredPermissions.map((permission) => (
+                    <div key={permission.id} className="border rounded-lg p-3 sm:p-4 space-y-3 bg-card hover:bg-muted/50 transition-colors">
+                      {/* Permission Header */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm sm:text-base">{permission.displayName}</div>
+                          <div className="text-xs sm:text-sm text-muted-foreground font-mono truncate">
+                            {permission.name}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            {moduleIcons[permission.module] || <Key className="h-4 w-4" />}
+                          {permission.description && (
+                            <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                              {permission.description}
+                            </div>
+                          )}
+                        </div>
+                        <Badge variant={isSystemPermission(permission) ? 'destructive' : 'default'} className="text-xs flex-shrink-0">
+                          {isSystemPermission(permission) ? 'System' : 'Custom'}
+                        </Badge>
+                      </div>
+
+                      {/* Module and Action */}
+                      <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                        <div className="space-y-1">
+                          <div className="text-xs text-muted-foreground">Module</div>
+                          <div className="flex items-center gap-1 text-sm">
+                            {moduleIcons[permission.module] || <Key className="h-3 w-3" />}
                             <span className="capitalize">{permission.module}</span>
                           </div>
-                        </TableCell>
-                        <TableCell>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-xs text-muted-foreground">Action</div>
                           <Badge 
-                            className={actionColors[permission.action] || 'bg-gray-100 text-gray-800'}
+                            className={`${actionColors[permission.action] || 'bg-gray-100 text-gray-800'} text-xs`}
                             variant="secondary"
                           >
                             {permission.action}
                           </Badge>
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">
-                          {permission.resource}
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm">
-                            {permission._count?.rolePermissions || 0} roles
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={isSystemPermission(permission) ? 'destructive' : 'default'}>
-                            {isSystemPermission(permission) ? 'System' : 'Custom'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openEditDialog(permission)}
+                        </div>
+                      </div>
+
+                      {/* Resource and Usage */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <div className="text-xs text-muted-foreground">Resource</div>
+                          <div className="font-mono text-xs truncate">{permission.resource}</div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-xs text-muted-foreground">Usage</div>
+                          <div className="text-xs">{permission._count?.rolePermissions || 0} roles</div>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center justify-end gap-1 pt-2 border-t">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditDialog(permission)}
+                          className="h-8 px-2 sm:px-3"
+                        >
+                          <Edit className="h-3 w-3 sm:mr-1" />
+                          <span className="hidden sm:inline">Edit</span>
+                        </Button>
+                        {!isSystemPermission(permission) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeletePermission(permission.id, permission.displayName)}
+                            className="h-8 px-2 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden lg:block rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Permission</TableHead>
+                        <TableHead>Module</TableHead>
+                        <TableHead>Action</TableHead>
+                        <TableHead>Resource</TableHead>
+                        <TableHead>Usage</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredPermissions.map((permission) => (
+                        <TableRow key={permission.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{permission.displayName}</div>
+                              <div className="text-sm text-muted-foreground font-mono">
+                                {permission.name}
+                              </div>
+                              {permission.description && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {permission.description}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              {moduleIcons[permission.module] || <Key className="h-4 w-4" />}
+                              <span className="capitalize">{permission.module}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              className={actionColors[permission.action] || 'bg-gray-100 text-gray-800'}
+                              variant="secondary"
                             >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            {!isSystemPermission(permission) && (
+                              {permission.action}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-mono text-sm">
+                            {permission.resource}
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm">
+                              {permission._count?.rolePermissions || 0} roles
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={isSystemPermission(permission) ? 'destructive' : 'default'}>
+                              {isSystemPermission(permission) ? 'System' : 'Custom'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleDeletePermission(permission.id, permission.displayName)}
-                                className="text-destructive hover:text-destructive"
+                                onClick={() => openEditDialog(permission)}
                               >
-                                <Trash2 className="h-3 w-3" />
+                                <Edit className="h-3 w-3" />
                               </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                              {!isSystemPermission(permission) && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDeletePermission(permission.id, permission.displayName)}
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -726,10 +805,10 @@ function PermissionsManagementPage() {
           </DialogContent>
         </Dialog>
       </div>
-    </DashboardLayout>
   )
 }
 
-export default withAuth(PermissionsManagementPage, { 
-  requiredRoles: ['administrator', 'admin', 'org_administrator', 'ppd'] 
+// Protect with PERMISSION_MANAGE capability (changed from role-based)
+export default withAuth(PermissionsManagementPage, {
+  requiredCapabilities: ['PERMISSION_MANAGE']
 })

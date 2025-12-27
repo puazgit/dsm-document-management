@@ -522,4 +522,7 @@ function AnalyticsPage() {
   )
 }
 
-export default withAuth(AnalyticsPage, { requiredRoles: ['administrator'] })
+// Protect page with ANALYTICS_VIEW capability (changed from role-based to capability-based)
+export default withAuth(AnalyticsPage, {
+  requiredCapabilities: ['ANALYTICS_VIEW']
+});

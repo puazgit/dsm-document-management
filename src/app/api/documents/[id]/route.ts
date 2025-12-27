@@ -155,15 +155,17 @@ export async function GET(
       data: { viewCount: { increment: 1 } },
     });
 
-    // Log view activity
-    await prisma.documentActivity.create({
-      data: {
-        documentId: id,
-        userId: session.user.id,
-        action: 'VIEW',
-        description: `Document "${document.title}" was viewed`,
-      },
-    });
+    // Log view activity only for published documents
+    if (document.status === 'PUBLISHED') {
+      await prisma.documentActivity.create({
+        data: {
+          documentId: id,
+          userId: session.user.id,
+          action: 'VIEW',
+          description: `Document "${document.title}" was viewed`,
+        },
+      });
+    }
 
     return NextResponse.json(serializeForResponse(document));
   } catch (error) {
@@ -206,7 +208,7 @@ export async function PUT(
       existingDocument.createdById === session.user.id ||
       userPermissions.includes('documents.update') ||
       userPermissions.includes('documents.update.own') ||
-      ['admin', 'administrator', 'editor', 'manager', 'org_administrator', 'ppd'].includes(userRole);
+      ['admin', 'administrator', 'editor', 'manager', 'administrator', 'ppd'].includes(userRole);
 
     if (!canEdit) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });

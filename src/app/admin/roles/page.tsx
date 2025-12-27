@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { DashboardLayout } from '@/components/ui/dashboard-layout'
+import { withAuth } from '@/components/auth/with-auth'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -58,7 +58,7 @@ interface RoleFormData {
   permissions: string[]
 }
 
-export default function RolesManagementPage() {
+function RolesManagementPage() {
   const [roles, setRoles] = useState<Role[]>([])
   const [permissions, setPermissions] = useState<Permission[]>([])
   const [loading, setLoading] = useState(true)
@@ -273,13 +273,12 @@ export default function RolesManagementPage() {
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
+      <div className="container mx-auto space-y-4 sm:space-y-6 p-4 sm:p-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Role Management</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-xl sm:text-2xl font-bold">Role Management</h1>
+            <p className="text-sm text-muted-foreground mt-1">
               Manage roles and their permissions
             </p>
           </div>
@@ -411,112 +410,188 @@ export default function RolesManagementPage() {
         {/* Roles Table */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <Shield className="w-5 h-5 mr-2" />
+            <CardTitle className="flex items-center text-base sm:text-lg">
+              <Shield className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
               Roles ({filteredRoles.length})
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="border rounded-md">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Level</TableHead>
-                    <TableHead>Users</TableHead>
-                    <TableHead>Permissions</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    Array.from({ length: 3 }).map((_, i) => (
-                      <TableRow key={i}>
-                        <TableCell colSpan={7}>
-                          <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : filteredRoles.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="py-8 text-center">
-                        <Shield className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                        <p className="text-muted-foreground">No roles found</p>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredRoles.map((role) => (
-                      <TableRow key={role.id}>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{role.displayName}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {role.name}
+          <CardContent className="p-3 sm:p-6">
+            {loading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="p-4 border rounded-lg">
+                    <div className="h-16 bg-gray-200 rounded animate-pulse"></div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredRoles.length === 0 ? (
+              <div className="py-8 text-center">
+                <Shield className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <p className="text-muted-foreground">No roles found</p>
+              </div>
+            ) : (
+              <>
+                {/* Mobile Card View */}
+                <div className="block lg:hidden space-y-3">
+                  {filteredRoles.map((role) => (
+                    <div key={role.id} className="border rounded-lg p-3 sm:p-4 space-y-3 bg-card hover:bg-muted/50 transition-colors">
+                      {/* Role Header */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm sm:text-base">{role.displayName}</div>
+                          <div className="text-xs sm:text-sm text-muted-foreground">{role.name}</div>
+                          {role.description && (
+                            <div className="mt-1 text-xs text-muted-foreground line-clamp-2">
+                              {role.description}
                             </div>
-                            {role.description && (
-                              <div className="mt-1 text-xs text-muted-foreground">
-                                {role.description}
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="font-mono">
+                          )}
+                        </div>
+                        <Badge variant={role.isSystem ? 'destructive' : 'default'} className="text-xs flex-shrink-0">
+                          {role.isSystem ? 'System' : 'Custom'}
+                        </Badge>
+                      </div>
+
+                      {/* Stats Grid */}
+                      <div className="grid grid-cols-3 gap-2 pt-2 border-t">
+                        <div className="space-y-1">
+                          <div className="text-xs text-muted-foreground">Level</div>
+                          <Badge variant="outline" className="font-mono text-xs">
                             {role.level}
                           </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center">
-                            <Users className="w-4 h-4 mr-1" />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-xs text-muted-foreground">Users</div>
+                          <div className="flex items-center gap-1 text-sm">
+                            <Users className="w-3 h-3" />
                             {role._count?.userRoles || 0}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center">
-                            <Key className="w-4 h-4 mr-1" />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-xs text-muted-foreground">Permissions</div>
+                          <div className="flex items-center gap-1 text-sm">
+                            <Key className="w-3 h-3" />
                             {role.rolePermissions?.length || 0}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={role.isSystem ? 'destructive' : 'default'}>
-                            {role.isSystem ? 'System' : 'Custom'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
+                        </div>
+                      </div>
+
+                      {/* Created Date and Actions */}
+                      <div className="flex items-center justify-between pt-2 border-t">
+                        <div className="text-xs text-muted-foreground">
                           {new Date(role.createdAt).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="w-8 h-8 p-0">
-                                <MoreHorizontal className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openEditDialog(role)}>
-                                <Edit className="w-4 h-4 mr-2" />
-                                Edit
-                              </DropdownMenuItem>
-                              {!role.isSystem && (
-                                <DropdownMenuItem
-                                  className="text-destructive"
-                                  onClick={() => handleDeleteRole(role.id, role.displayName)}
-                                >
-                                  <Trash2 className="w-4 h-4 mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditDialog(role)}
+                            className="h-8 px-2 sm:px-3"
+                          >
+                            <Edit className="w-3 h-3 sm:mr-1" />
+                            <span className="hidden sm:inline">Edit</span>
+                          </Button>
+                          {!role.isSystem && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteRole(role.id, role.displayName)}
+                              className="h-8 px-2 text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden lg:block border rounded-md">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Level</TableHead>
+                        <TableHead>Users</TableHead>
+                        <TableHead>Permissions</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredRoles.map((role) => (
+                        <TableRow key={role.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{role.displayName}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {role.name}
+                              </div>
+                              {role.description && (
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                  {role.description}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="font-mono">
+                              {role.level}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center">
+                              <Users className="w-4 h-4 mr-1" />
+                              {role._count?.userRoles || 0}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center">
+                              <Key className="w-4 h-4 mr-1" />
+                              {role.rolePermissions?.length || 0}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={role.isSystem ? 'destructive' : 'default'}>
+                              {role.isSystem ? 'System' : 'Custom'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {new Date(role.createdAt).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="w-8 h-8 p-0">
+                                  <MoreHorizontal className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openEditDialog(role)}>
+                                  <Edit className="w-4 h-4 mr-2" />
+                                  Edit
+                                </DropdownMenuItem>
+                                {!role.isSystem && (
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => handleDeleteRole(role.id, role.displayName)}
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -622,6 +697,10 @@ export default function RolesManagementPage() {
           </DialogContent>
         </Dialog>
       </div>
-    </DashboardLayout>
   )
 }
+
+// Protect page with ROLE_MANAGE capability
+export default withAuth(RolesManagementPage, {
+  requiredCapabilities: ['ROLE_MANAGE']
+});

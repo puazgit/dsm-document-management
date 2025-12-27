@@ -8,6 +8,7 @@ interface ProtectedRouteProps {
   children: ReactNode
   requiredRoles?: string[]
   requiredPermissions?: string[]
+  requiredCapabilities?: string[]
   redirectTo?: string
 }
 
@@ -15,6 +16,7 @@ export function ProtectedRoute({
   children, 
   requiredRoles = [],
   requiredPermissions = [],
+  requiredCapabilities = [],
   redirectTo = '/auth/login'
 }: ProtectedRouteProps) {
   const { data: session, status } = useSession()
@@ -37,19 +39,30 @@ export function ProtectedRoute({
       }
     }
 
+    // Check capabilities (priority over roles)
+    if (requiredCapabilities.length > 0) {
+      const userCapabilities = session.user.capabilities || []
+      const hasRequiredCapability = requiredCapabilities.some(cap => 
+        userCapabilities.includes(cap)
+      )
+      
+      if (!hasRequiredCapability) {
+        console.warn('User lacks required capabilities:', requiredCapabilities)
+        router.push('/unauthorized')
+        return
+      }
+    }
+
     // Check permissions (this would need to be implemented when we have permissions in session)
     if (requiredPermissions.length > 0) {
       // TODO: Implement permission checking when permissions are added to session
       console.log('Permission checking not yet implemented:', requiredPermissions)
     }
-  }, [session, status, router, requiredRoles, requiredPermissions, redirectTo])
+  }, [session, status, router, requiredRoles, requiredPermissions, requiredCapabilities, redirectTo])
 
+  // Show minimal loading - don't block UI for too long
   if (status === 'loading') {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
-      </div>
-    )
+    return null // Return null instead of spinner for faster perceived loading
   }
 
   if (!session) {
@@ -60,6 +73,18 @@ export function ProtectedRoute({
   if (requiredRoles.length > 0) {
     const userRole = session.user.role
     if (!requiredRoles.includes(userRole)) {
+      return null // Will redirect
+    }
+  }
+
+  // Additional capability checking for render
+  if (requiredCapabilities.length > 0) {
+    const userCapabilities = session.user.capabilities || []
+    const hasRequiredCapability = requiredCapabilities.some(cap => 
+      userCapabilities.includes(cap)
+    )
+    
+    if (!hasRequiredCapability) {
       return null // Will redirect
     }
   }

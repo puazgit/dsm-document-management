@@ -240,57 +240,57 @@ export function UserGroupAssignment({ user, isOpen, onClose, onUpdate }: UserGro
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            <Building className="h-5 w-5" />
-            <span>Organizational Group Assignment</span>
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader className="space-y-1 sm:space-y-2">
+          <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Building className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+            <span className="line-clamp-1">Organizational Group Assignment</span>
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-xs sm:text-sm">
             Assign user to an organizational group to define their position in the company hierarchy
           </DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-6">
+        <div className="space-y-3 sm:space-y-4">
           {/* User Info */}
-          <div className="flex items-center space-x-3 p-4 bg-muted rounded-lg">
-            <div className="flex items-center justify-center w-10 h-10 bg-primary/10 rounded-full">
-              <User className="h-5 w-5 text-primary" />
+          <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-muted rounded-lg">
+            <div className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex-shrink-0">
+              <User className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
             </div>
-            <div>
-              <h3 className="font-medium">{(currentUser || user)?.firstName} {(currentUser || user)?.lastName}</h3>
-              <p className="text-sm text-muted-foreground">@{(currentUser || user)?.username} • {(currentUser || user)?.email}</p>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-medium text-sm sm:text-base truncate">{(currentUser || user)?.firstName} {(currentUser || user)?.lastName}</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">@{(currentUser || user)?.username} • {(currentUser || user)?.email}</p>
             </div>
           </div>
 
           {/* Current Group */}
           <div>
-            <Label className="text-base font-medium">Current Organizational Group</Label>
-            <div className="mt-2 space-y-2">
+            <Label className="text-sm sm:text-base font-medium">Current Organizational Group</Label>
+            <div className="mt-1.5 sm:mt-2">
               {!(currentUser || user)?.group ? (
-                <div className="flex items-center space-x-2 p-3 border border-orange-200 bg-orange-50 rounded-lg">
-                  <AlertTriangle className="h-4 w-4 text-orange-500" />
-                  <span className="text-sm text-orange-700">No organizational group assigned</span>
+                <div className="flex items-center gap-2 p-2 sm:p-3 border border-orange-200 bg-orange-50 rounded-lg">
+                  <AlertTriangle className="h-4 w-4 text-orange-500 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm text-orange-700">No organizational group assigned</span>
                 </div>
               ) : (
-                <div className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div>
-                      <p className="text-sm font-medium">{(currentUser || user)?.group?.displayName}</p>
-                      <p className="text-xs text-muted-foreground">
+                <div className="flex items-start sm:items-center justify-between gap-2 p-2 sm:p-3 border rounded-lg">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs sm:text-sm font-medium truncate">{(currentUser || user)?.group?.displayName}</p>
+                    {(currentUser || user)?.group?.description && (
+                      <p className="text-xs text-muted-foreground line-clamp-1 sm:line-clamp-2 mt-0.5">
                         {(currentUser || user)?.group?.description}
                       </p>
-                    </div>
+                    )}
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleRemoveGroup}
                     disabled={submitting}
-                    className="text-destructive hover:text-destructive"
+                    className="text-destructive hover:text-destructive flex-shrink-0 h-8 px-2 sm:px-3"
                   >
-                    <X className="h-3 w-3 mr-1" />
-                    Remove
+                    <X className="h-3 w-3 sm:mr-1" />
+                    <span className="hidden sm:inline">Remove</span>
                   </Button>
                 </div>
               )}
@@ -299,28 +299,28 @@ export function UserGroupAssignment({ user, isOpen, onClose, onUpdate }: UserGro
 
           {/* Assign New Group */}
           <div>
-            <Label className="text-base font-medium">Assign to Group</Label>
-            <div className="mt-2 space-y-3">
+            <Label className="text-sm sm:text-base font-medium">Assign to Group</Label>
+            <div className="mt-1.5 sm:mt-2">
               {loading ? (
-                <div className="flex items-center space-x-2 p-3 border rounded-lg">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                  <span className="text-sm text-muted-foreground">Loading available groups...</span>
+                <div className="flex items-center gap-2 p-2 sm:p-3 border rounded-lg">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary flex-shrink-0"></div>
+                  <span className="text-xs sm:text-sm text-muted-foreground">Loading groups...</span>
                 </div>
               ) : availableGroups.length === 0 ? (
-                <div className="flex items-center space-x-2 p-3 border border-green-200 bg-green-50 rounded-lg">
-                  <Check className="h-4 w-4 text-green-500" />
-                  <span className="text-sm text-green-700">No groups available</span>
+                <div className="flex items-center gap-2 p-2 sm:p-3 border border-green-200 bg-green-50 rounded-lg">
+                  <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm text-green-700">No groups available</span>
                 </div>
               ) : (
-                <div className="flex space-x-2">
+                <div className="flex gap-2">
                   <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
-                    <SelectTrigger className="flex-1">
+                    <SelectTrigger className="flex-1 h-9 text-xs sm:text-sm">
                       <SelectValue placeholder="Select a group to assign" />
                     </SelectTrigger>
                     <SelectContent>
                       {availableGroups
                         .map((group) => (
-                          <SelectItem key={group.id} value={group.id}>
+                          <SelectItem key={group.id} value={group.id} className="text-xs sm:text-sm">
                             <span>{group.displayName}</span>
                           </SelectItem>
                         ))}
@@ -329,16 +329,15 @@ export function UserGroupAssignment({ user, isOpen, onClose, onUpdate }: UserGro
                   <Button
                     onClick={handleAssignGroup}
                     disabled={!selectedGroupId || submitting}
-                    size="default"
+                    size="sm"
+                    className="h-9 px-3 flex-shrink-0"
                   >
                     {submitting ? (
-                      <div className="flex items-center space-x-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      </div>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                     ) : (
                       <>
-                        <Check className="h-4 w-4 mr-1" />
-                        Assign
+                        <Check className="h-3 w-3 sm:mr-1" />
+                        <span className="hidden sm:inline">Assign</span>
                       </>
                     )}
                   </Button>
@@ -348,8 +347,8 @@ export function UserGroupAssignment({ user, isOpen, onClose, onUpdate }: UserGro
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={submitting}>
+        <DialogFooter className="mt-4 sm:mt-6">
+          <Button variant="outline" onClick={onClose} disabled={submitting} className="w-full sm:w-auto">
             Close
           </Button>
         </DialogFooter>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { withAuth } from '@/components/auth/with-auth';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -43,7 +44,7 @@ interface RolePermissions {
   permissions: PDFPermission[];
 }
 
-export default function PDFPermissionsPage() {
+function PDFPermissionsPage() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [rolePermissions, setRolePermissions] = useState<RolePermissions[]>([]);
   const [loading, setLoading] = useState(true);
@@ -400,3 +401,8 @@ export default function PDFPermissionsPage() {
     </div>
   );
 }
+
+// Protect page with PERMISSION_MANAGE capability
+export default withAuth(PDFPermissionsPage, {
+  requiredCapabilities: ['PERMISSION_MANAGE']
+});

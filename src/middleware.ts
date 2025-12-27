@@ -10,19 +10,19 @@ import { hasRoleAccess, normalizeRoleName } from '@/config/roles'
  * Role hierarchy is automatically handled (higher level roles inherit lower level access)
  */
 const protectedRoutes: Record<string, string[]> = {
-  '/admin': ['admin', 'org_administrator'],
-  '/admin/users': ['admin', 'org_administrator', 'org_ppd'],
-  '/admin/groups': ['admin', 'org_administrator'],
-  '/admin/roles': ['admin', 'org_administrator'],
-  '/admin/permissions': ['admin', 'org_administrator'],
-  '/admin/settings': ['admin', 'org_administrator'],
-  '/admin/analytics': ['admin', 'org_administrator', 'org_ppd', 'org_manager', 'org_kadiv'],
-  '/admin/audit-logs': ['admin', 'org_administrator'],
-  '/admin/pdf-permissions': ['admin', 'org_administrator'],
+  '/admin': ['admin', 'administrator', 'ppd.pusat', 'ppd.unit'],
+  '/admin/users': ['admin', 'administrator', 'ppd.pusat', 'ppd.unit'],
+  '/admin/groups': ['admin', 'administrator', 'ppd.pusat', 'ppd.unit'],
+  '/admin/roles': ['admin', 'administrator', 'ppd.pusat', 'ppd.unit'],
+  '/admin/permissions': ['admin', 'administrator', 'ppd.pusat', 'ppd.unit'],
+  '/admin/settings': ['admin', 'administrator', 'ppd.pusat', 'ppd.unit'],
+  '/admin/analytics': ['admin', 'administrator', 'ppd.pusat', 'ppd.unit', 'manager', 'kadiv'],
+  '/admin/audit-logs': ['admin', 'administrator', 'ppd.pusat', 'ppd.unit'],
+  '/admin/pdf-permissions': ['admin', 'administrator', 'ppd.pusat', 'ppd.unit'],
 
-  '/documents/upload': ['admin', 'org_administrator', 'org_ppd', 'org_kadiv', 'org_manager'],
-  '/documents/[id]/edit': ['admin', 'org_administrator', 'org_ppd', 'org_kadiv'],
-  '/documents/[id]/delete': ['admin', 'org_administrator', 'org_ppd'],
+  '/documents/upload': ['admin', 'administrator', 'ppd.pusat', 'ppd.unit', 'kadiv', 'manager'],
+  '/documents/[id]/edit': ['admin', 'administrator', 'ppd.pusat', 'ppd.unit', 'kadiv'],
+  '/documents/[id]/delete': ['admin', 'administrator', 'ppd.pusat', 'ppd.unit'],
 }
 
 /**

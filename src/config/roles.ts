@@ -25,25 +25,35 @@ export const ROLES: Record<string, RoleConfig> = {
     permissions: ['*'], // All permissions
     description: 'Full system access and administration privileges'
   },
-  org_administrator: {
-    name: 'org_administrator',
+  administrator: {
+    name: 'administrator',
     level: 100,
     permissions: ['*'],
     description: 'Full organizational system access'
   },
-  org_ppd: {
-    name: 'org_ppd',
-    level: 90,
+  'ppd.pusat': {
+    name: 'ppd.pusat',
+    level: 100,
     permissions: [
       'users.read', 'users.create', 'users.update',
       'documents.*',
       'analytics.read',
       'roles.read'
     ],
-    description: 'Document responsibility and management'
+    description: 'Central Document Controller - Full access'
   },
-  org_kadiv: {
-    name: 'org_kadiv',
+  'ppd.unit': {
+    name: 'ppd.unit',
+    level: 70,
+    permissions: [
+      'users.*',
+      'documents.*',
+      'analytics.read'
+    ],
+    description: 'Unit Document Controller'
+  },
+  kadiv: {
+    name: 'kadiv',
     level: 80,
     permissions: [
       'documents.create', 'documents.read', 'documents.update', 'documents.approve',
@@ -52,8 +62,8 @@ export const ROLES: Record<string, RoleConfig> = {
     ],
     description: 'Division head with approval authority'
   },
-  org_gm: {
-    name: 'org_gm',
+  gm: {
+    name: 'gm',
     level: 70,
     permissions: [
       'documents.read', 'documents.approve',
@@ -62,8 +72,8 @@ export const ROLES: Record<string, RoleConfig> = {
     ],
     description: 'General Manager with high-level access'
   },
-  org_manager: {
-    name: 'org_manager',
+  manager: {
+    name: 'manager',
     level: 60,
     permissions: [
       'documents.create', 'documents.read', 'documents.update',
@@ -72,8 +82,8 @@ export const ROLES: Record<string, RoleConfig> = {
     ],
     description: 'Management level access'
   },
-  org_dirut: {
-    name: 'org_dirut',
+  dirut: {
+    name: 'dirut',
     level: 50,
     permissions: [
       'documents.read', 'documents.approve',
@@ -81,8 +91,8 @@ export const ROLES: Record<string, RoleConfig> = {
     ],
     description: 'Director with executive access'
   },
-  org_dewas: {
-    name: 'org_dewas',
+  dewas: {
+    name: 'dewas',
     level: 40,
     permissions: [
       'documents.read',
@@ -90,8 +100,8 @@ export const ROLES: Record<string, RoleConfig> = {
     ],
     description: 'Board of Supervisors'
   },
-  org_komite_audit: {
-    name: 'org_komite_audit',
+  komite_audit: {
+    name: 'komite_audit',
     level: 30,
     permissions: [
       'documents.read',
@@ -99,21 +109,21 @@ export const ROLES: Record<string, RoleConfig> = {
     ],
     description: 'Audit Committee with review access'
   },
-  org_guest: {
-    name: 'org_guest',
+  staff: {
+    name: 'staff',
     level: 25,
     permissions: [
       'documents.read'
     ],
-    description: 'Guest access with limited permissions'
+    description: 'Staff with standard access'
   },
-  members: {
-    name: 'members',
+  guest: {
+    name: 'guest',
     level: 20,
     permissions: [
       'documents.read'
     ],
-    description: 'Regular members with basic access'
+    description: 'Guest access with limited permissions'
   },
   viewer: {
     name: 'viewer',
@@ -204,30 +214,31 @@ export function normalizeRoleName(roleName: string): string | null {
   
   // Handle aliases and variations - map legacy to modern names
   const roleAliases: Record<string, string> = {
-    'administrator': 'admin',
-    'ADMINISTRATOR': 'admin',
+    'ADMINISTRATOR': 'administrator',
     'ADMIN': 'admin',
-    'admin': 'admin',
-    'ppd': 'org_ppd',
-    'PPD': 'org_ppd',
-    'manager': 'org_manager',
-    'MANAGER': 'org_manager',
-    'kadiv': 'org_kadiv',
-    'KADIV': 'org_kadiv',
-    'gm': 'org_gm',
-    'GM': 'org_gm',
-    'dirut': 'org_dirut',
-    'DIRUT': 'org_dirut',
-    'dewas': 'org_dewas',
-    'DEWAS': 'org_dewas',
-    'komite_audit': 'org_komite_audit',
-    'KOMITE_AUDIT': 'org_komite_audit',
-    'guest': 'org_guest',
-    'GUEST': 'org_guest',
-    'viewer': 'viewer',
+    'PPD': 'ppd',
+    'ppd.pusat': 'ppd.pusat',
+    'ppd.unit': 'ppd.unit',
+    'MANAGER': 'manager',
+    'KADIV': 'kadiv',
+    'GM': 'gm',
+    'DIRUT': 'dirut',
+    'DEWAS': 'dewas',
+    'KOMITE_AUDIT': 'komite_audit',
+    'GUEST': 'guest',
+    'STAFF': 'staff',
     'VIEWER': 'viewer',
-    'user': 'members', // fallback
-    'USER': 'members'
+    'USER': 'staff', // fallback
+    // Legacy org_ prefixed names
+    'org_administrator': 'administrator',
+    'org_ppd': 'ppd',
+    'org_kadiv': 'kadiv',
+    'org_gm': 'gm',
+    'org_manager': 'manager',
+    'org_dirut': 'dirut',
+    'org_dewas': 'dewas',
+    'org_komite_audit': 'komite_audit',
+    'org_guest': 'guest'
   }
 
   const mappedRole = roleAliases[roleName] || normalized

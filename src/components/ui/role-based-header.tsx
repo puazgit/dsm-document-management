@@ -86,7 +86,7 @@ export function Header() {
         </FeatureToggle>
 
         {/* Admin Quick Access */}
-        <RoleGuard requiredRoles={['admin', 'org_administrator']}>
+        <RoleGuard requiredRoles={['admin', 'administrator']}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">

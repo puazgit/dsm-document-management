@@ -50,7 +50,7 @@ export async function GET(
         userPermissions.includes('documents.read') ||
         userPermissions.includes('pdf.view') ||
         isOwner ||
-        ['admin', 'editor', 'org_administrator', 'org_ppd', 'org_dirut', 'org_gm', 'org_kadiv', 'org_supervisor'].includes(userRole);
+        ['admin', 'editor', 'administrator', 'ppd', 'dirut', 'gm', 'kadiv', 'org_supervisor'].includes(userRole);
 
       if (!canRead) {
         return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
@@ -138,7 +138,7 @@ export async function GET(
       userPermissions.includes('documents.read') ||
       userPermissions.includes('pdf.view') ||
       isOwner ||
-      ['admin', 'editor', 'org_administrator', 'org_ppd', 'org_dirut', 'org_gm', 'org_kadiv', 'org_supervisor'].includes(userRole);
+      ['admin', 'editor', 'administrator', 'ppd', 'dirut', 'gm', 'kadiv', 'org_supervisor'].includes(userRole);
 
     if (!canRead) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });

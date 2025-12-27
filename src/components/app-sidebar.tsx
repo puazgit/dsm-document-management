@@ -45,6 +45,31 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
 import { getFilteredNavigation } from "../lib/navigation"
 import { useState, useEffect } from "react"
 import { useRoleVisibility, RoleGuard } from "../hooks/use-role-visibility"
+import { getRoleConfig } from "../config/roles"
+
+// Helper function to get role display with icon
+function getRoleDisplay(role: string): string {
+  const roleConfig = getRoleConfig(role)
+  const displayName = roleConfig?.description?.split(' ')[0] || role
+  
+  const roleIcons: Record<string, string> = {
+    admin: '🔧 Admin',
+    administrator: '🔧 Administrator',
+    'ppd.pusat': '📋 PPD Pusat',
+    'ppd.unit': '📋 PPD Unit',
+    kadiv: '👔 Kadiv',
+    gm: '🏢 GM',
+    manager: '📊 Manager',
+    dirut: '🎯 Dirut',
+    dewas: '👥 Dewas',
+    komite_audit: '🔍 Komite Audit',
+    staff: '👤 Staff',
+    guest: '👁️ Guest',
+    viewer: '👁️ Viewer'
+  }
+  
+  return roleIcons[role] || `👤 ${displayName}`
+}
 
 const SIDEBAR_OPEN_ITEMS_KEY = 'sidebar-open-items'
 
@@ -234,7 +259,7 @@ export function AppSidebar() {
                     <span className="font-semibold truncate">{session.user.name}</span>
                     <span className="text-xs truncate">{session.user.email}</span>
                     <span className="truncate text-[10px] text-muted-foreground font-medium">
-                      {roleVisibility.isAdmin ? '🔧 Admin' : roleVisibility.isManager ? '📋 Manager' : roleVisibility.isGuest ? '👁️ Guest' : '👤 User'}
+                      {getRoleDisplay(session.user.role || 'guest')}
                     </span>
                   </div>
                 </SidebarMenuButton>
@@ -251,7 +276,7 @@ export function AppSidebar() {
                     Profile
                   </Link>
                 </DropdownMenuItem>
-                <RoleGuard requiredRoles={['admin', 'org_administrator']}>
+                <RoleGuard requiredRoles={['admin', 'administrator']}>
                   <DropdownMenuItem asChild>
                     <Link href="/admin/settings">
                       <Settings className="w-4 h-4" />
@@ -259,7 +284,7 @@ export function AppSidebar() {
                     </Link>
                   </DropdownMenuItem>
                 </RoleGuard>
-                <RoleGuard requiredRoles={['admin', 'org_administrator', 'org_ppd']}>
+                <RoleGuard requiredRoles={['admin', 'administrator', 'ppd.pusat', 'ppd.unit']}>
                   <DropdownMenuItem asChild>
                     <Link href="/admin/users">
                       <Users className="w-4 h-4" />

@@ -10,8 +10,9 @@ import { cn } from "../../lib/utils"
 import { Button } from "./button"
 import { Input } from "./input"
 import { Separator } from "./separator"
-import { Sheet, SheetContent } from "./sheet"
+import { Sheet, SheetContent, SheetTitle } from "./sheet"
 import { Skeleton } from "./skeleton"
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import {
   Tooltip,
   TooltipContent,
@@ -196,15 +197,16 @@ const Sidebar = React.forwardRef<
           <SheetContent
             data-sidebar="sidebar"
             data-mobile="true"
-            className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+            className="w-[--sidebar-width] max-w-[85vw] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
             style={
               {
                 "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
               } as React.CSSProperties
             }
             side={side}
-          >
-            <div className="flex h-full w-full flex-col">{children}</div>
+          >            <VisuallyHidden>
+              <SheetTitle>Navigation Menu</SheetTitle>
+            </VisuallyHidden>            <div className="flex flex-col w-full h-full">{children}</div>
           </SheetContent>
         </Sheet>
       )
@@ -213,7 +215,7 @@ const Sidebar = React.forwardRef<
     return (
       <div
         ref={ref}
-        className="group peer hidden md:block text-sidebar-foreground"
+        className="hidden group peer md:block text-sidebar-foreground"
         data-state={state}
         data-collapsible={state === "collapsed" ? collapsible : ""}
         data-variant={variant}
@@ -261,7 +263,14 @@ const SidebarTrigger = React.forwardRef<
   React.ElementRef<typeof Button>,
   React.ComponentProps<typeof Button>
 >(({ className, onClick, ...props }, ref) => {
-  const { toggleSidebar } = useSidebar()
+  const { toggleSidebar, isMobile } = useSidebar()
+
+  const handleClick = React.useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    onClick?.(event)
+    toggleSidebar()
+  }, [onClick, toggleSidebar])
 
   return (
     <Button
@@ -269,14 +278,18 @@ const SidebarTrigger = React.forwardRef<
       data-sidebar="trigger"
       variant="ghost"
       size="icon"
-      className={cn("h-7 w-7", className)}
-      onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
-        onClick?.(event)
-        toggleSidebar()
-      }}
+      type="button"
+      className={cn(
+        "h-9 w-9 md:h-7 md:w-7 shrink-0 cursor-pointer",
+        "hover:bg-accent hover:text-accent-foreground",
+        "active:bg-accent/80 transition-colors",
+        className
+      )}
+      onClick={handleClick}
+      aria-label="Toggle sidebar"
       {...props}
     >
-      <PanelLeft />
+      <PanelLeft className="w-5 h-5" />
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   )
@@ -651,7 +664,7 @@ const SidebarMenuSkeleton = React.forwardRef<
       {...props}
     >
       {showIcon && (
-        <Skeleton className="size-4 rounded-md" data-sidebar="menu-skeleton-icon" />
+        <Skeleton className="rounded-md size-4" data-sidebar="menu-skeleton-icon" />
       )}
       <Skeleton
         className="h-4 flex-1 max-w-[--skeleton-width]"

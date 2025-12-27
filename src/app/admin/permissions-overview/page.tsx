@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { withAuth } from '@/components/auth/with-auth'
-import { DashboardLayout } from '@/components/ui/dashboard-layout'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PermissionMatrix } from '@/components/admin/permission-matrix'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -10,7 +9,6 @@ import { Key, Shield, Database, Users } from 'lucide-react'
 
 function PermissionOverviewPage() {
   return (
-    <DashboardLayout>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Permission Management</h1>
@@ -68,10 +66,10 @@ function PermissionOverviewPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
   )
 }
 
-export default withAuth(PermissionOverviewPage, { 
-  requiredRoles: ['administrator', 'admin', 'org_administrator', 'ppd'] 
+// Protect with PERMISSION_MANAGE capability (changed from role-based)
+export default withAuth(PermissionOverviewPage, {
+  requiredCapabilities: ['PERMISSION_MANAGE']
 })

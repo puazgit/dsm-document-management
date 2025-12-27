@@ -1,23 +1,21 @@
 'use client'
 
 import { withAuth } from '@/components/auth/with-auth'
-import { DashboardLayout } from '@/components/ui/dashboard-layout'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Users, Shield, Settings, Activity, FileText } from 'lucide-react'
 import Link from 'next/link'
 
 function AdminDashboard() {
   return (
-    <DashboardLayout>
-      <div className="space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-          <p className="text-muted-foreground">
-            Manage users, roles, and system settings
-          </p>
-        </div>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        <p className="text-muted-foreground">
+          Manage users, roles, and system settings
+        </p>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
         <Link href="/admin/users">
           <Card className="hover:shadow-lg transition-shadow cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -131,13 +129,12 @@ function AdminDashboard() {
           </Card>
         </Link>
       </div>
-      </div>
-    </DashboardLayout>
+    </div>
   )
 }
 
-// Export with admin protection
+// Export with admin protection (changed to capability-based)
 export default withAuth(AdminDashboard, {
-  requiredRoles: ['administrator', 'admin', 'org_administrator'],
+  requiredCapabilities: ['ADMIN_ACCESS'],
   redirectTo: '/unauthorized'
 })

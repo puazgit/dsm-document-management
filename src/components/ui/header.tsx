@@ -2,10 +2,12 @@
 
 import { useSession } from "next-auth/react"
 import { usePathname } from "next/navigation"
-import { Bell } from "lucide-react"
+import { Bell, RefreshCw } from "lucide-react"
 import { Button } from "./button"
 import { ThemeToggle } from "../theme-toggle"
 import { SidebarTrigger } from "./sidebar"
+import { useState } from "react"
+import { useToast } from "@/hooks/use-toast"
 
 const getPageInfo = (pathname: string) => {
   switch (pathname) {
@@ -71,21 +73,59 @@ export function Header() {
   const { data: session } = useSession()
   const pathname = usePathname()
   const pageInfo = getPageInfo(pathname)
+  const { toast } = useToast()
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const handleRefreshPermissions = async () => {
+    setIsRefreshing(true)
+    
+    try {
+      // Show toast before reload
+      toast({
+        title: "Refreshing Permissions",
+        description: "Updating your roles and permissions from the server...",
+      })
+      
+      // Wait a bit for toast to show
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Force reload to get fresh session with updated permissions
+      window.location.reload()
+    } catch (error) {
+      setIsRefreshing(false)
+      toast({
+        title: "Refresh Failed",
+        description: "Could not refresh permissions. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
 
   if (!session) return null
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 px-4 bg-background border-b border-border">
-      <SidebarTrigger className="-ml-1" />
+    <header className="sticky top-0 z-50 flex h-16 shrink-0 items-center gap-2 px-4 bg-background border-b border-border">
+      <SidebarTrigger className="flex-shrink-0 z-50" />
       
       {/* Page Title - Dynamic based on current page */}
-      <div className="flex-1">
-        <h2 className="text-xl font-semibold text-foreground">{pageInfo.title}</h2>
-        <p className="text-sm text-muted-foreground">{pageInfo.description}</p>
+      <div className="flex-1 min-w-0 ml-2">
+        <h2 className="text-lg md:text-xl font-semibold text-foreground truncate">{pageInfo.title}</h2>
+        <p className="hidden sm:block text-sm text-muted-foreground truncate">{pageInfo.description}</p>
       </div>
 
       {/* Right side - Theme toggle and Notifications */}
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center gap-1 md:gap-4 flex-shrink-0">
+        {/* Refresh Permissions Button */}
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={handleRefreshPermissions}
+          disabled={isRefreshing}
+          title="Refresh permissions from server"
+        >
+          <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+        </Button>
+
         {/* Theme Toggle */}
         <ThemeToggle />
 

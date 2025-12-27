@@ -58,49 +58,49 @@ export const navigationItems: NavItem[] = [
     href: '/admin',
     icon: Shield,
     description: 'Administrative functions',
-    requiredRoles: ['admin', 'org_administrator', 'ppd.pusat', 'org_ppd'],
+    requiredRoles: ['admin', 'administrator', 'ppd.pusat', 'ppd.unit'],
     children: [
       {
         title: 'User Management',
         href: '/admin/users',
         icon: Users,
-        requiredRoles: ['admin', 'org_administrator', 'ppd.pusat', 'org_ppd']
+        requiredRoles: ['admin', 'administrator', 'ppd.pusat', 'ppd.unit']
       },
       {
         title: 'Group Management',
         href: '/admin/groups',
         icon: Users,
-        requiredRoles: ['administrator', 'admin', 'org_administrator', 'ppd.pusat', 'org_ppd']
+        requiredRoles: ['admin', 'administrator', 'ppd.pusat', 'ppd.unit']
       },
       {
         title: 'Role Management',
         href: '/admin/roles',
         icon: Shield,
-        requiredRoles: ['administrator', 'admin', 'org_administrator', 'ppd.pusat', 'org_ppd']
+        requiredRoles: ['admin', 'administrator', 'ppd.pusat', 'ppd.unit']
       },
       {
         title: 'Permissions',
         href: '/admin/permissions',
         icon: Shield,
-        requiredRoles: ['administrator', 'admin', 'org_administrator', 'ppd.pusat', 'org_ppd']
+        requiredRoles: ['admin', 'administrator', 'ppd.pusat', 'ppd.unit']
       },
       {
         title: 'Capabilities',
         href: '/admin/capabilities',
         icon: Shield,
-        requiredRoles: ['administrator', 'admin', 'org_administrator', 'ppd.pusat', 'org_ppd']
+        requiredRoles: ['admin', 'administrator', 'ppd.pusat', 'ppd.unit']
       },
       {
         title: 'System Settings',
         href: '/admin/settings',
         icon: Settings,
-        requiredRoles: ['administrator', 'admin', 'org_administrator', 'ppd.pusat', 'org_ppd']
+        requiredRoles: ['admin', 'administrator', 'ppd.pusat', 'ppd.unit']
       },
       {
         title: 'Audit Logs',
         href: '/admin/audit-logs',
         icon: Activity,
-        requiredRoles: ['administrator', 'admin', 'org_administrator', 'ppd.pusat', 'org_ppd']
+        requiredRoles: ['admin', 'administrator', 'ppd.pusat', 'ppd.unit']
       }
     ]
   },
@@ -109,7 +109,7 @@ export const navigationItems: NavItem[] = [
     href: '/analytics',
     icon: BarChart3,
     description: 'Reports and analytics',
-    requiredRoles: ['administrator', 'admin', 'org_administrator', 'manager', 'org_manager', 'org_kadiv']
+    requiredRoles: ['admin', 'administrator', 'ppd.pusat', 'ppd.unit', 'manager']
   }
 ]
 

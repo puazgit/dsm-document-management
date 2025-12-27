@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { withAuth } from '@/components/auth/with-auth';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,7 +38,7 @@ const DOCUMENT_STATUSES = [
   'EXPIRED'
 ];
 
-export default function WorkflowsPage() {
+function WorkflowsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [transitions, setTransitions] = useState<WorkflowTransition[]>([]);
@@ -451,3 +452,8 @@ export default function WorkflowsPage() {
     </div>
   );
 }
+
+// Protect page with WORKFLOW_MANAGE capability
+export default withAuth(WorkflowsPage, {
+  requiredCapabilities: ['WORKFLOW_MANAGE']
+});

@@ -39,7 +39,7 @@ export async function POST(
     const canManage = await canManageDocuments(capUser);
     
     const isManagementRole = ['admin', 'manager'].includes(userRole);
-    const isOrganizationalLeader = ['org_dirut', 'org_gm', 'org_kadiv', 'org_administrator', 'org_ppd'].includes(userRole);
+    const isOrganizationalLeader = ['dirut', 'gm', 'kadiv', 'administrator', 'ppd'].includes(userRole);
     
     if (!hasApprovalPermission && !canManage && !isManagementRole && !isOrganizationalLeader) {
       return NextResponse.json({ 

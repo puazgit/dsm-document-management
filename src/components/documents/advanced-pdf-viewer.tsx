@@ -75,11 +75,11 @@ export function AdvancedPDFViewer({
       canDownload: true, canPrint: true, canCopy: true, canZoom: true, 
       canRotate: true, maxZoom: 3.0, showWatermark: false 
     },
-    'org_administrator': { 
+    'administrator': { 
       canDownload: true, canPrint: true, canCopy: true, canZoom: true, 
       canRotate: true, maxZoom: 3.0, showWatermark: false 
     },
-    'org_manager': { 
+    'manager': { 
       canDownload: true, canPrint: true, canCopy: false, canZoom: true, 
       canRotate: true, maxZoom: 2.5, showWatermark: false 
     },
@@ -95,7 +95,7 @@ export function AdvancedPDFViewer({
       canDownload: false, canPrint: false, canCopy: false, canZoom: true, 
       canRotate: false, maxZoom: 1.5, showWatermark: true 
     },
-    'org_guest': { 
+    'guest': { 
       canDownload: false, canPrint: false, canCopy: false, canZoom: false, 
       canRotate: false, maxZoom: 1.2, showWatermark: true 
     }
@@ -343,12 +343,12 @@ export function AdvancedPDFViewer({
   const getRoleBadgeColor = (role: string) => {
     const colors = {
       'admin': 'bg-purple-100 text-purple-800 border-purple-300',
-      'org_administrator': 'bg-purple-100 text-purple-800 border-purple-300',
-      'org_manager': 'bg-blue-100 text-blue-800 border-blue-300',
+      'administrator': 'bg-purple-100 text-purple-800 border-purple-300',
+      'manager': 'bg-blue-100 text-blue-800 border-blue-300',
       'editor': 'bg-green-100 text-green-800 border-green-300',
       'reviewer': 'bg-yellow-100 text-yellow-800 border-yellow-300',
       'viewer': 'bg-gray-100 text-gray-800 border-gray-300',
-      'org_guest': 'bg-red-100 text-red-800 border-red-300'
+      'guest': 'bg-red-100 text-red-800 border-red-300'
     };
     return colors[role as keyof typeof colors] || colors.viewer;
   };

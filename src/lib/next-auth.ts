@@ -116,80 +116,88 @@ export const authOptions: NextAuthOptions = {
     maxAge: 7 * 24 * 60 * 60, // 7 days
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
+      // Load permissions on initial login (when user object exists)
       if (user) {
-        console.log('🔐 JWT Callback - User Login:', user.email);
-        token.sub = user.id // Set user ID as sub
+        token.sub = user.id
         token.role = (user as any).role
         token.groupId = (user as any).groupId
         token.divisiId = (user as any).divisiId
         token.isActive = (user as any).isActive
-        
-        // Load user permissions from database
+        // Don't set permissionsLoadedAt yet - let it load below
+      }
+      
+      // Refresh permissions periodically (every 1 minute) or on manual update trigger
+      // This allows role changes to take effect without logout
+      const shouldRefreshPermissions = 
+        trigger === 'update' || // Manual refresh
+        !token.permissionsLoadedAt || // First time (including initial login)
+        user || // When user object exists (fresh login)
+        (Date.now() - (token.permissionsLoadedAt as number)) > 60000 // More than 1 minute old
+      
+      if (shouldRefreshPermissions && token.sub) {
         try {
-          console.log('📊 JWT Callback - Loading permissions for:', user.email);
-          
-          // Special handling for admin role - grant all permissions
-          if ((user as any).role === 'admin') {
-            console.log('🔥 JWT Callback - Admin detected, granting all permissions');
-            token.permissions = [
-              'users.create', 'users.read', 'users.update', 'users.delete',
-              'documents.create', 'documents.read', 'documents.update', 'documents.delete', 'documents.approve',
-              'roles.create', 'roles.read', 'roles.update', 'roles.delete',
-              'permissions.create', 'permissions.read', 'permissions.update', 'permissions.delete',
-              'analytics.read', 'analytics.create', 'analytics.update', 'analytics.delete',
-              'system.admin'
-            ]
-          } else {
-            const userWithPermissions = await prisma.user.findUnique({
-              where: { email: user.email },
-              include: {
-                userRoles: {
-                  where: { isActive: true },
-                  include: {
-                    role: {
-                      include: {
-                        rolePermissions: {
-                          include: {
-                            permission: true
-                          }
+          const userWithPermissions = await prisma.user.findUnique({
+            where: { id: token.sub },
+            include: {
+              userRoles: {
+                where: { isActive: true },
+                include: {
+                  role: {
+                    include: {
+                      rolePermissions: {
+                        include: {
+                          permission: true
+                        }
+                      },
+                      capabilityAssignments: {
+                        include: {
+                          capability: true
                         }
                       }
                     }
                   }
                 }
               }
-            })
-            
-            if (userWithPermissions) {
-              const permissions = userWithPermissions.userRoles.flatMap(userRole => 
-                userRole.role.rolePermissions.map(rp => rp.permission.name)
-              )
-              token.permissions = [...new Set(permissions)]
-              console.log('✅ JWT Callback - Permissions loaded:', permissions.length, 'permissions');
-              console.log('🔑 JWT Callback - PDF Permissions:', permissions.filter(p => p.includes('pdf') || p.includes('download')));
-            } else {
-              console.log('❌ JWT Callback - No user found with permissions');
             }
+          })
+          
+          if (userWithPermissions) {
+            // Update role in case it changed
+            const primaryRole = userWithPermissions.userRoles?.[0]?.role?.name || token.role
+            token.role = primaryRole
+            
+            // Load permissions
+            const permissions = userWithPermissions.userRoles.flatMap(userRole => 
+              userRole.role.rolePermissions.map(rp => rp.permission.name)
+            )
+            token.permissions = [...new Set(permissions)]
+            
+            // Load capabilities
+            const capabilities = userWithPermissions.userRoles.flatMap(userRole =>
+              userRole.role.capabilityAssignments.map(ca => ca.capability.name)
+            )
+            token.capabilities = [...new Set(capabilities)]
+            
+            // Update timestamp
+            token.permissionsLoadedAt = Date.now()
           }
         } catch (error) {
-          console.error('❌ JWT Callback - Error loading permissions:', error)
+          console.error('Error refreshing permissions:', error)
         }
-        console.log('🎯 JWT Callback - Final token role:', token.role);
       }
+      
       return token
     },
     async session({ session, token }) {
       if (token && session.user) {
-        console.log('📋 Session Callback - Creating session for:', session.user.email);
         session.user.id = token.sub!
         session.user.role = token.role
         session.user.groupId = token.groupId
         session.user.divisiId = token.divisiId
         session.user.isActive = token.isActive
         session.user.permissions = token.permissions as string[]
-        console.log('✅ Session Callback - Final session role:', session.user.role);
-        console.log('🔑 Session Callback - Permissions count:', session.user.permissions?.length || 0);
+        session.user.capabilities = token.capabilities as string[]
       }
       return session
     }

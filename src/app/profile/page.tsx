@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useSession } from 'next-auth/react'
+import { withAuth } from '@/components/auth/with-auth'
 import { DashboardLayout } from '@/components/ui/dashboard-layout'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -12,7 +13,7 @@ import { ChangePasswordForm } from '@/components/profile/change-password-form'
 import { AvatarUpload } from '@/components/profile/avatar-upload'
 import { User, Shield, Camera, Lock } from 'lucide-react'
 
-export default function ProfilePage() {
+function ProfilePage() {
   const { data: session, status } = useSession()
   const [activeTab, setActiveTab] = useState('profile')
 
@@ -150,3 +151,6 @@ export default function ProfilePage() {
     </DashboardLayout>
   )
 }
+
+// Protect page with authentication (no specific capability required)
+export default withAuth(ProfilePage);

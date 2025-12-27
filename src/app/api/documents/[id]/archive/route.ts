@@ -32,7 +32,7 @@ export async function POST(
     const hasArchivePermission = userPermissions.includes('documents.delete') || userPermissions.includes('documents.archive');
     const isAdministrator = userRole === 'administrator';
     const isManagementRole = ['admin', 'manager'].includes(userRole);
-    const isOrganizationalLeader = ['org_dirut', 'org_gm', 'org_kadiv', 'org_administrator', 'ppd'].includes(userRole);
+    const isOrganizationalLeader = ['dirut', 'gm', 'kadiv', 'administrator', 'ppd'].includes(userRole);
     
     if (!hasArchivePermission && !isAdministrator && !isManagementRole && !isOrganizationalLeader) {
       return NextResponse.json({ 
@@ -172,7 +172,7 @@ export async function DELETE(
     const hasArchivePermission = userPermissions.includes('documents.delete') || userPermissions.includes('documents.archive');
     const isAdministrator = userRole === 'administrator';
     const isManagementRole = ['admin', 'manager'].includes(userRole);
-    const isOrganizationalLeader = ['org_dirut', 'org_gm', 'org_kadiv', 'org_administrator', 'ppd'].includes(userRole);
+    const isOrganizationalLeader = ['dirut', 'gm', 'kadiv', 'administrator', 'ppd'].includes(userRole);
     
     if (!hasArchivePermission && !isAdministrator && !isManagementRole && !isOrganizationalLeader) {
       return NextResponse.json({ 

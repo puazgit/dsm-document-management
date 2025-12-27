@@ -252,20 +252,20 @@ function SecurePDFViewer({
       'viewer': 'bg-gray-100 text-gray-800 border-gray-300',
       'guest': 'bg-red-100 text-red-800 border-red-300',
       // Organizational roles
-      'org_administrator': 'bg-purple-100 text-purple-800 border-purple-300',
-      'org_dirut': 'bg-purple-100 text-purple-800 border-purple-300',
-      'org_dewas': 'bg-purple-100 text-purple-800 border-purple-300',
-      'org_ppd': 'bg-purple-100 text-purple-800 border-purple-300',
-      'org_komite_audit': 'bg-indigo-100 text-indigo-800 border-indigo-300',
-      'org_gm': 'bg-blue-100 text-blue-800 border-blue-300',
-      'org_kadiv': 'bg-cyan-100 text-cyan-800 border-cyan-300',
-      'org_manager': 'bg-blue-100 text-blue-800 border-blue-300',
+      'administrator': 'bg-purple-100 text-purple-800 border-purple-300',
+      'dirut': 'bg-purple-100 text-purple-800 border-purple-300',
+      'dewas': 'bg-purple-100 text-purple-800 border-purple-300',
+      'ppd': 'bg-purple-100 text-purple-800 border-purple-300',
+      'komite_audit': 'bg-indigo-100 text-indigo-800 border-indigo-300',
+      'gm': 'bg-blue-100 text-blue-800 border-blue-300',
+      'kadiv': 'bg-cyan-100 text-cyan-800 border-cyan-300',
+      'manager': 'bg-blue-100 text-blue-800 border-blue-300',
       'org_finance': 'bg-emerald-100 text-emerald-800 border-emerald-300',
       'org_hrd': 'bg-teal-100 text-teal-800 border-teal-300',
       'org_supervisor': 'bg-green-100 text-green-800 border-green-300',
       'org_sekretaris': 'bg-yellow-100 text-yellow-800 border-yellow-300',
       'org_staff': 'bg-gray-100 text-gray-800 border-gray-300',
-      'org_guest': 'bg-red-100 text-red-800 border-red-300'
+      'guest': 'bg-red-100 text-red-800 border-red-300'
     };
     return colors[role.toLowerCase() as keyof typeof colors] || colors['guest'];
   };
@@ -295,6 +295,14 @@ function SecurePDFViewer({
     setIsDownloading(true);
     try {
       logger.debug('Starting download', 'PDFViewer', { fileName });
+      
+      // Sanitize fileName to prevent XSS - comprehensive sanitization
+      const safeFileName = fileName
+        .replace(/<[^>]*>/g, '')              // Remove HTML tags
+        .replace(/[<>"'`]/g, '')              // Remove dangerous characters  
+        .replace(/[\x00-\x1F\x7F]/g, '')      // Remove control characters
+        .substring(0, 255);                    // Limit length
+      
       const response = await fetch(fileUrl);
       if (!response.ok) {
         throw new Error(`Download failed: ${response.status} ${response.statusText}`);

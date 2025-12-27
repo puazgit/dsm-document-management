@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { withAuth } from '@/components/auth/with-auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -36,7 +37,7 @@ interface Role {
   level: number;
 }
 
-export default function CapabilitiesPage() {
+function CapabilitiesPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [capabilities, setCapabilities] = useState<Capability[]>([]);
@@ -408,3 +409,8 @@ export default function CapabilitiesPage() {
     </div>
   );
 }
+
+// Protect page with ROLE_MANAGE capability
+export default withAuth(CapabilitiesPage, {
+  requiredCapabilities: ['ROLE_MANAGE']
+});

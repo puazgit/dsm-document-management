@@ -45,7 +45,7 @@ export async function GET(
        userPermissions.includes('documents.delete'));
     
     const userRole = session.user.role || '';
-    const isAdmin = ['admin', 'org_administrator'].includes(userRole);
+    const isAdmin = ['admin', 'administrator'].includes(userRole);
     const isOwner = document.createdById === session.user.id;
     const hasRoleAccess = document.accessGroups.includes(session.user.role || '');
     const hasGroupAccess = document.accessGroups.includes(session.user.groupId || '');
