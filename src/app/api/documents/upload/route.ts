@@ -6,6 +6,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { serializeForResponse } from '../../../../lib/bigint-utils';
+import { processPdfExtraction } from '@/lib/jobs/pdf-extraction-job';
 
 // Allowed file types and their MIME types
 const ALLOWED_FILE_TYPES = {
@@ -222,6 +223,13 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      // Trigger PDF extraction asynchronously if new file is PDF
+      if (file.type === 'application/pdf') {
+        processPdfExtraction(document.id).catch((error) => {
+          console.error(`Failed to trigger PDF extraction for document ${document.id}:`, error)
+        })
+      }
+
     } else {
       // Create new document
       document = await prisma.document.create({
@@ -276,6 +284,13 @@ export async function POST(request: NextRequest) {
           description: `Document "${document.title}" was created with file upload`,
         },
       });
+    }
+
+    // Trigger PDF extraction asynchronously (non-blocking)
+    if (file.type === 'application/pdf') {
+      processPdfExtraction(document.id).catch((error) => {
+        console.error(`Failed to trigger PDF extraction for document ${document.id}:`, error)
+      })
     }
 
     return NextResponse.json(serializeForResponse({
