@@ -266,31 +266,35 @@ model DocumentType {
 }
 
 model Document {
-  id             String             @id @default(cuid())
-  title          String             @db.VarChar(500)
-  description    String?
-  fileName       String             @map("file_name") @db.VarChar(500)
-  filePath       String             @map("file_path")
-  fileSize       BigInt?            @map("file_size")
-  fileType       String?            @map("file_type") @db.VarChar(100)
-  mimeType       String?            @map("mime_type") @db.VarChar(100)
-  version        String             @default("1.0") @db.VarChar(50)
-  status         DocumentStatus     @default(DRAFT)
-  isPublic       Boolean            @default(false) @map("is_public")
-  accessGroups   String[]           @map("access_groups")
-  downloadCount  Int                @default(0) @map("download_count")
-  viewCount      Int                @default(0) @map("view_count")
-  tags           String[]
-  metadata       Json?
-  publishedAt    DateTime?          @map("published_at")
-  expiresAt      DateTime?          @map("expires_at")
-  createdAt      DateTime           @default(now()) @map("created_at")
-  updatedAt      DateTime           @updatedAt @map("updated_at")
-  documentTypeId String             @map("document_type_id")
-  createdById    String             @map("created_by_id")
-  updatedById    String?            @map("updated_by_id")
-  approvedById   String?            @map("approved_by_id")
-  approvedAt     DateTime?          @map("approved_at")
+  id               String             @id @default(cuid())
+  title            String             @db.VarChar(500)
+  description      String?
+  fileName         String             @map("file_name") @db.VarChar(500)
+  filePath         String             @map("file_path")
+  fileSize         BigInt?            @map("file_size")
+  fileType         String?            @map("file_type") @db.VarChar(100)
+  mimeType         String?            @map("mime_type") @db.VarChar(100)
+  version          String             @default("1.0") @db.VarChar(50)
+  status           DocumentStatus     @default(DRAFT)
+  isPublic         Boolean            @default(false) @map("is_public")
+  accessGroups     String[]           @map("access_groups")
+  downloadCount    Int                @default(0) @map("download_count")
+  viewCount        Int                @default(0) @map("view_count")
+  tags             String[]
+  metadata         Json?
+  publishedAt      DateTime?          @map("published_at")
+  expiresAt        DateTime?          @map("expires_at")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  // Full-text search fields
+  extractedText    String?            @map("extracted_text") @db.Text
+  extractedAt      DateTime?          @map("extracted_at")
+  extractionStatus String?            @default("pending") @map("extraction_status") @db.VarChar(20)
+  documentTypeId   String             @map("document_type_id")
+  createdById      String             @map("created_by_id")
+  updatedById      String?            @map("updated_by_id")
+  approvedById     String?            @map("approved_by_id")
+  approvedAt       DateTime?          @map("approved_at")
   comments       Comment[]
   activities     DocumentActivity[]
   history        DocumentHistory[]
@@ -307,9 +311,11 @@ model Document {
   @@index([status])
   @@index([isPublic])
   @@index([createdAt])
+  @@index([extractionStatus])
   @@index([status, isPublic])
   @@index([createdById, status])
   @@index([documentTypeId, status])
+  @@index([status, documentTypeId, createdAt(sort: Desc)])
   @@map("documents")
 }
 
