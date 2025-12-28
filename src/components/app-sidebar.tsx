@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from "next-auth/react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   Home,
   FileText,
@@ -33,6 +33,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarRail,
+  useSidebar,
 } from "./ui/sidebar"
 import { 
   DropdownMenu,
@@ -76,8 +77,24 @@ const SIDEBAR_OPEN_ITEMS_KEY = 'sidebar-open-items'
 export function AppSidebar() {
   const { data: session } = useSession()
   const pathname = usePathname()
+  const router = useRouter()
   const [openItems, setOpenItems] = useState<string[]>([])
   const roleVisibility = useRoleVisibility()
+  const { isMobile, setOpenMobile } = useSidebar()
+
+  // Handler untuk close sidebar di mobile setelah navigasi
+  const handleLinkClick = (href: string, e: React.MouseEvent) => {
+    console.log('[AppSidebar] Link clicked:', { href, isMobile })
+    if (isMobile) {
+      console.log('[AppSidebar] Mobile detected - closing sidebar')
+      e.preventDefault()
+      setOpenMobile(false)
+      // Navigate setelah sidebar mulai close
+      setTimeout(() => {
+        router.push(href)
+      }, 150)
+    }
+  }
 
   // Load open state from localStorage on mount
   useEffect(() => {
@@ -207,7 +224,10 @@ export function AppSidebar() {
                           asChild 
                           isActive={isActive(item.href)}
                         >
-                          <Link href={item.href}>
+                          <Link 
+                            href={item.href}
+                            onClick={(e) => handleLinkClick(item.href, e)}
+                          >
                             <item.icon />
                             <span>{item.title}</span>
                           </Link>
@@ -217,19 +237,63 @@ export function AppSidebar() {
                     
                     {hasChildren && isItemOpen && (
                       <SidebarMenuSub>
-                        {item.children?.map((child) => (
-                          <SidebarMenuSubItem key={child.href}>
-                            <SidebarMenuSubButton 
-                              asChild
-                              isActive={isActive(child.href)}
-                            >
-                              <Link href={child.href}>
-                                <child.icon />
-                                <span>{child.title}</span>
-                              </Link>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        ))}
+                        {item.children?.map((child) => {
+                          const hasGrandChildren = child.children && child.children.length > 0
+                          const isChildOpen = openItems.includes(child.href)
+                          
+                          return (
+                            <div key={child.href}>
+                              <SidebarMenuSubItem>
+                                {hasGrandChildren ? (
+                                  <SidebarMenuSubButton
+                                    isActive={isActive(child.href)}
+                                    onClick={() => toggleItem(child.href)}
+                                  >
+                                    <child.icon />
+                                    <span>{child.title}</span>
+                                    <ChevronRight className={`ml-auto transition-transform ${isChildOpen ? 'rotate-90' : ''}`} />
+                                  </SidebarMenuSubButton>
+                                ) : (
+                                  <SidebarMenuSubButton 
+                                    asChild
+                                    isActive={isActive(child.href)}
+                                  >
+                                    <Link 
+                                      href={child.href}
+                                      onClick={(e) => handleLinkClick(child.href, e)}
+                                    >
+                                      <child.icon />
+                                      <span>{child.title}</span>
+                                    </Link>
+                                  </SidebarMenuSubButton>
+                                )}
+                              </SidebarMenuSubItem>
+                              
+                              {/* Nested submenu (grandchildren) */}
+                              {hasGrandChildren && isChildOpen && (
+                                <div className="ml-4">
+                                  {child.children?.map((grandchild) => (
+                                    <SidebarMenuSubItem key={grandchild.href}>
+                                      <SidebarMenuSubButton 
+                                        asChild
+                                        isActive={isActive(grandchild.href)}
+                                        size="sm"
+                                      >
+                                        <Link 
+                                          href={grandchild.href}
+                                          onClick={(e) => handleLinkClick(grandchild.href, e)}
+                                        >
+                                          <grandchild.icon />
+                                          <span>{grandchild.title}</span>
+                                        </Link>
+                                      </SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
                       </SidebarMenuSub>
                     )}
                   </div>
