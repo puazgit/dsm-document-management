@@ -7,7 +7,8 @@ import {
   UserPlus,
   BarChart3,
   Activity,
-  Archive
+  Archive,
+  Search
 } from 'lucide-react'
 import { hasRoleAccess } from '@/config/roles'
 
@@ -38,6 +39,11 @@ export const navigationItems: NavItem[] = [
         title: 'All Documents',
         href: '/documents',
         icon: Archive,
+      },
+      {
+        title: 'Search Documents',
+        href: '/search',
+        icon: Search,
       },
       {
         title: 'Upload Document',
