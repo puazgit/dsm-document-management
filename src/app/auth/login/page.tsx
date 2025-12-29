@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { signIn, getSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "../../../components/ui/button"
 import { Input } from "../../../components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card"
@@ -22,11 +22,15 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
+  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+
+    console.log('[LOGIN] Starting login, callbackUrl:', callbackUrl)
 
     try {
       const result = await signIn("credentials", {
@@ -36,17 +40,24 @@ export default function LoginPage() {
       })
 
       if (result?.error) {
+        console.log('[LOGIN] Login failed:', result.error)
         toast({
           title: "Login Failed",
           description: "Invalid email or password",
           variant: "destructive",
         })
       } else {
+        console.log('[LOGIN] Login successful, redirecting to:', callbackUrl)
         toast({
           title: "Login Successful",
           description: "Welcome back!",
         })
-        router.push("/dashboard")
+        
+        // Wait a moment for session to be established
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
+        router.push(callbackUrl)
+        router.refresh() // Force refresh to update session
       }
     } catch (error) {
       toast({

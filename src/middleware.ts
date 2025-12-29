@@ -38,6 +38,7 @@ const publicRoutes = [
   '/test',
   '/sidebar-test',
   '/pdf-security-demo',
+  '/search',
 ]
 
 /**

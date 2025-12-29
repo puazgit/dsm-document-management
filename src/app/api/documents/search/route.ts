@@ -4,6 +4,7 @@ import { authOptions } from '../../../../lib/next-auth';
 import { prisma } from '../../../../lib/prisma';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
+import { serializeForResponse } from '../../../../lib/bigint-utils';
 
 // Validation schema for advanced search
 const SearchSchema = z.object({
@@ -30,26 +31,31 @@ const SearchSchema = z.object({
  * Handle full-text search using PostgreSQL FTS
  */
 async function handleFullTextSearch(params: any) {
-  const {
-    q,
-    documentTypeId,
-    status,
-    createdById,
-    tags,
-    dateFrom,
-    dateTo,
-    fileType,
-    minSize,
-    maxSize,
-    isPublic,
-    hasComments,
-    searchIn,
-    sortBy,
-    sortOrder,
-    page,
-    limit,
-    session,
-  } = params;
+  console.log('[FTS] Starting full-text search with params:', JSON.stringify(params, null, 2));
+  
+  try {
+    const {
+      q,
+      documentTypeId,
+      status,
+      createdById,
+      tags,
+      dateFrom,
+      dateTo,
+      fileType,
+      minSize,
+      maxSize,
+      isPublic,
+      hasComments,
+      searchIn,
+      sortBy,
+      sortOrder,
+      page,
+      limit,
+      session,
+    } = params;
+
+    console.log('[FTS] User:', session?.user?.email, 'Role:', session?.user?.role);
 
   // Build SQL WHERE conditions for filters
   const conditions: string[] = [];
@@ -57,7 +63,11 @@ async function handleFullTextSearch(params: any) {
   let paramIndex = 1;
 
   // Access control
-  if (session.user.role !== 'ADMIN') {
+  const userRole = (session.user.role || '').toLowerCase();
+  console.log('[FTS] User role:', userRole, 'Type:', typeof userRole);
+  console.log('[FTS] Session user:', JSON.stringify(session.user));
+  
+  if (userRole !== 'admin' && userRole !== 'administrator') {
     conditions.push(`(
       d.created_by_id = $${paramIndex++} OR 
       d.is_public = true OR 
@@ -133,29 +143,38 @@ async function handleFullTextSearch(params: any) {
 
   // Add full-text search condition
   const searchQuery = q.trim();
-  conditions.push(`d.search_vector @@ websearch_to_tsquery('indonesian', $${paramIndex++})`);
+  const searchParamIndex = paramIndex++;
+  conditions.push(`d.search_vector @@ websearch_to_tsquery('indonesian', $${searchParamIndex})`);
   params_sql.push(searchQuery);
+  
+  console.log('[SEARCH API] Search query:', searchQuery, 'Param index:', searchParamIndex);
+  console.log('[SEARCH API] Conditions:', conditions);
+  console.log('[SEARCH API] Params so far:', params_sql);
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   // Calculate offset
   const offset = (page - 1) * limit;
+  const limitIndex = paramIndex++;
+  const offsetIndex = paramIndex++;
+  params_sql.push(limit, offset);
 
-  // Determine ORDER BY clause
+  // Determine ORDER BY clause - reuse searchParamIndex for same query
   let orderByClause = '';
+  
   if (sortBy === 'relevance') {
     // Use the ranking function we created in migration
+    // Reuse searchParamIndex since it's the same search query
     orderByClause = `ORDER BY 
-      ts_rank_cd(d.search_vector, websearch_to_tsquery('indonesian', $${paramIndex++}), 32) * 
+      ts_rank_cd(d.search_vector, websearch_to_tsquery('indonesian', $${searchParamIndex}), 32) * 
       (1 + log(1 + d.view_count + d.download_count * 2)) * 
       (CASE 
         WHEN d.status = 'PUBLISHED' THEN 1.5
         WHEN d.status = 'APPROVED' THEN 1.3
-        WHEN d.status = 'REVIEWED' THEN 1.1
+        WHEN d.status = 'PENDING_APPROVAL' THEN 1.1
         ELSE 1.0
       END) DESC,
       d.updated_at DESC`;
-    params_sql.push(searchQuery);
   } else {
     const sortColumn = sortBy === 'createdAt' ? 'd.created_at' :
                       sortBy === 'updatedAt' ? 'd.updated_at' :
@@ -166,22 +185,43 @@ async function handleFullTextSearch(params: any) {
     orderByClause = `ORDER BY ${sortColumn} ${sortOrder.toUpperCase()}`;
   }
 
-  // Build main query with ranking
+  // Build main query with ranking - reuse searchParamIndex for all search query references
   const searchQuerySQL = `
     SELECT 
-      d.*,
-      ts_rank_cd(d.search_vector, websearch_to_tsquery('indonesian', $${paramIndex++})) as search_rank,
-      ts_headline('indonesian', COALESCE(d.title, ''), websearch_to_tsquery('indonesian', $${paramIndex++}), 
+      d.id,
+      d.title,
+      d.description,
+      d.file_name,
+      d.file_path,
+      d.file_size,
+      d.file_type,
+      d.mime_type,
+      d.version,
+      d.status,
+      d.is_public,
+      d.tags,
+      d.metadata,
+      d.document_type_id,
+      d.created_by_id,
+      d.updated_by_id,
+      d.approved_by_id,
+      d.created_at,
+      d.updated_at,
+      d.approved_at,
+      d.view_count,
+      d.download_count,
+      d.access_groups,
+      ts_rank_cd(d.search_vector, websearch_to_tsquery('indonesian', $${searchParamIndex})) as search_rank,
+      ts_headline('indonesian', COALESCE(d.title, ''), websearch_to_tsquery('indonesian', $${searchParamIndex}), 
         'MaxWords=10, MinWords=5, ShortWord=2, HighlightAll=false, MaxFragments=1') as title_highlight,
-      ts_headline('indonesian', COALESCE(d.description, ''), websearch_to_tsquery('indonesian', $${paramIndex++}), 
+      ts_headline('indonesian', COALESCE(d.description, ''), websearch_to_tsquery('indonesian', $${searchParamIndex}), 
         'MaxWords=20, MinWords=10, ShortWord=2, HighlightAll=false, MaxFragments=2') as description_highlight
     FROM documents d
     ${whereClause}
     ${orderByClause}
-    LIMIT $${paramIndex++}
-    OFFSET $${paramIndex++}
+    LIMIT $${limitIndex}
+    OFFSET $${offsetIndex}
   `;
-  params_sql.push(searchQuery, searchQuery, searchQuery, limit, offset);
 
   // Count query
   const countQuerySQL = `
@@ -191,15 +231,28 @@ async function handleFullTextSearch(params: any) {
   `;
 
   // Execute queries
-  const [documents, countResult]: any = await Promise.all([
-    prisma.$queryRawUnsafe(searchQuerySQL, ...params_sql),
-    prisma.$queryRawUnsafe(countQuerySQL, ...params_sql.slice(0, params_sql.length - 2)), // Remove limit/offset params
-  ]);
+  console.log('[SEARCH API] Executing SQL with params:', params_sql);
+  console.log('[SEARCH API] Search query SQL:', searchQuerySQL.substring(0, 500));
+  
+  let documents, countResult;
+  try {
+    [documents, countResult] = await Promise.all([
+      prisma.$queryRawUnsafe(searchQuerySQL, ...params_sql),
+      prisma.$queryRawUnsafe(countQuerySQL, ...params_sql.slice(0, -2)), // Remove limit & offset params for count query
+    ]);
+  } catch (sqlError: any) {
+    console.error('[SEARCH API] SQL Error:', sqlError.message);
+    console.error('[SEARCH API] SQL Code:', sqlError.code);
+    throw sqlError;
+  }
 
   const total = parseInt(countResult[0]?.total || '0');
+  console.log('[SEARCH API] Found', total, 'total documents,', documents.length, 'in current page');
 
   // Fetch related data for documents
   const documentIds = documents.map((d: any) => d.id);
+  
+  console.log('[SEARCH API] Fetching related data for', documentIds.length, 'documents');
   
   const [documentTypes, creators, updaters, approvers, comments] = await Promise.all([
     prisma.documentType.findMany({
@@ -250,7 +303,9 @@ async function handleFullTextSearch(params: any) {
   // Get facets for filters
   const facets = await getFacets(whereClause, params_sql.slice(0, params_sql.length - 2), documentTypeId, status, fileType);
 
-  return NextResponse.json({
+  console.log('[FTS] Returning response with', enrichedDocuments.length, 'documents');
+
+  return NextResponse.json(serializeForResponse({
     documents: enrichedDocuments,
     pagination: {
       page,
@@ -282,7 +337,16 @@ async function handleFullTextSearch(params: any) {
       usedFullTextSearch: true,
       resultsFound: total > 0,
     },
-  });
+  }));
+  } catch (error: any) {
+    console.error('[FTS] Error in handleFullTextSearch:', error);
+    console.error('[FTS] Error code:', error.code);
+    console.error('[FTS] Error message:', error.message);
+    if (error.meta) {
+      console.error('[FTS] Error meta:', error.meta);
+    }
+    throw error; // Re-throw to be caught by outer handler
+  }
 }
 
 /**
@@ -357,6 +421,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const query = Object.fromEntries(searchParams.entries());
     
+    console.log('[SEARCH API] Received query:', query);
+    
     const {
       q,
       documentTypeId,
@@ -376,6 +442,8 @@ export async function GET(request: NextRequest) {
       page,
       limit,
     } = SearchSchema.parse(query);
+
+    console.log('[SEARCH API] Parsed q:', q, 'Length:', q?.length, 'Trimmed length:', q?.trim().length);
 
     // If using full-text search, use PostgreSQL FTS
     if (q && q.trim().length > 0) {

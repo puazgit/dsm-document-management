@@ -339,7 +339,7 @@ export function AppSidebarUnified() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => signOut({ callbackUrl: window.location.origin + "/auth/login" })}>
+                <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/auth/login" })}>
                   <LogOut className="w-4 h-4" />
                   Log out
                 </DropdownMenuItem>

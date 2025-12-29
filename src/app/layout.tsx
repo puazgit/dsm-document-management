@@ -36,8 +36,8 @@ export default function RootLayout({
             if (typeof window !== 'undefined') {
               // Filter extension and development errors
               const originalError = console.error;
-              console.error = (...args) => {
-                const msg = args[0]?.toString() || '';
+              console.error = function(...args) {
+                const msg = args[0] ? args[0].toString() : '';
                 if (!msg.includes('shadowRoot') && 
                     !msg.includes('contentScript') && 
                     !msg.includes('extension://') &&

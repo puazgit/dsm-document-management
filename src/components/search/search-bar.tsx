@@ -14,7 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 
 interface SearchSuggestion {
-  suggestion: string;
+  text: string;
   frequency: number;
 }
 
@@ -106,7 +106,7 @@ export function SearchBar({
   return (
     <div className={cn("relative w-full", className)}>
       <div className="relative flex items-center gap-2">
-        <div className="relative flex-1">
+        <div className="relative flex-1 rounded-md shadow-sm hover:shadow-md transition-shadow duration-200">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             ref={inputRef}
@@ -116,7 +116,7 @@ export function SearchBar({
             onKeyDown={handleKeyDown}
             onFocus={() => setShowSuggestions(true)}
             placeholder={placeholder}
-            className="pl-9 pr-9"
+            className="pl-9 pr-9 border-input"
           />
           {query && (
             <button
@@ -127,7 +127,7 @@ export function SearchBar({
             </button>
           )}
         </div>
-        <Button onClick={() => handleSearch()} disabled={!query.trim()}>
+        <Button onClick={() => handleSearch()} disabled={!query.trim()} className="shadow-sm">
           <Search className="h-4 w-4 mr-2" />
           Cari
         </Button>
@@ -150,14 +150,14 @@ export function SearchBar({
                   {suggestions.map((suggestion, index) => (
                     <CommandItem
                       key={index}
-                      value={suggestion.suggestion}
-                      onSelect={() => handleSuggestionClick(suggestion.suggestion)}
+                      value={suggestion.text}
+                      onSelect={() => handleSuggestionClick(suggestion.text)}
                       className="cursor-pointer"
                     >
                       <Search className="mr-2 h-4 w-4" />
-                      <span>{suggestion.suggestion}</span>
+                      <span>{suggestion.text}</span>
                       <span className="ml-auto text-xs text-muted-foreground">
-                        {suggestion.frequency} hasil
+                        {suggestion.frequency.toFixed(2)} hasil
                       </span>
                     </CommandItem>
                   ))}

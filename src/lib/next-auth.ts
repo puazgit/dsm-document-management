@@ -200,6 +200,14 @@ export const authOptions: NextAuthOptions = {
         session.user.capabilities = token.capabilities as string[]
       }
       return session
+    },
+    async redirect({ url, baseUrl }) {
+      // If the url is a relative path, prepend baseUrl
+      if (url.startsWith("/")) return `${baseUrl}${url}`
+      // If the url is on the same origin as base url, allow it
+      else if (new URL(url).origin === baseUrl) return url
+      // Otherwise, return baseUrl
+      return baseUrl
     }
   },
   pages: {

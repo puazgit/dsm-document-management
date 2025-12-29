@@ -26,30 +26,44 @@ export async function GET(request: NextRequest) {
     }
 
     // Get suggestions using the PostgreSQL function
-    const suggestions = await prisma.$queryRaw<
-      Array<{ suggestion: string; frequency: bigint }>
-    >`
-      SELECT * FROM get_search_suggestions(${q.toLowerCase()}, ${limit})
-    `
+    // Try-catch in case the function doesn't exist yet
+    let suggestions: Array<{ suggestion: string; rank: number }> = []
+    
+    try {
+      suggestions = await prisma.$queryRaw<
+        Array<{ suggestion: string; rank: number }>
+      >`
+        SELECT * FROM get_search_suggestions(${q.toLowerCase()}::text, ${limit}::int)
+      `
+    } catch (error) {
+      // If function doesn't exist, return empty suggestions
+      console.log('get_search_suggestions function not available:', error)
+      suggestions = []
+    }
 
     // Also get recent searches from documents that match
+    const whereClause: any = {
+      OR: [
+        { title: { contains: q, mode: 'insensitive' } },
+        { tags: { has: q } },
+      ],
+    }
+
+    // Add access control for non-admin users
+    if (session.user.role !== 'admin' && session.user.role !== 'administrator') {
+      whereClause.AND = [
+        {
+          OR: [
+            { createdById: session.user.id },
+            { isPublic: true },
+            { status: 'PUBLISHED' },
+          ],
+        },
+      ]
+    }
+
     const recentDocuments = await prisma.document.findMany({
-      where: {
-        OR: [
-          { title: { contains: q, mode: 'insensitive' } },
-          { tags: { has: q } },
-        ],
-        // Access control
-        ...(session.user.role !== 'ADMIN'
-          ? {
-              OR: [
-                { createdById: session.user.id },
-                { isPublic: true },
-                { status: 'PUBLISHED' },
-              ],
-            }
-          : {}),
-      },
+      where: whereClause,
       select: {
         id: true,
         title: true,
@@ -70,7 +84,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       suggestions: suggestions.map((s) => ({
         text: s.suggestion,
-        frequency: Number(s.frequency),
+        frequency: s.rank,
       })),
       recentDocuments: recentDocuments.map((doc) => ({
         id: doc.id,
