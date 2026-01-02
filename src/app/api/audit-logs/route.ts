@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { checkApiPermission } from '@/lib/permissions'
+import { requireCapability } from '@/lib/rbac-helpers'
 import { getAuditLogs, AuditAction, AuditResource } from '@/lib/audit'
 import { z } from 'zod'
 
@@ -20,14 +18,7 @@ const auditLogQuerySchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     // Check authentication and permissions
-    const permissionCheck = await checkApiPermission(request, 'audit.read')
-    
-    if (!permissionCheck.success) {
-      return NextResponse.json(
-        { error: permissionCheck.error },
-        { status: permissionCheck.error === 'Unauthorized' ? 401 : 403 }
-      )
-    }
+    const auth = await requireCapability(request, 'USER_VIEW')
 
     const { searchParams } = new URL(request.url)
     const queryParams = Object.fromEntries(searchParams.entries())

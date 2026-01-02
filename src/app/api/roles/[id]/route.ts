@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { requireRoles, checkRoleAccess } from '@/lib/auth-utils'
+import { requireCapability } from '@/lib/rbac-helpers'
 import { z } from 'zod'
 
 const updateRoleSchema = z.object({
@@ -19,16 +19,21 @@ const assignPermissionsSchema = z.object({
 })
 
 // GET /api/roles/[id] - Get role by ID
-export const GET = requireRoles(['administrator', 'ppd'])(
-  async function(request: NextRequest, { params }: { params: { id: string } }) {
-    try {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+  // Check capability - viewing roles requires ROLE_VIEW
+  const auth = await requireCapability(request, 'ROLE_VIEW')
+  if (!auth.authorized) {
+    return auth.error
+  }
+
+  try {
 
     const role = await prisma.role.findUnique({
       where: { id: params.id },
       include: {
-        rolePermissions: {
+        capabilityAssignments: {
           include: {
-            permission: true,
+            capability: true,
           },
         },
         userRoles: {
@@ -59,12 +64,19 @@ export const GET = requireRoles(['administrator', 'ppd'])(
       { status: 500 }
     )
   }
-})
+}
 
 // PUT /api/roles/[id] - Update role
-export const PUT = requireRoles(['administrator'])(
-  async function(request: NextRequest, { params }: { params: { id: string } }) {
-    try {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const auth = await requireCapability(request, 'ROLE_MANAGE')
+  if (!auth.authorized) {
+    return auth.error
+  }
+
+  try {
 
     const role = await prisma.role.findUnique({
       where: { id: params.id },
@@ -104,7 +116,7 @@ export const PUT = requireRoles(['administrator'])(
     if (validatedData.name !== undefined) updateData.name = validatedData.name
     if (validatedData.displayName !== undefined) updateData.displayName = validatedData.displayName
     if (validatedData.description !== undefined) updateData.description = validatedData.description
-    if (validatedData.level !== undefined) updateData.level = validatedData.level
+    // Note: level field removed from schema
     if (validatedData.isActive !== undefined) updateData.isActive = validatedData.isActive
     
     const updatedRole = await prisma.role.update({
@@ -112,40 +124,11 @@ export const PUT = requireRoles(['administrator'])(
       data: updateData,
     })
 
-    // Update permissions if provided
-    if (validatedData.permissions !== undefined) {
-      // Remove all existing role permissions
-      await prisma.rolePermission.deleteMany({
-        where: { roleId: params.id },
-      })
+    // Note: permissions system replaced with capabilities
+    // This endpoint now only updates role basic info
+    // Use /api/roles/[id]/capabilities to manage capabilities
 
-      // Add new role permissions
-      if (validatedData.permissions.length > 0) {
-        const rolePermissionsData = validatedData.permissions.map(permissionId => ({
-          roleId: params.id,
-          permissionId,
-          isGranted: true,
-        }))
-
-        await prisma.rolePermission.createMany({
-          data: rolePermissionsData,
-        })
-      }
-    }
-
-    // Fetch updated role with permissions
-    const roleWithPermissions = await prisma.role.findUnique({
-      where: { id: params.id },
-      include: {
-        rolePermissions: {
-          include: {
-            permission: true,
-          },
-        },
-      },
-    })
-
-    return NextResponse.json(roleWithPermissions)
+    return NextResponse.json(updatedRole)
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -160,12 +143,19 @@ export const PUT = requireRoles(['administrator'])(
       { status: 500 }
     )
   }
-})
+}
 
 // DELETE /api/roles/[id] - Delete role
-export const DELETE = requireRoles(['administrator'])(
-  async function(request: NextRequest, { params }: { params: { id: string } }) {
-    try {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const auth = await requireCapability(request, 'ROLE_MANAGE')
+  if (!auth.authorized) {
+    return auth.error
+  }
+
+  try {
 
     const role = await prisma.role.findUnique({
       where: { id: params.id },
@@ -206,4 +196,4 @@ export const DELETE = requireRoles(['administrator'])(
       { status: 500 }
     )
   }
-})
+}

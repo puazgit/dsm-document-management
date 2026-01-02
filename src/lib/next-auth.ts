@@ -13,17 +13,23 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        emailOrUsername: { label: "Email or Username", type: "text" },
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        if (!credentials?.emailOrUsername || !credentials?.password) {
           return null
         }
 
         try {
+          // Determine if input is email or username
+          const isEmail = credentials.emailOrUsername.includes('@');
+          
+          // Find user by email or username
           const user = await prisma.user.findUnique({
-            where: { email: credentials.email },
+            where: isEmail 
+              ? { email: credentials.emailOrUsername }
+              : { username: credentials.emailOrUsername },
             select: {
               id: true,
               email: true,
@@ -55,7 +61,7 @@ export const authOptions: NextAuthOptions = {
             // Log failed login attempt for non-existent user
             await auditHelpers.loginFailed(
               null,
-              credentials.email,
+              credentials.emailOrUsername,
               'User not found'
             )
             return null
@@ -70,7 +76,7 @@ export const authOptions: NextAuthOptions = {
             // Log failed login attempt
             await auditHelpers.loginFailed(
               user.id,
-              credentials.email,
+              credentials.emailOrUsername,
               'Invalid password'
             )
             return null
@@ -80,7 +86,7 @@ export const authOptions: NextAuthOptions = {
             // Log failed login attempt for inactive user
             await auditHelpers.loginFailed(
               user.id,
-              credentials.email,
+              credentials.emailOrUsername,
               'Account inactive'
             )
             return null
@@ -89,7 +95,7 @@ export const authOptions: NextAuthOptions = {
           // Log successful login
           await auditHelpers.loginSuccess(
             user.id,
-            credentials.email
+            user.email
           )
 
           // Get primary role from userRoles
@@ -117,27 +123,27 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async jwt({ token, user, trigger }) {
-      // Load permissions on initial login (when user object exists)
+      // Load capabilities on initial login (when user object exists)
       if (user) {
         token.sub = user.id
         token.role = (user as any).role
         token.groupId = (user as any).groupId
         token.divisiId = (user as any).divisiId
         token.isActive = (user as any).isActive
-        // Don't set permissionsLoadedAt yet - let it load below
+        // Don't set capabilitiesLoadedAt yet - let it load below
       }
       
-      // Refresh permissions periodically (every 1 minute) or on manual update trigger
+      // Refresh capabilities periodically (every 1 minute) or on manual update trigger
       // This allows role changes to take effect without logout
-      const shouldRefreshPermissions = 
+      const shouldRefreshCapabilities = 
         trigger === 'update' || // Manual refresh
-        !token.permissionsLoadedAt || // First time (including initial login)
+        !token.capabilitiesLoadedAt || // First time (including initial login)
         user || // When user object exists (fresh login)
-        (Date.now() - (token.permissionsLoadedAt as number)) > 60000 // More than 1 minute old
+        (Date.now() - (token.capabilitiesLoadedAt as number)) > 60000 // More than 1 minute old
       
-      if (shouldRefreshPermissions && token.sub) {
+      if (shouldRefreshCapabilities && token.sub) {
         try {
-          const userWithPermissions = await prisma.user.findUnique({
+          const userWithCapabilities = await prisma.user.findUnique({
             where: { id: token.sub },
             include: {
               userRoles: {
@@ -145,11 +151,6 @@ export const authOptions: NextAuthOptions = {
                 include: {
                   role: {
                     include: {
-                      rolePermissions: {
-                        include: {
-                          permission: true
-                        }
-                      },
                       capabilityAssignments: {
                         include: {
                           capability: true
@@ -162,28 +163,22 @@ export const authOptions: NextAuthOptions = {
             }
           })
           
-          if (userWithPermissions) {
+          if (userWithCapabilities) {
             // Update role in case it changed
-            const primaryRole = userWithPermissions.userRoles?.[0]?.role?.name || token.role
+            const primaryRole = userWithCapabilities.userRoles?.[0]?.role?.name || token.role
             token.role = primaryRole
             
-            // Load permissions
-            const permissions = userWithPermissions.userRoles.flatMap(userRole => 
-              userRole.role.rolePermissions.map(rp => rp.permission.name)
-            )
-            token.permissions = [...new Set(permissions)]
-            
-            // Load capabilities
-            const capabilities = userWithPermissions.userRoles.flatMap(userRole =>
+            // Load capabilities (removed permissions)
+            const capabilities = userWithCapabilities.userRoles.flatMap(userRole =>
               userRole.role.capabilityAssignments.map(ca => ca.capability.name)
             )
             token.capabilities = [...new Set(capabilities)]
             
             // Update timestamp
-            token.permissionsLoadedAt = Date.now()
+            token.capabilitiesLoadedAt = Date.now()
           }
         } catch (error) {
-          console.error('Error refreshing permissions:', error)
+          console.error('Error refreshing capabilities:', error)
         }
       }
       
@@ -196,7 +191,7 @@ export const authOptions: NextAuthOptions = {
         session.user.groupId = token.groupId
         session.user.divisiId = token.divisiId
         session.user.isActive = token.isActive
-        session.user.permissions = token.permissions as string[]
+        // REMOVED: session.user.permissions (migrated to capabilities)
         session.user.capabilities = token.capabilities as string[]
       }
       return session

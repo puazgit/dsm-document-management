@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/next-auth'
 import { prisma } from '@/lib/prisma'
-import { checkApiPermission } from '@/lib/permissions'
 import { auditHelpers } from '@/lib/audit'
 import { z } from 'zod'
+import { ROLE_PERMISSIONS, hasAnyRoleWithPermission } from '@/config/role-permissions'
 
 const assignRolesSchema = z.object({
   roleIds: z.array(z.string()),
@@ -33,20 +33,18 @@ export async function PUT(
       include: { 
         userRoles: { 
           include: { role: true } 
-        },
-        group: true
+        }
       }
     })
 
-    // Allow role assignment for administrators, ppd, managers, or kadiv
-    const canAssignRoles = requestingUser?.userRoles.some(ur => 
-      ['administrator', 'ppd', 'manager', 'kadiv'].includes(ur.role.name)
-    ) || requestingUser?.group?.name === 'administrator'
+    // Check role-based permission using centralized constants
+    const userRoleNames = requestingUser?.userRoles.map(ur => ur.role.name) || []
+    const canAssignRoles = hasAnyRoleWithPermission(userRoleNames, 'CAN_ASSIGN_ROLES')
 
     if (!canAssignRoles) {
       return NextResponse.json({ 
         error: 'Insufficient permissions', 
-        details: 'Role assignment requires administrator, ppd, manager, or kadiv role'
+        details: `Role assignment requires one of: ${ROLE_PERMISSIONS.CAN_ASSIGN_ROLES.join(', ')}`
       }, { status: 403 })
     }
 
@@ -192,29 +190,30 @@ export async function POST(
       include: { 
         userRoles: { 
           include: { role: true } 
-        },
-        group: true
+        }
       }
     })
 
     console.log('👤 Role Assignment - Current user:', { 
       email: currentUser?.email, 
-      roles: currentUser?.userRoles.map(ur => ur.role.name),
-      group: currentUser?.group?.name
+      roles: currentUser?.userRoles.map(ur => ur.role.name)
     })
 
-    // Allow role assignment for administrators, ppd, managers, or kadiv
-    const canAssignRoles = currentUser?.userRoles.some(ur => 
-      ['administrator', 'ppd', 'manager', 'kadiv'].includes(ur.role.name)
-    ) || currentUser?.group?.name === 'administrator'
+    // Check role-based permission using centralized constants
+    const userRoleNames = currentUser?.userRoles.map(ur => ur.role.name) || []
+    const canAssignRoles = hasAnyRoleWithPermission(userRoleNames, 'CAN_ASSIGN_ROLES')
 
-    console.log('🔑 Role Assignment - Access check:', { canAssignRoles, userRoles: currentUser?.userRoles.length })
+    console.log('🔑 Role Assignment - Access check:', { 
+      canAssignRoles, 
+      userRoles: userRoleNames,
+      requiredRoles: ROLE_PERMISSIONS.CAN_ASSIGN_ROLES 
+    })
 
     if (!canAssignRoles) {
       console.log('❌ Role assignment access denied for user:', currentUser?.email)
       return NextResponse.json({ 
         error: 'Insufficient permissions', 
-        details: 'Role assignment requires administrator, ppd, manager, or kadiv role'
+        details: `Role assignment requires one of: ${ROLE_PERMISSIONS.CAN_ASSIGN_ROLES.join(', ')}`
       }, { status: 403 })
     }
 
@@ -350,16 +349,18 @@ export async function GET(
     // Allow users to view their own roles or require admin permissions for others
     const currentUser = await prisma.user.findUnique({
       where: { email: session.user.email! },
-      include: { userRoles: { include: { role: true } }, group: true }
+      include: { userRoles: { include: { role: true } } }
     })
 
     const isOwnProfile = currentUser?.id === params.id
-    const hasAdminAccess = currentUser?.userRoles.some(ur => 
-      ['administrator', 'ppd', 'manager', 'kadiv'].includes(ur.role.name)
-    ) || currentUser?.group?.name === 'administrator'
+    const userRoleNames = currentUser?.userRoles.map(ur => ur.role.name) || []
+    const hasAdminAccess = hasAnyRoleWithPermission(userRoleNames, 'CAN_ASSIGN_ROLES')
 
     if (!isOwnProfile && !hasAdminAccess) {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+      return NextResponse.json({ 
+        error: 'Insufficient permissions',
+        details: 'You can only view your own roles or need admin access'
+      }, { status: 403 })
     }
 
     const userId = params.id
@@ -372,9 +373,9 @@ export async function GET(
           include: {
             role: {
               include: {
-                rolePermissions: {
+                capabilityAssignments: {
                   include: {
-                    permission: true,
+                    capability: true,
                   },
                 },
               },

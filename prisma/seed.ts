@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { seedRolesAndPermissions } from './seeds/roles-permissions';
+import { seedRoleCapabilities } from './seeds/role-capabilities';
+import { assignRoleCapabilities } from './seeds/assign-role-capabilities';
 
 const prisma = new PrismaClient();
 
@@ -16,8 +17,7 @@ async function main() {
       create: {
         name: 'administrator',
         displayName: 'System Administrator',
-        description: 'Administrator sistem dengan akses penuh untuk konfigurasi, manajemen user, backup data, dan maintenance sistem',
-        level: 10
+        description: 'Administrator sistem dengan akses penuh untuk konfigurasi, manajemen user, backup data, dan maintenance sistem'
       }
     }),
     prisma.group.upsert({
@@ -26,8 +26,7 @@ async function main() {
       create: {
         name: 'ppd',
         displayName: 'Penanggung Jawab Dokumen (PPD)',
-        description: 'Bertanggung jawab atas pengelolaan dokumen perusahaan, review, persetujuan, dan distribusi dokumen strategis',
-        level: 9
+        description: 'Bertanggung jawab atas pengelolaan dokumen perusahaan, review, persetujuan, dan distribusi dokumen strategis'
       }
     }),
     prisma.group.upsert({
@@ -36,8 +35,7 @@ async function main() {
       create: {
         name: 'kadiv',
         displayName: 'Kepala Divisi',
-        description: 'Pemimpin divisi dengan wewenang persetujuan dokumen divisi, koordinasi lintas departemen, dan pelaporan ke manajemen',
-        level: 8
+        description: 'Pemimpin divisi dengan wewenang persetujuan dokumen divisi, koordinasi lintas departemen, dan pelaporan ke manajemen'
       }
     }),
     prisma.group.upsert({
@@ -46,8 +44,7 @@ async function main() {
       create: {
         name: 'gm',
         displayName: 'General Manager',
-        description: 'Manajer umum dengan akses tingkat tinggi, oversight operasional, dan wewenang strategis untuk seluruh divisi',
-        level: 7
+        description: 'Manajer umum dengan akses tingkat tinggi, oversight operasional, dan wewenang strategis untuk seluruh divisi'
       }
     }),
     prisma.group.upsert({
@@ -56,8 +53,7 @@ async function main() {
       create: {
         name: 'manager',
         displayName: 'Manager',
-        description: 'Manajer departemen dengan tanggung jawab operasional, supervisi tim, dan koordinasi dengan divisi lain',
-        level: 6
+        description: 'Manajer departemen dengan tanggung jawab operasional, supervisi tim, dan koordinasi dengan divisi lain'
       }
     }),
     prisma.group.upsert({
@@ -66,8 +62,7 @@ async function main() {
       create: {
         name: 'dirut',
         displayName: 'Direktur Utama',
-        description: 'Pemimpin eksekutif perusahaan dengan kewenangan tertinggi, pengambil keputusan strategis, dan akses ke semua dokumen confidential',
-        level: 10
+        description: 'Pemimpin eksekutif perusahaan dengan kewenangan tertinggi, pengambil keputusan strategis, dan akses ke semua dokumen confidential'
       }
     }),
     prisma.group.upsert({
@@ -76,8 +71,7 @@ async function main() {
       create: {
         name: 'dewas',
         displayName: 'Dewan Pengawas',
-        description: 'Badan pengawas independen dengan akses ke laporan keuangan, audit, dan dokumen governance perusahaan',
-        level: 9
+        description: 'Badan pengawas independen dengan akses ke laporan keuangan, audit, dan dokumen governance perusahaan'
       }
     }),
     prisma.group.upsert({
@@ -86,8 +80,7 @@ async function main() {
       create: {
         name: 'komite_audit',
         displayName: 'Komite Audit',
-        description: 'Komite independen untuk review dan evaluasi sistem pengendalian internal, laporan keuangan, dan compliance',
-        level: 8
+        description: 'Komite independen untuk review dan evaluasi sistem pengendalian internal, laporan keuangan, dan compliance'
       }
     }),
     prisma.group.upsert({
@@ -96,8 +89,7 @@ async function main() {
       create: {
         name: 'staff',
         displayName: 'Staff Karyawan',
-        description: 'Karyawan regular dengan akses ke dokumen operasional sesuai departemen dan tanggung jawab kerja',
-        level: 3
+        description: 'Karyawan regular dengan akses ke dokumen operasional sesuai departemen dan tanggung jawab kerja'
       }
     }),
     prisma.group.upsert({
@@ -106,8 +98,7 @@ async function main() {
       create: {
         name: 'guest',
         displayName: 'Guest/Tamu',
-        description: 'Akses terbatas hanya untuk dokumen publik dan informasi umum perusahaan',
-        level: 1
+        description: 'Akses terbatas hanya untuk dokumen publik dan informasi umum perusahaan'
       }
     }),
     // Tambahan grup untuk struktur organisasi lengkap
@@ -117,8 +108,7 @@ async function main() {
       create: {
         name: 'supervisor',
         displayName: 'Supervisor',
-        description: 'Supervisor tim dengan tanggung jawab pengawasan operasional harian dan koordinasi dengan manajemen',
-        level: 5
+        description: 'Supervisor tim dengan tanggung jawab pengawasan operasional harian dan koordinasi dengan manajemen'
       }
     }),
     prisma.group.upsert({
@@ -127,8 +117,7 @@ async function main() {
       create: {
         name: 'sekretaris',
         displayName: 'Sekretaris/Admin',
-        description: 'Sekretaris dan staff administrasi dengan akses ke dokumen administratif dan korespondensi',
-        level: 4
+        description: 'Sekretaris dan staff administrasi dengan akses ke dokumen administratif dan korespondensi'
       }
     }),
     prisma.group.upsert({
@@ -137,8 +126,7 @@ async function main() {
       create: {
         name: 'hrd',
         displayName: 'Human Resource Development',
-        description: 'Departemen SDM dengan akses ke dokumen kepegawaian, kebijakan, dan pengembangan karyawan',
-        level: 6
+        description: 'Departemen SDM dengan akses ke dokumen kepegawaian, kebijakan, dan pengembangan karyawan'
       }
     }),
     prisma.group.upsert({
@@ -147,8 +135,7 @@ async function main() {
       create: {
         name: 'finance',
         displayName: 'Finance & Accounting',
-        description: 'Departemen keuangan dengan akses ke laporan keuangan, anggaran, dan dokumen finansial',
-        level: 7
+        description: 'Departemen keuangan dengan akses ke laporan keuangan, anggaran, dan dokumen finansial'
       }
     }),
     prisma.group.upsert({
@@ -157,8 +144,7 @@ async function main() {
       create: {
         name: 'operations',
         displayName: 'Operations',
-        description: 'Departemen operasional dengan akses ke dokumen operasional dan prosedur kerja',
-        level: 5
+        description: 'Departemen operasional dengan akses ke dokumen operasional dan prosedur kerja'
       }
     }),
     prisma.group.upsert({
@@ -167,8 +153,7 @@ async function main() {
       create: {
         name: 'tik',
         displayName: 'Bidang Teknologi Informasi & Komunikasi',
-        description: 'Bidang TIK dengan akses ke dokumen teknis, sistem, dan infrastruktur IT',
-        level: 6
+        description: 'Bidang TIK dengan akses ke dokumen teknis, sistem, dan infrastruktur IT'
       }
     })
   ]);
@@ -625,8 +610,139 @@ async function main() {
   console.log('Editor: editor@dsm.com / editor123');
   console.log('Finance: finance@dsm.com / finance123');
 
-  // Seed roles and permissions
-  await seedRolesAndPermissions();
+  // Create Roles
+  console.log('\n👤 Creating roles...');
+  const roles = await Promise.all([
+    prisma.role.upsert({
+      where: { name: 'admin' },
+      update: {},
+      create: {
+        name: 'admin',
+        displayName: 'Administrator',
+        description: 'Full system access',
+        isSystem: true,
+      }
+    }),
+    prisma.role.upsert({
+      where: { name: 'editor' },
+      update: {},
+      create: {
+        name: 'editor',
+        displayName: 'Editor',
+        description: 'Can create and edit documents',
+        isSystem: true,
+      }
+    }),
+    prisma.role.upsert({
+      where: { name: 'viewer' },
+      update: {},
+      create: {
+        name: 'viewer',
+        displayName: 'Viewer',
+        description: 'Can only view documents',
+        isSystem: true,
+      }
+    }),
+  ]);
+  console.log(`✅ Created ${roles.length} roles`);
+
+  // Seed role capabilities
+  console.log('\n🔐 Seeding role capabilities...');
+  await seedRoleCapabilities();
+  
+  console.log('\n👥 Assigning capabilities to roles...');
+  await assignRoleCapabilities();
+
+  // Assign roles to users
+  console.log('\n🎭 Assigning roles to users...');
+  const adminRole = roles.find(r => r.name === 'admin');
+  const editorRole = roles.find(r => r.name === 'editor');
+  const viewerRole = roles.find(r => r.name === 'viewer');
+
+  const userRoleAssignments = [];
+
+  // Assign admin role to admin user
+  if (adminRole) {
+    userRoleAssignments.push(
+      prisma.userRole.upsert({
+        where: {
+          userId_roleId: {
+            userId: adminUser.id,
+            roleId: adminRole.id,
+          }
+        },
+        update: {},
+        create: {
+          userId: adminUser.id,
+          roleId: adminRole.id,
+          assignedBy: adminUser.id,
+          isActive: true,
+        }
+      })
+    );
+  }
+
+  // Assign editor role to ppd, kadiv, manager users
+  if (editorRole) {
+    const ppdUser = sampleUsers.find(u => u.email === 'ppd@dsm.com');
+    const kadivUser = sampleUsers.find(u => u.email === 'kadiv@dsm.com');
+    const managerUser = sampleUsers.find(u => u.email === 'manager@dsm.com');
+    const editorUser = sampleUsers.find(u => u.email === 'editor@dsm.com');
+
+    [ppdUser, kadivUser, managerUser, editorUser].forEach(user => {
+      if (user) {
+        userRoleAssignments.push(
+          prisma.userRole.upsert({
+            where: {
+              userId_roleId: {
+                userId: user.id,
+                roleId: editorRole.id,
+              }
+            },
+            update: {},
+            create: {
+              userId: user.id,
+              roleId: editorRole.id,
+              assignedBy: adminUser.id,
+              isActive: true,
+            }
+          })
+        );
+      }
+    });
+  }
+
+  // Assign viewer role to operations, tik, finance users
+  if (viewerRole) {
+    const operationsUser = sampleUsers.find(u => u.email === 'operations@dsm.com');
+    const tikUser = sampleUsers.find(u => u.email === 'tik@dsm.com');
+    const financeUser = sampleUsers.find(u => u.email === 'finance@dsm.com');
+
+    [operationsUser, tikUser, financeUser].forEach(user => {
+      if (user) {
+        userRoleAssignments.push(
+          prisma.userRole.upsert({
+            where: {
+              userId_roleId: {
+                userId: user.id,
+                roleId: viewerRole.id,
+              }
+            },
+            update: {},
+            create: {
+              userId: user.id,
+              roleId: viewerRole.id,
+              assignedBy: adminUser.id,
+              isActive: true,
+            }
+          })
+        );
+      }
+    });
+  }
+
+  const assignedUserRoles = await Promise.all(userRoleAssignments);
+  console.log(`✅ Assigned ${assignedUserRoles.length} roles to users`);
 }
 
 main()

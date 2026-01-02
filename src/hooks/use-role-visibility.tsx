@@ -1,21 +1,32 @@
 /**
  * 🎨 UI Role Visibility Hook
  * 
- * Provides role-based visibility controls for components
- * Handles dynamic menu hiding/showing, conditional rendering,
- * feature toggles, and navigation adaptation
+ * ⚠️ DEPRECATION WARNING: This hook is maintained for backward compatibility only
+ * 
+ * MIGRATION STATUS: LEGACY - Uses capabilities internally
+ * - All permission checks are mapped to capabilities
+ * - Provides role-based visibility controls for components
+ * - Handles dynamic menu hiding/showing, conditional rendering,
+ * - Feature toggles, and navigation adaptation
+ * 
+ * ✅ RECOMMENDED: Use useCapabilities() directly for new code
+ * - More explicit capability checks
+ * - Better type safety
+ * - Direct access to modern authorization system
+ * 
+ * @deprecated Consider using useCapabilities() directly for new code
  */
 
 import { useSession } from 'next-auth/react';
 import { useMemo } from 'react';
-import { ROLES, hasRoleAccess } from '@/config/roles';
+import { useCapabilities } from './use-capabilities';
 
 interface RoleVisibilityConfig {
-  // Component visibility
+  // Component visibility (deprecated - use capabilities)
   showComponent: (requiredRoles: string[]) => boolean;
   hideComponent: (forbiddenRoles: string[]) => boolean;
   
-  // Feature toggles
+  // Feature toggles (mapped from capabilities)
   canUpload: boolean;
   canEdit: boolean;
   canDelete: boolean;
@@ -29,51 +40,81 @@ interface RoleVisibilityConfig {
   showUploadButton: boolean;
   showAdvancedFeatures: boolean;
   
-  // UI adaptations
+  // UI adaptations (derived from capabilities)
   userLevel: number;
   isAdmin: boolean;
   isManager: boolean;
   isGuest: boolean;
   
-  // Permission checks
+  // Permission checks (deprecated - use capabilities)
   hasPermission: (permission: string) => boolean;
   hasAnyPermission: (permissions: string[]) => boolean;
   hasAllPermissions: (permissions: string[]) => boolean;
 }
 
 export function useRoleVisibility(): RoleVisibilityConfig {
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
+  const capabilities = useCapabilities();
   
   return useMemo(() => {
-    const userRole = session?.user?.role || 'guest';
-    const userPermissions = session?.user?.permissions || [];
-    const roleConfig = ROLES[userRole as keyof typeof ROLES];
-    const userLevel = roleConfig?.level || 0;
+    // Map capabilities to feature toggles
+    const canUpload = capabilities.canCreateDocuments;
+    const canEdit = capabilities.canEditDocuments;
+    const canDelete = capabilities.canDeleteDocuments;
+    const canApprove = capabilities.canApproveDocuments;
+    const canViewAnalytics = capabilities.canViewDocuments || capabilities.canViewUsers;
+    const canManageUsers = capabilities.canManageUsers;
+    const canAccessAdmin = capabilities.showAdminNav;
     
-    // Helper functions
+    // Derive user level from capabilities
+    let userLevel = 0;
+    if (capabilities.isAdmin) userLevel = 100;
+    else if (capabilities.isManager) userLevel = 70;
+    else if (capabilities.canViewDocuments) userLevel = 30;
+    else userLevel = 10;
+    
+    // Backward compatibility: role-based checks (now capability-backed)
     const showComponent = (requiredRoles: string[]): boolean => {
       if (!session) return false;
-      return hasRoleAccess(userRole, requiredRoles);
+      
+      // Map common role checks to capabilities
+      const roleToCapabilityMap: Record<string, boolean> = {
+        'admin': capabilities.isAdmin,
+        'administrator': capabilities.isAdmin,
+        'ppd.pusat': capabilities.canManageUsers || capabilities.canManageRoles,
+        'ppd.unit': capabilities.canManageUsers,
+        'manager': capabilities.isManager,
+        'kadiv': capabilities.canApproveDocuments,
+        'gm': capabilities.canApproveDocuments,
+        'dirut': capabilities.canApproveDocuments,
+      };
+      
+      return requiredRoles.some(role => roleToCapabilityMap[role.toLowerCase()] || false);
     };
     
     const hideComponent = (forbiddenRoles: string[]): boolean => {
       if (!session) return true;
-      return !hasRoleAccess(userRole, forbiddenRoles);
+      return !showComponent(forbiddenRoles);
     };
     
+    // Permission checks (DEPRECATED - mapped to capabilities)
+    // These functions map old permission strings to new capability checks
     const hasPermission = (permission: string): boolean => {
-      if (!userPermissions.length) return false;
-      
-      // Check for wildcard permissions (admin)
-      if (userPermissions.includes('*')) return true;
-      
-      // Check exact permission
-      if (userPermissions.includes(permission)) return true;
-      
-      // Check module wildcard (e.g., "documents.*" covers "documents.create")
-      const [module] = permission.split('.');
-      if (userPermissions.includes(`${module}.*`)) return true;
-      
+      // Map old permission strings to capabilities
+      if (permission.includes('documents.read') || permission.includes('documents.view')) return capabilities.canViewDocuments;
+      if (permission.includes('documents.create')) return capabilities.canCreateDocuments;
+      if (permission.includes('documents.update') || permission.includes('documents.edit')) return capabilities.canEditDocuments;
+      if (permission.includes('documents.delete')) return capabilities.canDeleteDocuments;
+      if (permission.includes('documents.download')) return capabilities.canDownloadDocuments;
+      if (permission.includes('documents.approve')) return capabilities.canApproveDocuments;
+      if (permission.includes('documents.publish')) return capabilities.canPublishDocuments;
+      if (permission.includes('pdf.view')) return capabilities.canViewPDF || capabilities.canViewDocuments;
+      if (permission.includes('pdf.download')) return capabilities.canDownloadPDF || capabilities.canDownloadDocuments;
+      if (permission.includes('pdf.print')) return capabilities.canPrintPDF;
+      if (permission.includes('pdf.copy')) return capabilities.canCopyPDF;
+      if (permission.includes('pdf.watermark')) return capabilities.canManagePDFWatermark;
+      if (permission.includes('users.create') || permission.includes('users.update')) return capabilities.canManageUsers;
+      if (permission === '*') return capabilities.isAdmin;
       return false;
     };
     
@@ -85,35 +126,12 @@ export function useRoleVisibility(): RoleVisibilityConfig {
       return permissions.every(perm => hasPermission(perm));
     };
     
-    // Role classifications based on level
-    const adminRoles = ['admin', 'administrator'];
-    const managerRoles = ['ppd', 'kadiv', 'gm', 'manager'];
-    const guestRoles = ['guest', 'viewer', 'staff'];
-    
-    const isAdmin = userLevel >= 100; // admin, administrator
-    const isManager = userLevel >= 60 && userLevel < 100; // ppd to manager
-    const isGuest = userLevel <= 25; // guest, staff, viewer
-    
-    // Feature permissions based on actual roles
-    const canUpload = hasAnyPermission(['documents.create', '*']) || userLevel >= 60;
-    const canEdit = hasAnyPermission(['documents.update', '*']) || userLevel >= 60;
-    const canDelete = hasAnyPermission(['documents.delete', '*']) || userLevel >= 90;
-    const canApprove = hasAnyPermission(['documents.approve', '*']) || showComponent(['admin', 'administrator', 'kadiv', 'gm', 'dirut']);
-    const canViewAnalytics = hasAnyPermission(['analytics.read', '*']) || userLevel >= 60;
-    const canManageUsers = hasAnyPermission(['users.create', 'users.update', '*']) || userLevel >= 90;
-    const canAccessAdmin = userLevel >= 90;
-    
-    // Navigation visibility
-    const showAdminNav = canAccessAdmin;
-    const showUploadButton = canUpload;
-    const showAdvancedFeatures = !isGuest;
-    
     return {
       // Component visibility functions
       showComponent,
       hideComponent,
       
-      // Feature toggles
+      // Feature toggles (from capabilities)
       canUpload,
       canEdit,
       canDelete,
@@ -122,27 +140,29 @@ export function useRoleVisibility(): RoleVisibilityConfig {
       canManageUsers,
       canAccessAdmin,
       
-      // Navigation
-      showAdminNav,
-      showUploadButton,
-      showAdvancedFeatures,
+      // Navigation (from capabilities)
+      showAdminNav: capabilities.showAdminNav,
+      showUploadButton: capabilities.showUploadButton,
+      showAdvancedFeatures: !capabilities.isViewer,
       
-      // UI adaptations
+      // UI adaptations (from capabilities)
       userLevel,
-      isAdmin,
-      isManager,
-      isGuest,
+      isAdmin: capabilities.isAdmin,
+      isManager: capabilities.isManager,
+      isGuest: capabilities.isViewer,
       
-      // Permission checks
+      // Permission checks (deprecated)
       hasPermission,
       hasAnyPermission,
       hasAllPermissions
     };
-  }, [session, status]);
+  }, [session, capabilities]);
 }
 
 /**
  * Higher-order component for conditional rendering based on roles
+ * MIGRATED: Now uses CapabilityGuard internally
+ * @deprecated Use CapabilityGuard from use-capabilities directly
  */
 interface RoleGuardProps {
   children: React.ReactNode;

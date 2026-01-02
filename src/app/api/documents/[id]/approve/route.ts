@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../../lib/next-auth';
 import { prisma } from '../../../../../lib/prisma';
+import { requireCapability } from '@/lib/rbac-helpers';
 import { z } from 'zod';
 import { serializeForResponse } from '../../../../../lib/bigint-utils';
-import { canManageDocuments, type CapabilityUser } from '@/lib/capabilities';
 
 // Validation schema for approval
 const ApprovalSchema = z.object({
@@ -19,33 +18,11 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireCapability(request, 'DOCUMENT_APPROVE');
 
     const { id: documentId } = params;
     const body = await request.json();
     const { action, comment } = ApprovalSchema.parse(body);
-
-    // Check if user has approval permissions
-    const userPermissions = session.user.permissions || [];
-    const userRole = session.user.role || '';
-    
-    const hasApprovalPermission = userPermissions.includes('documents.approve');
-    
-    // Check capability-based access
-    const capUser: CapabilityUser = { id: session.user.id, email: session.user.email || '', roles: [] };
-    const canManage = await canManageDocuments(capUser);
-    
-    const isManagementRole = ['admin', 'manager'].includes(userRole);
-    const isOrganizationalLeader = ['dirut', 'gm', 'kadiv', 'administrator', 'ppd'].includes(userRole);
-    
-    if (!hasApprovalPermission && !canManage && !isManagementRole && !isOrganizationalLeader) {
-      return NextResponse.json({ 
-        error: 'Tidak memiliki permission untuk approve/reject dokumen' 
-      }, { status: 403 });
-    }
 
     // Get document
     const document = await prisma.document.findUnique({
@@ -82,7 +59,7 @@ export async function POST(
     // Determine new status
     const newStatus = action === 'approve' ? 'APPROVED' : 'REJECTED';
     const approvedAt = action === 'approve' ? new Date() : null;
-    const approvedById = action === 'approve' ? session.user.id : null;
+    const approvedById = action === 'approve' ? auth.userId : null;
 
     // Update document
     const updatedDocument = await prisma.document.update({
@@ -91,7 +68,7 @@ export async function POST(
         status: newStatus,
         approvedAt,
         approvedById,
-        updatedById: session.user.id,
+        updatedById: auth.userId,
       },
       include: {
         documentType: {
@@ -132,7 +109,7 @@ export async function POST(
     await prisma.documentActivity.create({
       data: {
         documentId,
-        userId: session.user.id,
+        userId: auth.userId!,
         action: action === 'approve' ? 'APPROVE' : 'REJECT',
         description: `Document "${document.title}" was ${action}d${comment ? ` with comment: ${comment}` : ''}`,
       },
@@ -143,7 +120,7 @@ export async function POST(
       await prisma.comment.create({
         data: {
           documentId,
-          userId: session.user.id,
+          userId: auth.userId!,
           content: `${action === 'approve' ? 'Approved' : 'Rejected'}: ${comment}`,
         },
       });
@@ -158,7 +135,7 @@ export async function POST(
         message: `Your document "${document.title}" has been ${action}d${comment ? ` with comment: ${comment}` : ''}`,
         data: {
           documentId,
-          approverId: session.user.id,
+          approverId: auth.userId,
           action,
           comment,
         },

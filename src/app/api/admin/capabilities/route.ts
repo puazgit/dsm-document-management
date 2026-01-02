@@ -121,3 +121,159 @@ export async function POST(req: NextRequest) {
     )
   }
 }
+
+/**
+ * PATCH /api/admin/capabilities?id=<id>
+ * Update existing capability
+ */
+export async function PATCH(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    const hasAccess = await UnifiedAccessControl.hasCapability(
+      session.user.id,
+      'PERMISSION_MANAGE'
+    )
+    
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    
+    const { searchParams } = new URL(req.url)
+    const id = searchParams.get('id')
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Capability ID is required' },
+        { status: 400 }
+      )
+    }
+    
+    const { name, description, category } = await req.json()
+    
+    // Validate
+    if (!name || !category) {
+      return NextResponse.json(
+        { error: 'Name and category are required' },
+        { status: 400 }
+      )
+    }
+    
+    // Check if capability exists
+    const existing = await prisma.roleCapability.findUnique({
+      where: { id },
+    })
+    
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'Capability not found' },
+        { status: 404 }
+      )
+    }
+    
+    // Check if new name conflicts with another capability
+    if (name !== existing.name) {
+      const nameConflict = await prisma.roleCapability.findUnique({
+        where: { name },
+      })
+      
+      if (nameConflict) {
+        return NextResponse.json(
+          { error: 'Capability with this name already exists' },
+          { status: 400 }
+        )
+      }
+    }
+    
+    const capability = await prisma.roleCapability.update({
+      where: { id },
+      data: {
+        name,
+        description,
+        category,
+      },
+    })
+    
+    // Clear cache
+    UnifiedAccessControl.clearAllCache()
+    
+    return NextResponse.json({ capability })
+  } catch (error) {
+    console.error('Error updating capability:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * DELETE /api/admin/capabilities?id=<id>
+ * Delete capability and all its assignments
+ */
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    const hasAccess = await UnifiedAccessControl.hasCapability(
+      session.user.id,
+      'PERMISSION_MANAGE'
+    )
+    
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    
+    const { searchParams } = new URL(req.url)
+    const id = searchParams.get('id')
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Capability ID is required' },
+        { status: 400 }
+      )
+    }
+    
+    // Check if capability exists
+    const existing = await prisma.roleCapability.findUnique({
+      where: { id },
+      include: {
+        assignments: true,
+      },
+    })
+    
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'Capability not found' },
+        { status: 404 }
+      )
+    }
+    
+    // Delete all assignments first, then the capability
+    await prisma.roleCapability.delete({
+      where: { id },
+    })
+    
+    // Clear cache
+    UnifiedAccessControl.clearAllCache()
+    
+    return NextResponse.json({ 
+      message: 'Capability deleted successfully',
+      deletedAssignments: existing.assignments.length 
+    })
+  } catch (error) {
+    console.error('Error deleting capability:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}

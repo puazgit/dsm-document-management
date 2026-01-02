@@ -17,7 +17,8 @@ import {
   DropdownMenuTrigger,
 } from './dropdown-menu'
 import { Bell, Search, Settings, Shield, Users, BarChart3, Upload, Plus } from 'lucide-react'
-import { useRoleVisibility, RoleGuard, FeatureToggle } from '../../hooks/use-role-visibility'
+import { useRoleVisibility } from '../../hooks/use-role-visibility'
+import { CapabilityGuard } from '../../hooks/use-capabilities'
 import Link from 'next/link'
 
 export function Header() {
@@ -76,17 +77,17 @@ export function Header() {
       <div className="flex items-center gap-2">
         
         {/* Quick Upload Button */}
-        <FeatureToggle feature="canUpload">
+        <CapabilityGuard capability="DOCUMENT_CREATE">
           <Button variant="outline" size="sm" asChild>
             <Link href="/documents/upload">
               <Plus className="h-4 w-4 mr-1" />
               <span className="hidden sm:inline">Upload</span>
             </Link>
           </Button>
-        </FeatureToggle>
+        </CapabilityGuard>
 
         {/* Admin Quick Access */}
-        <RoleGuard requiredRoles={['admin', 'administrator']}>
+        <CapabilityGuard anyOf={['USER_VIEW', 'ADMIN_ACCESS']}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
@@ -115,17 +116,17 @@ export function Header() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </RoleGuard>
+        </CapabilityGuard>
 
         {/* Analytics Access */}
-        <FeatureToggle feature="canViewAnalytics">
+        <CapabilityGuard capability="ANALYTICS_VIEW">
           <Button variant="outline" size="sm" asChild>
             <Link href="/analytics">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline ml-1">Analytics</span>
             </Link>
           </Button>
-        </FeatureToggle>
+        </CapabilityGuard>
 
         {/* Notifications */}
         <Button variant="outline" size="sm" className="relative">
@@ -137,11 +138,11 @@ export function Header() {
           )}
         </Button>
 
-        {/* User permissions summary (for debugging/admin) */}
+        {/* User capabilities summary (for debugging/admin) */}
         {roleVisibility.isAdmin && (
           <div className="hidden lg:flex items-center text-xs text-muted-foreground">
             <Shield className="h-3 w-3 mr-1" />
-            {session.user.permissions?.length || 0} permissions
+            {session.user.capabilities?.length || 0} capabilities
           </div>
         )}
       </div>

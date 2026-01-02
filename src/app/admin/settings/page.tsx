@@ -32,7 +32,6 @@ interface SystemConfig {
   value: string
   description: string
   category: string
-  isPublic: boolean
   createdAt: string
   updatedAt: string
 }

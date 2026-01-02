@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
 import { authOptions } from '../../../lib/next-auth'
 import { prisma } from '../../../lib/prisma'
+import { requireCapability } from '@/lib/rbac-helpers'
 import { z } from 'zod'
 import { serializeForResponse } from '../../../lib/bigint-utils'
-import { requireRoles } from '@/lib/auth-utils'
 
 const createRoleSchema = z.object({
   name: z.string().min(3).max(100),
   displayName: z.string().min(3).max(255),
   description: z.string().optional(),
-  level: z.number().int().min(0).max(100).default(10),
   isActive: z.boolean().default(true),
   permissions: z.array(z.string()).optional(),
 })
@@ -19,21 +17,14 @@ const updateRoleSchema = z.object({
   name: z.string().min(3).max(100).optional(),
   displayName: z.string().min(3).max(255).optional(),
   description: z.string().optional(),
-  level: z.number().int().min(0).max(100).optional(),
   isActive: z.boolean().optional(),
 })
 
 // GET /api/roles - List all roles  
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication first
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await requireCapability(request, 'ROLE_VIEW')
 
-    // For role assignment purposes, any authenticated user can view roles
-    // But for management operations, still require proper permissions
     const { searchParams } = new URL(request.url)
     const includePermissions = searchParams.get('includePermissions') === 'true'
     const isActive = searchParams.get('isActive')
@@ -44,10 +35,10 @@ export async function GET(request: NextRequest) {
     const roles = await prisma.role.findMany({
       where,
       include: {
-        rolePermissions: includePermissions
+        capabilityAssignments: includePermissions
           ? {
               include: {
-                permission: true,
+                capability: true,
               },
             }
           : false,
@@ -70,7 +61,7 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      orderBy: [{ level: 'desc' }, { name: 'asc' }],
+      orderBy: { name: 'asc' },
     })
 
     // Filter out any roles with invalid IDs (should not happen, but safety check)
@@ -87,8 +78,10 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/roles - Create new role
-export const POST = requireRoles(['administrator'])(async function(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
+    const auth = await requireCapability(request, 'ROLE_MANAGE')
+
     const body = await request.json()
     const validatedData = createRoleSchema.parse(body)
 
@@ -110,38 +103,15 @@ export const POST = requireRoles(['administrator'])(async function(request: Next
         name: validatedData.name,
         displayName: validatedData.displayName,
         description: validatedData.description,
-        level: validatedData.level,
         isActive: validatedData.isActive,
         isSystem: false,
       },
     })
 
-    // Add permissions if provided
-    if (validatedData.permissions && validatedData.permissions.length > 0) {
-      const rolePermissionsData = validatedData.permissions.map(permissionId => ({
-        roleId: role.id,
-        permissionId,
-        isGranted: true,
-      }))
+    // Note: Permissions system replaced with capabilities
+    // Use /api/roles/[id]/capabilities endpoint to assign capabilities
 
-      await prisma.rolePermission.createMany({
-        data: rolePermissionsData,
-      })
-    }
-
-    // Fetch created role with permissions
-    const roleWithPermissions = await prisma.role.findUnique({
-      where: { id: role.id },
-      include: {
-        rolePermissions: {
-          include: {
-            permission: true,
-          },
-        },
-      },
-    })
-
-    return NextResponse.json(serializeForResponse(roleWithPermissions), { status: 201 })
+    return NextResponse.json(role, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -156,4 +126,4 @@ export const POST = requireRoles(['administrator'])(async function(request: Next
       { status: 500 }
     )
   }
-})
+}

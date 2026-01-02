@@ -179,12 +179,12 @@ function parseDate(dateString: string): Date | undefined {
     if (match) {
       const [, year, month, day, hour, minute, second] = match
       return new Date(
-        parseInt(year),
-        parseInt(month) - 1,
-        parseInt(day),
-        parseInt(hour),
-        parseInt(minute),
-        parseInt(second)
+        parseInt(year || '0'),
+        parseInt(month || '0') - 1,
+        parseInt(day || '0'),
+        parseInt(hour || '0'),
+        parseInt(minute || '0'),
+        parseInt(second || '0')
       )
     }
 

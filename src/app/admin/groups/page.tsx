@@ -217,8 +217,7 @@ function GroupsManagementPage() {
     setFormData({
       name: '',
       displayName: '',
-      description: '',
-      level: 0
+      description: ''
     })
     setSelectedGroup(null)
   }

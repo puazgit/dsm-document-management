@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
-import { getFilteredNavigation, NavItem } from '@/lib/navigation'
+import { getNavigationItems, getFilteredNavigation, NavItem } from '@/lib/navigation-db'
 import { cn } from '@/lib/utils'
 
 interface NavigationMenuProps {
@@ -18,6 +18,28 @@ export function NavigationMenu({ className }: NavigationMenuProps) {
   const { data: session } = useSession()
   const pathname = usePathname()
   const [expandedItems, setExpandedItems] = useState<string[]>([])
+  const [navigationItems, setNavigationItems] = useState<NavItem[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Load navigation from database
+  useEffect(() => {
+    if (!session?.user) return
+
+    const loadNavigation = async () => {
+      try {
+        const allNavItems = await getNavigationItems()
+        const userCapabilities = (session.user as any).capabilities || []
+        const filtered = getFilteredNavigation(allNavItems, userCapabilities)
+        setNavigationItems(filtered)
+      } catch (error) {
+        console.error('Failed to load navigation:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadNavigation()
+  }, [session?.user])
 
   // Load expanded state from localStorage on mount
   useEffect(() => {
@@ -35,11 +57,7 @@ export function NavigationMenu({ className }: NavigationMenuProps) {
 
   // Auto-expand parent items when child is active
   useEffect(() => {
-    if (!session?.user) return
-
-    const userRole = session.user.role
-    const userPermissions: string[] = [] // TODO: Get from session when permissions are added
-    const navigationItems = getFilteredNavigation(userRole, userPermissions)
+    if (!session?.user || navigationItems.length === 0) return
 
     const findParentOfActivePath = (items: NavItem[], currentPath: string, parentHref?: string): string | null => {
       for (const item of items) {
@@ -68,18 +86,11 @@ export function NavigationMenu({ className }: NavigationMenuProps) {
         return newItems
       })
     }
-  }, [pathname, expandedItems, session?.user])
+  }, [pathname, expandedItems, session?.user, navigationItems])
 
-  if (!session?.user) {
+  if (!session?.user || loading) {
     return null
   }
-
-  const userRole = session.user.role
-  const userPermissions: string[] = [] // TODO: Get from session when permissions are added
-  
-  const navigationItems = getFilteredNavigation(userRole, userPermissions)
-
-
 
   const toggleExpanded = (href: string) => {
     setExpandedItems(prev => {

@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { toast } from '../../hooks/use-toast';
 import { DocumentUpload } from '../../components/documents/document-upload';
 import { DocumentsList } from '../../components/documents/documents-list';
-import { FeatureToggle } from '../../hooks/use-role-visibility';
+import { CapabilityGuard } from '../../hooks/use-capabilities';
 import { withAuth } from '../../components/auth/with-auth';
 import { FileText, Clock, User, Download } from 'lucide-react';
 
@@ -103,28 +103,9 @@ function DocumentsPage() {
     }
   }, [session, currentPage, sortBy, sortOrder, searchQuery, selectedType, selectedStatus]);
 
-  // Fetch stats
-  const fetchStats = useCallback(async () => {
-    if (!session) return;
-
-    try {
-      const response = await fetch('/api/documents/stats');
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data.overview);
-      }
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-    }
-  }, [session]);
-
   useEffect(() => {
     fetchDocuments();
   }, [fetchDocuments]);
-
-  useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
 
   const handleSearch = () => {
     setCurrentPage(1);
@@ -134,7 +115,6 @@ function DocumentsPage() {
   const handleUploadSuccess = (document: any) => {
     setShowUploadDialog(false);
     fetchDocuments();
-    fetchStats();
     toast({
       title: 'Success',
       description: 'Document uploaded successfully',
@@ -166,7 +146,7 @@ function DocumentsPage() {
     <div className="space-y-6">
       {/* Upload Button */}
       <div className="flex justify-end">
-        <FeatureToggle feature="canUpload">
+        <CapabilityGuard capability="DOCUMENT_CREATE">
           <Button 
             onClick={() => setShowUploadDialog(true)}
             size="default"
@@ -175,7 +155,7 @@ function DocumentsPage() {
             <FileText className="w-4 h-4 mr-2" />
             Upload Document
           </Button>
-        </FeatureToggle>
+        </CapabilityGuard>
       </div>
 
       {/* Stats Cards */}

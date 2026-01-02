@@ -5,7 +5,7 @@
  * Now queries database for workflow transitions with in-memory caching
  */
 
-import { hasCapability, getUserRoleLevel, type CapabilityUser } from '@/lib/capabilities';
+import { hasCapability, type CapabilityUser } from '@/lib/capabilities';
 import { prisma } from '@/lib/prisma';
 
 export enum DocumentStatus {

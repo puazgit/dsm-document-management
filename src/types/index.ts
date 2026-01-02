@@ -26,7 +26,7 @@ export interface Group {
   displayName: string;
   description?: string | null;
   permissions?: any;
-  level: number;
+  isActive?: boolean;
   createdAt: Date;
 }
 
@@ -41,7 +41,6 @@ export interface Document {
   mimeType?: string | null;
   version: string;
   status: DocumentStatus;
-  isPublic: boolean;
   accessGroups: string[];
   downloadCount: number;
   viewCount: number;

@@ -18,12 +18,9 @@ export async function GET(
         ]
       },
       include: {
-        rolePermissions: {
-          where: {
-            isGranted: true
-          },
+        capabilityAssignments: {
           include: {
-            permission: true
+            capability: true
           }
         }
       }
@@ -36,15 +33,15 @@ export async function GET(
       )
     }
 
-    // Extract permission names
-    const permissionNames = role.rolePermissions.map(rp => rp.permission.name)
+    // Extract capability names
+    const capabilityNames = role.capabilityAssignments.map(ca => ca.capability.name)
 
-    // Check for specific PDF permissions
+    // Check for specific capabilities - map to PDF permissions
     const summary = {
-      canDownload: permissionNames.includes('pdf.download') || permissionNames.includes('documents.download'),
-      canPrint: permissionNames.includes('pdf.print'),
-      canCopy: permissionNames.includes('pdf.copy'),
-      showWatermark: !permissionNames.includes('pdf.watermark')
+      canDownload: capabilityNames.includes('DOCUMENT_DOWNLOAD') || capabilityNames.includes('DOCUMENT_FULL_ACCESS') || capabilityNames.includes('ADMIN_ACCESS'),
+      canPrint: capabilityNames.includes('DOCUMENT_PRINT') || capabilityNames.includes('DOCUMENT_FULL_ACCESS') || capabilityNames.includes('ADMIN_ACCESS'),
+      canCopy: capabilityNames.includes('DOCUMENT_COPY') || capabilityNames.includes('DOCUMENT_FULL_ACCESS') || capabilityNames.includes('ADMIN_ACCESS'),
+      showWatermark: !capabilityNames.includes('DOCUMENT_NO_WATERMARK') && !capabilityNames.includes('ADMIN_ACCESS')
     }
 
     return NextResponse.json(summary)

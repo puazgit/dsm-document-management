@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../../lib/next-auth';
 import { prisma } from '../../../../../lib/prisma';
+import { requireCapability } from '@/lib/rbac-helpers';
 import { serializeForResponse } from '../../../../../lib/bigint-utils';
 
 // GET /api/documents/[id]/history - Get document history
@@ -10,10 +10,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireCapability(request, 'DOCUMENT_VIEW');
 
     const documentId = params.id;
 
@@ -23,7 +20,6 @@ export async function GET(
       select: {
         id: true,
         createdById: true,
-        isPublic: true,
         accessGroups: true,
         status: true,
       },
@@ -33,28 +29,7 @@ export async function GET(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
-    // Check access permissions
-    const userPermissions = session.user.permissions || [];
-    
-    // Check if user has full document access (5 core permissions)
-    const hasFullDocumentAccess = userPermissions.includes('*') || 
-      (userPermissions.includes('documents.read') &&
-       userPermissions.includes('documents.create') &&
-       userPermissions.includes('documents.update') &&
-       userPermissions.includes('documents.approve') &&
-       userPermissions.includes('documents.delete'));
-    
-    const userRole = session.user.role || '';
-    const isAdmin = ['admin', 'administrator'].includes(userRole);
-    const isOwner = document.createdById === session.user.id;
-    const hasRoleAccess = document.accessGroups.includes(session.user.role || '');
-    const hasGroupAccess = document.accessGroups.includes(session.user.groupId || '');
-    const isPublished = document.status === 'PUBLISHED';
-    const canReadDocuments = userPermissions.includes('documents.read') || userPermissions.includes('documents.view');
-
-    if (!hasFullDocumentAccess && !isAdmin && !isOwner && !hasRoleAccess && !hasGroupAccess && !document.isPublic && !isPublished && !canReadDocuments) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-    }
+    // Permission check done via capability system
 
     // Get document history
     const history = await prisma.documentHistory.findMany({

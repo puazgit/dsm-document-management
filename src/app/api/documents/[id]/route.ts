@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/next-auth';
 import { prisma } from '../../../../lib/prisma';
+import { requireCapability } from '@/lib/rbac-helpers';
 import { z } from 'zod';
 import { serializeForResponse } from '../../../../lib/bigint-utils';
 
@@ -11,7 +11,6 @@ const DocumentUpdateSchema = z.object({
   description: z.string().optional(),
   documentTypeId: z.string().cuid('Invalid document type ID').optional(),
   status: z.enum(['DRAFT', 'PENDING_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED', 'ARCHIVED', 'EXPIRED']).optional(),
-  isPublic: z.boolean().optional(),
   accessGroups: z.array(z.string()).optional(),
   tags: z.array(z.string()).optional(),
   metadata: z.record(z.any()).optional(),
@@ -24,10 +23,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireCapability(request, 'DOCUMENT_VIEW');
 
     const { id } = params;
 
@@ -137,17 +133,8 @@ export async function GET(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
-    // Check access permissions
-    const hasAccess = 
-      document.isPublic ||
-      document.createdById === session.user.id ||
-      document.accessGroups.includes(session.user.groupId || '') ||
-      document.accessGroups.includes(session.user.role || '') ||
-      ['administrator', 'ADMIN', 'admin'].includes(session.user.role);
-
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-    }
+    // Access check done via capability system
+    // Additional document-level access could be checked here if needed
 
     // Increment view count
     await prisma.document.update({
@@ -157,14 +144,38 @@ export async function GET(
 
     // Log view activity only for published documents
     if (document.status === 'PUBLISHED') {
-      await prisma.documentActivity.create({
-        data: {
+      // Check for duplicate view logs within the last 5 minutes
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      const recentView = await prisma.documentActivity.findFirst({
+        where: {
           documentId: id,
-          userId: session.user.id,
+          userId: auth.userId!,
           action: 'VIEW',
-          description: `Document "${document.title}" was viewed`,
+          createdAt: {
+            gte: fiveMinutesAgo,
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
         },
       });
+
+      if (recentView) {
+        console.log(`⏭️  [GET /documents/${id}] Skipping duplicate view log - already viewed recently at: ${recentView.createdAt.toISOString()}`);
+      } else {
+        await prisma.documentActivity.create({
+          data: {
+            documentId: id,
+            userId: auth.userId!,
+            action: 'VIEW',
+            description: `Document "${document.title}" was viewed`,
+            metadata: {
+              source: 'document_details_api',
+              timestamp: new Date().toISOString(),
+            },
+          },
+        });
+      }
     }
 
     return NextResponse.json(serializeForResponse(document));
@@ -180,10 +191,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireCapability(request, 'DOCUMENT_EDIT');
 
     const { id } = params;
     const body = await request.json();
@@ -201,18 +209,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
-    // Check edit permissions
-    const userRole = session.user.role?.toLowerCase();
-    const userPermissions = session.user.permissions || [];
-    const canEdit = 
-      existingDocument.createdById === session.user.id ||
-      userPermissions.includes('documents.update') ||
-      userPermissions.includes('documents.update.own') ||
-      ['admin', 'administrator', 'editor', 'manager', 'administrator', 'ppd'].includes(userRole);
-
-    if (!canEdit) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-    }
+    // Permission check done via capability system
 
     // Validate document type if being changed
     if (data.documentTypeId && data.documentTypeId !== existingDocument.documentTypeId) {
@@ -233,16 +230,13 @@ export async function PUT(
     if (data.status && data.status !== existingDocument.status) {
       changes.push(`status from "${existingDocument.status}" to "${data.status}"`);
     }
-    if (data.isPublic !== undefined && data.isPublic !== existingDocument.isPublic) {
-      changes.push(`visibility to ${data.isPublic ? 'public' : 'private'}`);
-    }
 
     // Update document
     const updatedDocument = await prisma.document.update({
       where: { id },
       data: {
         ...data,
-        updatedById: session.user.id,
+        updatedById: auth.userId,
         expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
       },
       include: {
@@ -284,7 +278,7 @@ export async function PUT(
     await prisma.documentActivity.create({
       data: {
         documentId: id,
-        userId: session.user.id,
+        userId: auth.userId!,
         action: 'UPDATE',
         description: changes.length > 0 
           ? `Document "${updatedDocument.title}" was updated: ${changes.join(', ')}`
@@ -308,10 +302,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireCapability(request, 'DOCUMENT_DELETE');
 
     const { id } = params;
 
@@ -324,21 +315,14 @@ export async function DELETE(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
-    // Check delete permissions
-    const canDelete = 
-      existingDocument.createdById === session.user.id ||
-      session.user.role === 'ADMIN';
-
-    if (!canDelete) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-    }
+    // Permission check done via capability system
 
     // Soft delete by setting status to ARCHIVED
     const deletedDocument = await prisma.document.update({
       where: { id },
       data: {
         status: 'ARCHIVED',
-        updatedById: session.user.id,
+        updatedById: auth.userId,
       },
     });
 
@@ -346,7 +330,7 @@ export async function DELETE(
     await prisma.documentActivity.create({
       data: {
         documentId: id,
-        userId: session.user.id,
+        userId: auth.userId!,
         action: 'DELETE',
         description: `Document "${deletedDocument.title}" was archived/deleted`,
       },

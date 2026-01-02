@@ -38,7 +38,7 @@ import {
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Plus, Pencil, Trash2, Shield, Network, Route, Code, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Pencil, Trash2, Shield, Network, Route, Code, ChevronLeft, ChevronRight, Search, X } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
@@ -61,13 +61,22 @@ interface Resource {
   }
 }
 
+interface Capability {
+  id: string
+  name: string
+  description: string | null
+  category: string | null
+}
+
 function ResourcesManagementPage() {
   const { toast } = useToast()
   const [resources, setResources] = useState<Resource[]>([])
+  const [capabilities, setCapabilities] = useState<Capability[]>([])
   const [loading, setLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingResource, setEditingResource] = useState<Resource | null>(null)
   const [selectedType, setSelectedType] = useState<string>('all')
+  const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(10)
   const [formData, setFormData] = useState({
@@ -88,6 +97,27 @@ function ResourcesManagementPage() {
     fetchResources()
     setCurrentPage(1) // Reset to first page when changing tabs
   }, [selectedType])
+
+  useEffect(() => {
+    setCurrentPage(1) // Reset to first page when searching
+  }, [searchQuery])
+
+  useEffect(() => {
+    fetchCapabilities()
+  }, [])
+
+  const fetchCapabilities = async () => {
+    try {
+      const response = await fetch('/api/admin/capabilities')
+      const data = await response.json()
+      
+      if (response.ok) {
+        setCapabilities(data.capabilities || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch capabilities:', error)
+    }
+  }
 
   const fetchResources = async () => {
     try {
@@ -290,10 +320,21 @@ function ResourcesManagementPage() {
     return colors[type] || 'bg-gray-100 text-gray-800'
   }
 
-  // Filter resources based on selected type
-  const filteredResources = selectedType === 'all' 
-    ? resources 
-    : resources.filter(r => r.type === selectedType)
+  // Filter resources based on selected type and search query
+  const filteredResources = resources
+    .filter(r => selectedType === 'all' || r.type === selectedType)
+    .filter(r => {
+      if (!searchQuery.trim()) return true
+      
+      const query = searchQuery.toLowerCase()
+      return (
+        r.name.toLowerCase().includes(query) ||
+        r.path.toLowerCase().includes(query) ||
+        (r.requiredCapability && r.requiredCapability.toLowerCase().includes(query)) ||
+        (r.description && r.description.toLowerCase().includes(query)) ||
+        (r.id && r.id.toLowerCase().includes(query))
+      )
+    })
 
   // Pagination logic
   const totalPages = Math.ceil(filteredResources.length / itemsPerPage)
@@ -383,6 +424,33 @@ function ResourcesManagementPage() {
         </Button>
       </div>
 
+      {/* Search Bar */}
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search by name, path, capability, or ID..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 pr-10"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+        {searchQuery && (
+          <div className="text-sm text-muted-foreground">
+            Found {filteredResources.length} result{filteredResources.length !== 1 ? 's' : ''}
+          </div>
+        )}
+      </div>
+
       <Tabs value={selectedType} onValueChange={(v) => setSelectedType(v as typeof selectedType)}>
         <TabsList>
           <TabsTrigger value="all">All Resources</TabsTrigger>
@@ -425,8 +493,30 @@ function ResourcesManagementPage() {
                     <TableBody>
                       {paginatedResources.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-muted-foreground">
-                            No resources found
+                          <TableCell colSpan={5} className="text-center py-8">
+                            <div className="flex flex-col items-center gap-2">
+                              {searchQuery ? (
+                                <>
+                                  <Search className="w-8 h-8 text-muted-foreground" />
+                                  <p className="text-muted-foreground">
+                                    No resources found matching "{searchQuery}"
+                                  </p>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setSearchQuery('')}
+                                    className="mt-2"
+                                  >
+                                    Clear search
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Shield className="w-8 h-8 text-muted-foreground" />
+                                  <p className="text-muted-foreground">No resources found</p>
+                                </>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ) : (
@@ -531,14 +621,35 @@ function ResourcesManagementPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium">Required Capability</label>
-              <input
-                type="text"
-                className="w-full mt-1 border rounded-md p-2"
-                value={formData.requiredCapability || ''}
-                onChange={(e) => setFormData({ ...formData, requiredCapability: e.target.value })}
-                placeholder="CAPABILITY_NAME (optional)"
-              />
+              <Label htmlFor="requiredCapability">Required Capability</Label>
+              <Select
+                value={formData.requiredCapability || 'none'}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, requiredCapability: value === 'none' ? '' : value })
+                }
+              >
+                <SelectTrigger id="requiredCapability">
+                  <SelectValue placeholder="Select capability (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No capability required</SelectItem>
+                  {capabilities.map((cap) => (
+                    <SelectItem key={cap.id} value={cap.name}>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm">{cap.name}</span>
+                        {cap.category && (
+                          <Badge variant="outline" className="text-xs">
+                            {cap.category}
+                          </Badge>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Select the capability required to access this resource
+              </p>
             </div>
 
             <div>

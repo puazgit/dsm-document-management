@@ -1,44 +1,39 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
 import { ReactNode } from 'react'
+import { CapabilityGuard, Capability } from '@/hooks/use-capabilities'
 
 interface RoleGuardProps {
   children: ReactNode
-  requiredRoles: string[]
+  requiredCapabilities?: Capability[]
+  anyOf?: Capability[]
+  allOf?: Capability[]
   fallback?: ReactNode
-  requireAll?: boolean
 }
 
+/**
+ * RoleGuard migrated to use capabilities
+ * Use CapabilityGuard directly for new code
+ */
 export function RoleGuard({ 
   children, 
-  requiredRoles, 
-  fallback = null,
-  requireAll = false 
+  requiredCapabilities,
+  anyOf,
+  allOf,
+  fallback = null
 }: RoleGuardProps) {
-  const { data: session, status } = useSession()
-
-  if (status === 'loading') {
-    return (
-      <div className="flex items-center justify-center p-4">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-      </div>
-    )
-  }
-
-  if (!session?.user) {
-    return fallback as JSX.Element
-  }
-
-  const userRole = session.user.role
-
-  const hasRole = requireAll
-    ? requiredRoles.every(role => userRole === role)
-    : requiredRoles.includes(userRole)
-
-  if (!hasRole) {
-    return fallback as JSX.Element
-  }
-
-  return <>{children}</>
+  // Delegate to CapabilityGuard
+  return (
+    <CapabilityGuard
+      capability={requiredCapabilities?.[0]}
+      anyOf={anyOf || (requiredCapabilities && requiredCapabilities.length > 1 ? requiredCapabilities : undefined)}
+      allOf={allOf}
+      fallback={fallback}
+    >
+      {children}
+    </CapabilityGuard>
+  )
 }
+
+// Re-export CapabilityGuard for direct use
+export { CapabilityGuard } from '@/hooks/use-capabilities'

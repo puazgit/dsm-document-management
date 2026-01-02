@@ -21,7 +21,6 @@ interface Group {
   name: string
   displayName: string
   description: string | null
-  level: number
   isActive: boolean
   _count?: {
     users: number

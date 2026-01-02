@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../../../../lib/next-auth';
 import { prisma } from '../../../../../lib/prisma';
+import { requireCapability } from '@/lib/rbac-helpers';
 import { z } from 'zod';
 import { serializeForResponse } from '../../../../../lib/bigint-utils';
 
@@ -16,29 +17,11 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireCapability(request, 'DOCUMENT_DELETE');
 
     const { id: documentId } = params;
     const body = await request.json();
     const { reason } = ArchiveSchema.parse(body);
-
-    // Check if user has archive permissions
-    const userPermissions = session.user.permissions || [];
-    const userRole = session.user.role || '';
-    
-    const hasArchivePermission = userPermissions.includes('documents.delete') || userPermissions.includes('documents.archive');
-    const isAdministrator = userRole === 'administrator';
-    const isManagementRole = ['admin', 'manager'].includes(userRole);
-    const isOrganizationalLeader = ['dirut', 'gm', 'kadiv', 'administrator', 'ppd'].includes(userRole);
-    
-    if (!hasArchivePermission && !isAdministrator && !isManagementRole && !isOrganizationalLeader) {
-      return NextResponse.json({ 
-        error: 'Tidak memiliki permission untuk archive dokumen' 
-      }, { status: 403 });
-    }
 
     // Get document
     const document = await prisma.document.findUnique({
@@ -72,7 +55,7 @@ export async function POST(
       where: { id: documentId },
       data: {
         status: 'ARCHIVED',
-        updatedById: session.user.id,
+        updatedById: auth.userId,
       },
       include: {
         documentType: {
@@ -105,7 +88,7 @@ export async function POST(
     await prisma.documentActivity.create({
       data: {
         documentId,
-        userId: session.user.id,
+        userId: auth.userId!,
         action: 'UPDATE', // Using UPDATE as ARCHIVE is not in enum
         description: `Document "${document.title}" was archived${reason ? ` with reason: ${reason}` : ''}`,
       },
@@ -116,14 +99,14 @@ export async function POST(
       await prisma.comment.create({
         data: {
           documentId,
-          userId: session.user.id,
+          userId: auth.userId!,
           content: `Archived: ${reason}`,
         },
       });
     }
 
     // Create notification for document owner if not the same user
-    if (document.createdById !== session.user.id) {
+    if (document.createdById !== auth.userId) {
       await prisma.notification.create({
         data: {
           userId: document.createdById,
@@ -132,7 +115,7 @@ export async function POST(
           message: `Your document "${document.title}" has been archived${reason ? ` with reason: ${reason}` : ''}`,
           data: {
             documentId,
-            archiverId: session.user.id,
+            archiverId: auth.userId,
             reason,
           },
         },
@@ -165,16 +148,20 @@ export async function DELETE(
 
     const { id: documentId } = params;
 
-    // Check if user has unarchive permissions
-    const userPermissions = session.user.permissions || [];
+    // Check if user has unarchive permissions (capability-based)
+    const userCapabilities = session.user.capabilities || [];
     const userRole = session.user.role || '';
     
-    const hasArchivePermission = userPermissions.includes('documents.delete') || userPermissions.includes('documents.archive');
-    const isAdministrator = userRole === 'administrator';
+    // Use capability-based authorization
+    const hasArchivePermission = 
+      userCapabilities.includes('DOCUMENT_DELETE') || 
+      userCapabilities.includes('DOCUMENT_MANAGE') ||
+      userCapabilities.includes('ADMIN_ACCESS');
+    
     const isManagementRole = ['admin', 'manager'].includes(userRole);
     const isOrganizationalLeader = ['dirut', 'gm', 'kadiv', 'administrator', 'ppd'].includes(userRole);
     
-    if (!hasArchivePermission && !isAdministrator && !isManagementRole && !isOrganizationalLeader) {
+    if (!hasArchivePermission && !isManagementRole && !isOrganizationalLeader) {
       return NextResponse.json({ 
         error: 'Tidak memiliki permission untuk unarchive dokumen' 
       }, { status: 403 });

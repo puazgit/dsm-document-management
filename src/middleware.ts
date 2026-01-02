@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { hasRoleAccess, normalizeRoleName } from '@/config/roles'
+import { UnifiedAccessControl } from '@/lib/unified-access-control'
 
 /**
  * Protected routes mapped to their required roles/groups
@@ -14,7 +15,6 @@ const protectedRoutes: Record<string, string[]> = {
   '/admin/users': ['admin', 'administrator', 'ppd.pusat', 'ppd.unit'],
   '/admin/groups': ['admin', 'administrator', 'ppd.pusat', 'ppd.unit'],
   '/admin/roles': ['admin', 'administrator', 'ppd.pusat', 'ppd.unit'],
-  '/admin/permissions': ['admin', 'administrator', 'ppd.pusat', 'ppd.unit'],
   '/admin/settings': ['admin', 'administrator', 'ppd.pusat', 'ppd.unit'],
   '/admin/analytics': ['admin', 'administrator', 'ppd.pusat', 'ppd.unit', 'manager', 'kadiv'],
   '/admin/audit-logs': ['admin', 'administrator', 'ppd.pusat', 'ppd.unit'],
@@ -93,7 +93,32 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Check role-based access for protected routes
+  // Check resource-based access control for document routes
+  // Using UnifiedAccessControl for capability-based permissions
+  if (pathname.startsWith('/documents/') && token.sub) {
+    try {
+      const canAccess = await UnifiedAccessControl.canAccessRoute(token.sub as string, pathname)
+      
+      if (!canAccess) {
+        console.warn(
+          `[Middleware] Unauthorized access to document route`,
+          {
+            userId: token.sub,
+            pathname,
+            timestamp: new Date().toISOString()
+          }
+        )
+        
+        const unauthorizedUrl = new URL('/unauthorized', request.url)
+        return NextResponse.redirect(unauthorizedUrl)
+      }
+    } catch (error) {
+      console.error('[Middleware] Error checking document access:', error)
+      // Fall through to legacy role-based check on error
+    }
+  }
+
+  // Check role-based access for protected routes (legacy)
   for (const [route, requiredRoles] of Object.entries(protectedRoutes)) {
     // Convert route pattern to regex (e.g., /documents/[id]/edit -> /documents/[^/]+/edit)
     const routePattern = route.replace(/\[.*?\]/g, '[^/]+')

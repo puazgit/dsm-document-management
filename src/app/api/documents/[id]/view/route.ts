@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../../lib/next-auth';
 import { prisma } from '../../../../../lib/prisma';
+import { requireCapability } from '@/lib/rbac-helpers';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 
@@ -11,10 +11,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireCapability(request, 'DOCUMENT_VIEW');
 
     const { id } = params;
 
@@ -36,44 +33,27 @@ export async function GET(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
-    // Get user's group name from database for proper access check
-    const userWithGroup = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: { group: true }
+    // Permission check done via capability system
+
+    // Check if user already viewed this document recently (within 5 minutes)
+    // This prevents duplicate VIEW logs from page refreshes or multiple calls
+    const recentView = await prisma.documentActivity.findFirst({
+      where: {
+        documentId: id,
+        userId: auth.userId!,
+        action: 'VIEW',
+        createdAt: {
+          gte: new Date(Date.now() - 5 * 60 * 1000) // Last 5 minutes
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
     });
-    
-    const userGroupName = userWithGroup?.group?.name;
 
-    // Check access permissions
-    const hasAccess = 
-      document.isPublic ||
-      document.createdById === session.user.id ||
-      document.accessGroups.includes(session.user.groupId || '') ||
-      document.accessGroups.includes(userGroupName || '') ||
-      document.accessGroups.includes(session.user.role || '') ||
-      ['admin', 'administrator'].includes(session.user.role);
-
-    if (!hasAccess) {
-      console.log('❌ View access denied. Checked:', {
-        isPublic: document.isPublic,
-        isOwner: document.createdById === session.user.id,
-        groupIdMatch: document.accessGroups.includes(session.user.groupId || ''),
-        groupNameMatch: document.accessGroups.includes(userGroupName || ''),
-        roleMatch: document.accessGroups.includes(session.user.role || ''),
-        isAdmin: ['admin', 'administrator'].includes(session.user.role)
-      });
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-    }
-
-    // All authenticated users with access can view documents
-    // No role restrictions for viewing
-
-    // Check if file exists
-    const filePath = join(process.cwd(), document.filePath.replace(/^\//, ''));
-    
-    try {
-      const fileBuffer = await readFile(filePath);
-      
+    // Only increment view count and log activity if not viewed recently
+    if (!recentView) {
+      console.log('✅ [GET /view] Logging new view activity');
       // Increment view count (not download count)
       await prisma.document.update({
         where: { id },
@@ -85,12 +65,25 @@ export async function GET(
         await prisma.documentActivity.create({
           data: {
             documentId: id,
-            userId: session.user.id,
+            userId: auth.userId!,
             action: 'VIEW',
             description: `Document "${document.title}" was viewed`,
+            metadata: {
+              source: 'document_viewer_get',
+              timestamp: new Date().toISOString()
+            }
           },
         });
       }
+    } else {
+      console.log('⏭️  [GET /view] Skipping duplicate view log - already viewed recently at:', recentView.createdAt);
+    }
+
+    // Check if file exists
+    const filePath = join(process.cwd(), document.filePath.replace(/^\//, ''));
+    
+    try {
+      const fileBuffer = await readFile(filePath);
 
       // Set appropriate headers for inline viewing without download toolbar
       const headers = new Headers();
@@ -143,10 +136,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireCapability(request, 'DOCUMENT_VIEW');
 
     const { id } = params;
 
@@ -159,30 +149,38 @@ export async function POST(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
-    // Get user's group name from database for proper access check
-    const userWithGroup = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: { group: true }
+    // Permission check done via capability system
+
+    // Check if user already viewed this document recently (within 5 minutes)
+    // This prevents duplicate VIEW logs from page refreshes or multiple calls
+    const recentView = await prisma.documentActivity.findFirst({
+      where: {
+        documentId: id,
+        userId: auth.userId!,
+        action: 'VIEW',
+        createdAt: {
+          gte: new Date(Date.now() - 5 * 60 * 1000) // Last 5 minutes
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
     });
-    
-    const userGroupName = userWithGroup?.group?.name;
 
-    // Check access permissions
-    const hasAccess = 
-      document.isPublic ||
-      document.createdById === session.user.id ||
-      document.accessGroups.includes(session.user.groupId || '') ||
-      document.accessGroups.includes(userGroupName || '') ||
-      document.accessGroups.includes(session.user.role || '') ||
-      ['admin', 'administrator'].includes(session.user.role);
-
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    // If already viewed recently, don't log again
+    if (recentView) {
+      console.log('⏭️  [POST /view] Skipping duplicate view log - already viewed recently');
+      return NextResponse.json({ 
+        success: true,
+        skipped: true,
+        message: 'Already viewed recently',
+        lastViewed: recentView.createdAt
+      });
     }
 
     // Use transaction to ensure both activity log and counter are updated atomically
     // Only log activity for published documents
-    const transactionOps = [
+    const transactionOps: any[] = [
       // 1. Increment view count
       prisma.document.update({
         where: { id },
@@ -196,7 +194,7 @@ export async function POST(
         prisma.documentActivity.create({
           data: {
             documentId: id,
-            userId: session.user.id,
+            userId: auth.userId!,
             action: 'VIEW',
             description: `Document "${document.title}" was viewed`,
             metadata: {
@@ -209,6 +207,7 @@ export async function POST(
     }
     
     const results = await prisma.$transaction(transactionOps);
+    const updatedDoc = results[0];
     const activity = document.status === 'PUBLISHED' ? results[1] : null;
 
     return NextResponse.json({ 

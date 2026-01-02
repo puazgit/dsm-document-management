@@ -3,9 +3,15 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../../../lib/next-auth'
 import { prisma } from '../../../lib/prisma'
 import { serializeForResponse } from '../../../lib/bigint-utils'
-import { requireRoles } from '@/lib/auth-utils'
+import { requireCapability } from '@/lib/rbac-helpers'
 
-export const GET = requireRoles(['admin', 'manager', 'ppd'])(async function(request: NextRequest) {
+export async function GET(request: NextRequest) {
+  // Check capability - analytics requires USER_VIEW
+  const auth = await requireCapability(request, 'USER_VIEW')
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.error }, { status: 403 })
+  }
+
   try {
 
     const { searchParams } = new URL(request.url)
@@ -225,4 +231,4 @@ export const GET = requireRoles(['admin', 'manager', 'ppd'])(async function(requ
       { status: 500 }
     )
   }
-})
+}

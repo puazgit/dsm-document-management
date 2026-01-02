@@ -1,14 +1,12 @@
 'use client'
 
 import { ComponentType } from 'react'
-import { useSession } from 'next-auth/react'
 import { ProtectedRoute } from '@/components/auth/protected-route'
-import { RoleGuard } from '@/components/auth/role-guard'
+import { CapabilityGuard, Capability, useCapabilities } from '@/hooks/use-capabilities'
 
 interface WithAuthOptions {
-  requiredRoles?: string[]
-  requiredPermissions?: string[]
-  requiredCapabilities?: string[]
+  requiredCapabilities?: Capability[]
+  requireAll?: boolean
   redirectTo?: string
   fallback?: ComponentType
 }
@@ -21,9 +19,8 @@ export function withAuth<P extends object>(
   const AuthenticatedComponent = (props: P) => {
     return (
       <ProtectedRoute
-        requiredRoles={options.requiredRoles}
-        requiredPermissions={options.requiredPermissions}
         requiredCapabilities={options.requiredCapabilities}
+        requireAll={options.requireAll}
         redirectTo={options.redirectTo}
       >
         <WrappedComponent {...props} />
@@ -36,66 +33,59 @@ export function withAuth<P extends object>(
   return AuthenticatedComponent
 }
 
-// HOC for role-based component protection
-export function withRole<P extends object>(
+// HOC for capability-based component protection
+export function withCapability<P extends object>(
   WrappedComponent: ComponentType<P>,
-  requiredRoles: string[],
+  requiredCapabilities: Capability[],
   fallback?: ComponentType
 ) {
-  const RoleProtectedComponent = (props: P) => {
+  const CapabilityProtectedComponent = (props: P) => {
     const FallbackComponent = fallback || (() => null)
     
     return (
-      <RoleGuard 
-        requiredRoles={requiredRoles}
+      <CapabilityGuard 
+        anyOf={requiredCapabilities}
         fallback={<FallbackComponent />}
       >
         <WrappedComponent {...props} />
-      </RoleGuard>
+      </CapabilityGuard>
     )
   }
 
-  RoleProtectedComponent.displayName = `withRole(${WrappedComponent.displayName || WrappedComponent.name})`
+  CapabilityProtectedComponent.displayName = `withCapability(${WrappedComponent.displayName || WrappedComponent.name})`
   
-  return RoleProtectedComponent
+  return CapabilityProtectedComponent
 }
 
 // HOC for admin-only components
-export function withAdminRole<P extends object>(
+export function withAdminCapability<P extends object>(
   WrappedComponent: ComponentType<P>,
   fallback?: ComponentType
 ) {
-  return withRole(WrappedComponent, ['admin'], fallback)
+  return withCapability(WrappedComponent, ['USER_MANAGE', 'ROLE_MANAGE'], fallback)
 }
 
-// Hook for conditional rendering based on permissions
+// Hook for conditional rendering based on capabilities
 export function useConditionalRender() {
-  const { data: session } = useSession()
+  const { hasCapability, hasAnyCapability } = useCapabilities()
   
-  const renderIfRole = (requiredRoles: string[], children: React.ReactNode) => {
-    if (!session?.user) return null
-    
-    const userRole = session.user.role
-    if (!requiredRoles.includes(userRole)) return null
-    
+  const renderIfCapability = (capability: Capability, children: React.ReactNode) => {
+    if (!hasCapability(capability)) return null
     return children
   }
 
-  const renderIfPermission = (requiredPermissions: string[], children: React.ReactNode) => {
-    if (!session?.user) return null
-    
-    // TODO: Implement when permissions are added to session
-    console.log('Permission checking not implemented:', requiredPermissions)
+  const renderIfAnyCapability = (capabilities: Capability[], children: React.ReactNode) => {
+    if (!hasAnyCapability(capabilities)) return null
     return children
   }
 
   const renderIfAdmin = (children: React.ReactNode) => {
-    return renderIfRole(['admin'], children)
+    return renderIfAnyCapability(['USER_MANAGE', 'ROLE_MANAGE'], children)
   }
 
   return {
-    renderIfRole,
-    renderIfPermission,
+    renderIfCapability,
+    renderIfAnyCapability,
     renderIfAdmin
   }
 }

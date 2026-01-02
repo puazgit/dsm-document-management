@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions } from '@/lib/next-auth'
 import { prisma } from '@/lib/prisma'
 import { auditHelpers } from '@/lib/audit'
+import { requireCapability } from '@/lib/rbac-helpers'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 
@@ -28,10 +28,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await requireCapability(request, 'USER_VIEW')
 
     const user = await prisma.user.findUnique({
       where: { id: params.id },
@@ -42,9 +39,9 @@ export async function GET(
           include: {
             role: {
               include: {
-                rolePermissions: {
+                capabilityAssignments: {
                   include: {
-                    permission: true,
+                    capability: true,
                   },
                 },
               },
@@ -77,10 +74,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await requireCapability(request, 'USER_MANAGE')
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
@@ -89,16 +83,6 @@ export async function PUT(
 
     if (!existingUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
-
-    // Check permissions (user can only update own profile unless admin)
-    const isOwnProfile = session.user.id === params.id
-    const userRole = session.user.role?.toLowerCase()
-    console.log('PUT - Current user role:', userRole, 'Is own profile:', isOwnProfile, 'Session user:', session.user)
-    const isAdmin = userRole === 'admin' || userRole === 'administrator' || userRole === 'ppd'
-
-    if (!isOwnProfile && !isAdmin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const body = await request.json()
@@ -160,7 +144,7 @@ export async function PUT(
     
     await auditHelpers.userUpdated(
       params.id,
-      session.user.id,
+      auth.userId!,
       validatedData,
       clientIp,
       userAgent
@@ -192,21 +176,8 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
+    const auth = await requireCapability(request, 'USER_DELETE')
     const { id } = params
-
-    // Check admin permissions for deletion
-    const userRole = session.user.role?.toLowerCase()
-    console.log('DELETE - Current user role:', userRole, 'Session user:', session.user)
-    const isAdmin = userRole === 'admin' || userRole === 'administrator' || userRole === 'ppd'
-
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 })
-    }
 
     // Check if user exists and get user info for audit
     const userToDelete = await prisma.user.findUnique({
@@ -225,7 +196,7 @@ export async function DELETE(
     }
 
     // Prevent self-deletion
-    if (id === session.user.id) {
+    if (id === auth.userId) {
       return NextResponse.json({ 
         error: 'Cannot delete your own account' 
       }, { status: 400 })
@@ -257,7 +228,7 @@ export async function DELETE(
 
     // Log the deletion for audit
     await auditHelpers.userDeleted(
-      session.user.id,
+      auth.userId!,
       userToDelete.id,
       `User deleted: ${userToDelete.firstName} ${userToDelete.lastName} (${userToDelete.email})`,
       clientIp,

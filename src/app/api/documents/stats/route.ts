@@ -1,25 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/next-auth';
 import { prisma } from '../../../../lib/prisma';
+import { requireCapability } from '@/lib/rbac-helpers';
 import { serializeForResponse } from '../../../../lib/bigint-utils';
+import { UnifiedAccessControl } from '@/lib/unified-access-control';
 
 // GET /api/documents/stats - Get document statistics for dashboard
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireCapability(request, 'DOCUMENT_VIEW');
+    if (!auth.authorized) {
+      return auth.error;
     }
 
+    // Get user for access control
+    const user = await prisma.user.findUnique({
+      where: { id: auth.userId! },
+      select: { id: true, groupId: true }
+    });
+
     // Get current user's accessible documents where clause
-    const userAccessWhere: any = session.user.role === 'ADMIN' ? {} : {
-      OR: [
-        { createdById: session.user.id }, // Documents they created
-        { isPublic: true }, // Public documents
-        { accessGroups: { has: session.user.groupId || '' } }, // Documents accessible to their group
-        { status: 'PUBLISHED' }, // All published documents are visible to everyone
-      ],
+    const orConditions: any[] = [
+      { createdById: auth.userId }, // Documents they created
+      { status: 'PUBLISHED' }, // All published documents visible based on capabilities
+      { accessGroups: { isEmpty: true } }, // Documents without group restrictions
+    ];
+    
+    // Only add group filter if user has a group
+    if (user?.groupId) {
+      orConditions.push({ accessGroups: { has: user.groupId } });
+    }
+    
+    const userAccessWhere: any = {
+      OR: orConditions,
     };
 
     // Get basic counts
@@ -78,7 +91,7 @@ export async function GET(request: NextRequest) {
       // Documents created by current user
       prisma.document.count({
         where: {
-          createdById: session.user.id,
+          createdById: auth.userId,
           status: { not: 'ARCHIVED' as const },
         },
       }),
@@ -149,7 +162,8 @@ export async function GET(request: NextRequest) {
       }),
 
       // Monthly document creation stats (last 12 months)
-      session.user.role === 'ADMIN' 
+      // Check if user has ADMIN_ACCESS capability for full stats
+      (await UnifiedAccessControl.hasCapability(auth.userId!, 'ADMIN_ACCESS'))
         ? prisma.$queryRaw`
             SELECT 
               DATE_TRUNC('month', created_at) as month,
@@ -168,9 +182,9 @@ export async function GET(request: NextRequest) {
             WHERE created_at >= NOW() - INTERVAL '12 months'
               AND status != 'ARCHIVED'
               AND (
-                created_by_id = ${session.user.id} OR 
+                created_by_id = ${auth.userId!} OR 
                 is_public = true OR 
-                ${session.user.groupId || ''} = ANY(access_groups)
+                ${user?.groupId || ''} = ANY(access_groups)
               )
             GROUP BY DATE_TRUNC('month', created_at)
             ORDER BY month DESC

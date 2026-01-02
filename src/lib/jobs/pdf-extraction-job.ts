@@ -41,6 +41,7 @@ export async function processPdfExtraction(
         filePath: true,
         mimeType: true,
         extractionStatus: true,
+        metadata: true,
       },
     })
 

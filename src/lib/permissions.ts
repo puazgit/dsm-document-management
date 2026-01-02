@@ -1,8 +1,23 @@
+/**
+ * @deprecated LEGACY FILE - This file uses the old Permission-based system
+ * 
+ * MIGRATION STATUS: DEPRECATED
+ * - This file is kept for backward compatibility only
+ * - All permission checks should migrate to capability-based system
+ * - Use: UnifiedAccessControl.hasCapability() for server-side checks
+ * - Use: useCapabilities() hook for client-side checks
+ * 
+ * DO NOT ADD NEW FUNCTIONALITY TO THIS FILE
+ */
+
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
 
+/**
+ * @deprecated Use UserWithCapabilities instead
+ */
 export interface UserWithPermissions {
   id: string
   email: string
@@ -14,6 +29,8 @@ export interface UserWithPermissions {
 
 /**
  * Get user with permissions from session
+ * @deprecated Use session.user.capabilities instead
+ * Legacy function maintained for backward compatibility
  */
 export async function getUserWithPermissions(request?: NextRequest): Promise<UserWithPermissions | null> {
   try {
@@ -28,9 +45,9 @@ export async function getUserWithPermissions(request?: NextRequest): Promise<Use
           include: {
             role: {
               include: {
-                rolePermissions: {
+                capabilityAssignments: {
                   include: {
-                    permission: true
+                    capability: true
                   }
                 }
               }
@@ -44,9 +61,8 @@ export async function getUserWithPermissions(request?: NextRequest): Promise<Use
 
     // Flatten permissions from all user roles
     const permissions = user.userRoles.flatMap(userRole => 
-      userRole.role.rolePermissions
-        .filter(rp => rp.isGranted) // Only include granted permissions
-        .map(rp => rp.permission.name)
+      userRole.role.capabilityAssignments
+        .map(ca => ca.capability.name)
     )
 
     // Remove duplicates
@@ -68,6 +84,8 @@ export async function getUserWithPermissions(request?: NextRequest): Promise<Use
 
 /**
  * Check if user has specific permission
+ * @deprecated Use UnifiedAccessControl.hasCapability() instead
+ * Legacy function maintained for backward compatibility
  */
 export async function hasPermission(
   permissionToCheck: string, 
@@ -81,6 +99,8 @@ export async function hasPermission(
 
 /**
  * Check if user has any of the specified permissions
+ * @deprecated Use UnifiedAccessControl.hasAnyCapability() instead
+ * Legacy function maintained for backward compatibility
  */
 export async function hasAnyPermission(
   permissionsToCheck: string[], 
@@ -147,6 +167,8 @@ export function requireRole(role: string) {
 
 /**
  * API route helper for permission checking
+ * @deprecated Use requireCapability() from rbac-helpers.ts instead
+ * Legacy function maintained for backward compatibility
  */
 export async function checkApiPermission(
   request: NextRequest,

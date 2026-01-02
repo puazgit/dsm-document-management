@@ -218,7 +218,7 @@ function PDFPermissionsPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex items-center gap-2">
-          <RefreshCw className="h-4 w-4 animate-spin" />
+          <RefreshCw className="w-4 h-4 animate-spin" />
           <span>Loading PDF permissions...</span>
         </div>
       </div>
@@ -226,12 +226,12 @@ function PDFPermissionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen py-8 bg-gray-50">
+      <div className="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <FileText className="h-8 w-8 text-red-600" />
+            <FileText className="w-8 h-8 text-red-600" />
             <div>
               <h1 className="text-3xl font-bold text-gray-900">PDF Permissions Management</h1>
               <p className="text-gray-600">Configure PDF access control for different user roles</p>
@@ -243,22 +243,22 @@ function PDFPermissionsPage() {
         <Card className="mb-8">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
+              <Settings className="w-5 h-5" />
               PDF Permission Actions
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {pdfActions.map((action) => {
                 const IconComponent = action.icon;
                 return (
                   <div key={action.key} className="flex items-start gap-3 p-3 border rounded-lg">
                     <div className={`p-2 rounded-md ${action.color}`}>
-                      <IconComponent className="h-4 w-4" />
+                      <IconComponent className="w-4 h-4" />
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-medium text-sm">{action.label}</h4>
-                      <p className="text-xs text-gray-500 mt-1">{action.description}</p>
+                      <h4 className="text-sm font-medium">{action.label}</h4>
+                      <p className="mt-1 text-xs text-gray-500">{action.description}</p>
                     </div>
                   </div>
                 );
@@ -271,7 +271,7 @@ function PDFPermissionsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
+              <Users className="w-5 h-5" />
               Role-based PDF Permissions
             </CardTitle>
           </CardHeader>
@@ -280,19 +280,19 @@ function PDFPermissionsPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-medium">Role</th>
+                    <th className="px-4 py-3 font-medium text-left">Role</th>
                     {pdfActions.map((action) => {
                       const IconComponent = action.icon;
                       return (
-                        <th key={action.key} className="text-center py-3 px-4">
+                        <th key={action.key} className="px-4 py-3 text-center">
                           <div className="flex flex-col items-center gap-1">
-                            <IconComponent className="h-4 w-4" />
+                            <IconComponent className="w-4 h-4" />
                             <span className="text-xs">{action.label}</span>
                           </div>
                         </th>
                       );
                     })}
-                    <th className="text-center py-3 px-4">Templates</th>
+                    <th className="px-4 py-3 text-center">Templates</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -302,7 +302,7 @@ function PDFPermissionsPage() {
 
                     return (
                       <tr key={rolePerms.roleId} className="border-b hover:bg-gray-50">
-                        <td className="py-4 px-4">
+                        <td className="px-4 py-4">
                           <div className="flex items-center gap-3">
                             <Badge variant="outline" className={`
                               ${role.name === 'admin' ? 'bg-red-50 text-red-700 border-red-200' : ''}
@@ -321,7 +321,7 @@ function PDFPermissionsPage() {
                           const permission = rolePerms.permissions.find(p => p.action === action.key);
                           
                           return (
-                            <td key={action.key} className="py-4 px-4 text-center">
+                            <td key={action.key} className="px-4 py-4 text-center">
                               {permission ? (
                                 <Switch
                                   checked={permission.isGranted}
@@ -336,7 +336,7 @@ function PDFPermissionsPage() {
                             </td>
                           );
                         })}
-                        <td className="py-4 px-4">
+                        <td className="px-4 py-4">
                           <div className="flex flex-wrap gap-1">
                             {['admin', 'manager', 'editor', 'viewer', 'none'].map((template) => (
                               <Button
@@ -367,7 +367,7 @@ function PDFPermissionsPage() {
             <CardTitle>Current PDF Access Summary</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
               {rolePermissions.map((rolePerms) => {
                 const role = roles.find(r => r.id === rolePerms.roleId);
                 if (!role) return null;

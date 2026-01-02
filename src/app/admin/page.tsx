@@ -72,7 +72,7 @@ function AdminDashboard() {
           </Card>
         </Link>
 
-        <Link href="/admin/capabilities">
+        <Link href="/admin/rbac/assignments">
           <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-blue-50 border-blue-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Capabilities</CardTitle>
@@ -80,7 +80,7 @@ function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <p className="text-xs text-muted-foreground">
-                Manage role capabilities (NEW)
+                Manage role capabilities with matrix view
               </p>
             </CardContent>
           </Card>

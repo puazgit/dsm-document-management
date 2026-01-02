@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../lib/next-auth';
 import { prisma } from '../../../lib/prisma';
+import { requireCapability } from '@/lib/rbac-helpers';
 import { z } from 'zod';
 import { serializeForResponse } from '../../../lib/bigint-utils';
 import { trackDocumentCreated } from '../../../lib/document-history';
@@ -12,7 +12,6 @@ const DocumentCreateSchema = z.object({
   title: z.string().min(1, 'Title is required').max(500, 'Title too long'),
   description: z.string().optional(),
   documentTypeId: z.string().cuid('Invalid document type ID'),
-  isPublic: z.boolean().default(false),
   accessGroups: z.array(z.string()).default([]),
   tags: z.array(z.string()).default([]),
   metadata: z.record(z.any()).optional(),
@@ -25,7 +24,6 @@ const DocumentQuerySchema = z.object({
   search: z.string().optional(),
   documentTypeId: z.string().optional(),
   status: z.enum(['DRAFT', 'PENDING_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED', 'ARCHIVED', 'EXPIRED']).optional(),
-  isPublic: z.string().transform(Boolean).optional(),
   sortBy: z.enum(['createdAt', 'updatedAt', 'title', 'downloadCount', 'viewCount']).default('updatedAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
@@ -33,9 +31,9 @@ const DocumentQuerySchema = z.object({
 // GET /api/documents - List documents with filtering and pagination
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireCapability(request, 'DOCUMENT_VIEW');
+    if (!auth.authorized) {
+      return auth.error;
     }
 
     const { searchParams } = new URL(request.url);
@@ -47,7 +45,6 @@ export async function GET(request: NextRequest) {
       search,
       documentTypeId,
       status,
-      isPublic,
       sortBy,
       sortOrder
     } = DocumentQuerySchema.parse(query);
@@ -77,15 +74,15 @@ export async function GET(request: NextRequest) {
 
     // Access control - users can only see documents they have access to
     // Get user with group information
-    const currentUser = await getUserWithGroup(session.user.id);
+    const currentUser = await getUserWithGroup(auth.userId!);
     
     if (!currentUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Build access control where clause with user permissions
-    const userPermissions = session.user.permissions || [];
-    const accessWhere = buildDocumentAccessWhere(currentUser, userPermissions);
+    // Build access control where clause - no permissions needed for basic document access
+    // The capability check above already ensures user has DOCUMENT_VIEW
+    const accessWhere = buildDocumentAccessWhere(currentUser, []);
     
     // Merge access control with other filters
     if (Object.keys(accessWhere).length > 0) {
@@ -94,15 +91,6 @@ export async function GET(request: NextRequest) {
         where.AND.push(accessWhere);
       } else {
         Object.assign(where, accessWhere);
-      }
-    }
-
-    // Filter by public/private (after access control)
-    if (isPublic !== undefined) {
-      if (where.AND) {
-        where.AND.push({ isPublic });
-      } else {
-        where.isPublic = isPublic;
       }
     }
 
@@ -190,10 +178,7 @@ export async function GET(request: NextRequest) {
 // POST /api/documents - Create new document (metadata only, file upload handled separately)
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireCapability(request, 'DOCUMENT_CREATE');
 
     const body = await request.json();
     const data = DocumentCreateSchema.parse(body);
@@ -213,7 +198,7 @@ export async function POST(request: NextRequest) {
         ...data,
         fileName: '', // Will be updated when file is uploaded
         filePath: '', // Will be updated when file is uploaded
-        createdById: session.user.id,
+        createdById: auth.userId!,
         expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
       },
       include: {
@@ -247,7 +232,7 @@ export async function POST(request: NextRequest) {
     await prisma.documentActivity.create({
       data: {
         documentId: document.id,
-        userId: session.user.id,
+        userId: auth.userId!,
         action: 'CREATE',
         description: `Document "${document.title}" was created`,
       },
@@ -255,7 +240,7 @@ export async function POST(request: NextRequest) {
 
     // Track document history
     try {
-      await trackDocumentCreated(document.id, session.user.id, {
+      await trackDocumentCreated(document.id, auth.userId!, {
         title: document.title,
         description: document.description,
         documentType: document.documentType.name,

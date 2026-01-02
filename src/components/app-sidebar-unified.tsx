@@ -41,11 +41,17 @@ import { useState, useEffect } from "react"
 import { useUnifiedNavigation } from "@/hooks/use-unified-navigation"
 import { getIconComponent } from "@/lib/icon-mapper"
 import { getRoleConfig } from "../config/roles"
+import { CapabilityGuard } from "@/hooks/use-capabilities"
 
 // Helper function to get role display with icon
+// Sanitized to prevent information leakage
 function getRoleDisplay(role: string): string {
-  const roleConfig = getRoleConfig(role)
-  const displayName = roleConfig?.description?.split(' ')[0] || role
+  if (!role || typeof role !== 'string') {
+    return '👤 User'
+  }
+  
+  // Normalize role name
+  const normalizedRole = role.toLowerCase().trim()
   
   const roleIcons: Record<string, string> = {
     admin: '🔧 Admin',
@@ -63,7 +69,8 @@ function getRoleDisplay(role: string): string {
     viewer: '👁️ Viewer'
   }
   
-  return roleIcons[role] || `👤 ${displayName}`
+  // Return mapped role or generic user label
+  return roleIcons[normalizedRole] || '👤 User'
 }
 
 const SIDEBAR_OPEN_ITEMS_KEY = 'sidebar-open-items'
@@ -74,6 +81,15 @@ export function AppSidebarUnified() {
   const [openItems, setOpenItems] = useState<string[]>([])
   const { navigation, loading, error } = useUnifiedNavigation()
 
+  // Debug logging
+  useEffect(() => {
+    if (session?.user) {
+      console.log('[AppSidebarUnified] Session:', session.user.email)
+      console.log('[AppSidebarUnified] Navigation items:', navigation.length)
+      console.log('[AppSidebarUnified] Loading:', loading, 'Error:', error)
+    }
+  }, [session, navigation, loading, error])
+
   // Load open state from localStorage on mount
   useEffect(() => {
     if (!session?.user) return
@@ -81,10 +97,18 @@ export function AppSidebarUnified() {
     try {
       const saved = localStorage.getItem(SIDEBAR_OPEN_ITEMS_KEY)
       if (saved) {
-        setOpenItems(JSON.parse(saved))
+        const parsed = JSON.parse(saved)
+        // Validate parsed data is array of strings
+        if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+          setOpenItems(parsed)
+        } else {
+          console.warn('Invalid sidebar state format, resetting')
+          localStorage.removeItem(SIDEBAR_OPEN_ITEMS_KEY)
+        }
       }
     } catch (error) {
       console.warn('Failed to load sidebar state:', error)
+      localStorage.removeItem(SIDEBAR_OPEN_ITEMS_KEY)
     }
   }, [session?.user])
 
@@ -309,7 +333,7 @@ export function AppSidebarUnified() {
                     <span className="font-semibold truncate">{session.user.name}</span>
                     <span className="text-xs truncate">{session.user.email}</span>
                     <span className="truncate text-[10px] text-muted-foreground font-medium">
-                      {getRoleDisplay(session.user.role || 'guest')}
+                      {getRoleDisplay((session.user as any).role || 'guest')}
                     </span>
                   </div>
                 </SidebarMenuButton>
@@ -326,18 +350,22 @@ export function AppSidebarUnified() {
                     Profile
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/settings">
-                    <Settings className="w-4 h-4" />
-                    Settings
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/users">
-                    <Users className="w-4 h-4" />
-                    Users
-                  </Link>
-                </DropdownMenuItem>
+                <CapabilityGuard anyOf={['ADMIN_ACCESS', 'SYSTEM_CONFIG']}>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/settings">
+                      <Settings className="w-4 h-4" />
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
+                </CapabilityGuard>
+                <CapabilityGuard anyOf={['USER_VIEW', 'USER_MANAGE']}>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/users">
+                      <Users className="w-4 h-4" />
+                      Users
+                    </Link>
+                  </DropdownMenuItem>
+                </CapabilityGuard>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/auth/login" })}>
                   <LogOut className="w-4 h-4" />

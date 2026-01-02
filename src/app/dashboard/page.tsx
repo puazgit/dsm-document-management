@@ -56,7 +56,7 @@ function DashboardPage() {
   if (status === "loading") {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Spinner className="w-8 h-8" />
+        <div className="w-8 h-8 border-b-2 border-gray-900 rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -74,7 +74,7 @@ function DashboardPage() {
 
   return (
     <div 
-      className="document-secure-page container mx-auto space-y-6"
+      className="container mx-auto space-y-6 document-secure-page"
       onContextMenu={handleContextMenu}
       onKeyDown={handleKeyDown}
     >
@@ -132,8 +132,8 @@ function DashboardPage() {
   )
 }
 
-// Export with capability-based authentication
+// Export with authentication (no specific capabilities required)
+// Dashboard is available to all authenticated users
 export default withAuth(DashboardPage, {
-  requiredCapabilities: ['DASHBOARD_VIEW'],
-  redirectTo: '/unauthorized'
+  redirectTo: '/auth/login'
 })

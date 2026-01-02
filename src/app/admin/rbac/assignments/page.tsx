@@ -20,8 +20,37 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Shield, Users, Check, X } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Shield, Users, Check, X, Plus, Pencil, Trash2, AlertCircle } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 interface Capability {
   id: string
@@ -47,6 +76,22 @@ function RoleCapabilitiesPage() {
   const [capabilities, setCapabilities] = useState<Capability[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<string | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [editingCapability, setEditingCapability] = useState<Capability | null>(null)
+  const [deletingCapability, setDeletingCapability] = useState<Capability | null>(null)
+  const [newCapability, setNewCapability] = useState({
+    name: '',
+    description: '',
+    category: 'system',
+  })
+  const [editForm, setEditForm] = useState({
+    name: '',
+    description: '',
+    category: 'system',
+  })
 
   useEffect(() => {
     fetchData()
@@ -146,6 +191,137 @@ function RoleCapabilitiesPage() {
     return colors[category || 'system'] || 'bg-gray-100 text-gray-800'
   }
 
+  const handleCreateCapability = async () => {
+    if (!newCapability.name.trim()) {
+      toast({
+        title: 'Validation Error',
+        description: 'Capability name is required',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setCreating(true)
+    try {
+      const response = await fetch('/api/admin/capabilities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newCapability),
+      })
+
+      if (response.ok) {
+        toast({
+          title: 'Success',
+          description: 'Capability created successfully',
+        })
+        setDialogOpen(false)
+        setNewCapability({ name: '', description: '', category: 'system' })
+        fetchData() // Refresh data
+      } else {
+        const data = await response.json()
+        toast({
+          title: 'Error',
+          description: data.error || 'Failed to create capability',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to create capability',
+        variant: 'destructive',
+      })
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const openEditDialog = (capability: Capability) => {
+    setEditingCapability(capability)
+    setEditForm({
+      name: capability.name,
+      description: capability.description || '',
+      category: capability.category || 'system',
+    })
+    setEditDialogOpen(true)
+  }
+
+  const handleEditCapability = async () => {
+    if (!editingCapability) return
+
+    setCreating(true)
+    try {
+      const response = await fetch(`/api/admin/capabilities?id=${editingCapability.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm),
+      })
+
+      if (response.ok) {
+        toast({
+          title: 'Success',
+          description: 'Capability updated successfully',
+        })
+        setEditDialogOpen(false)
+        setEditingCapability(null)
+        fetchData()
+      } else {
+        const data = await response.json()
+        toast({
+          title: 'Error',
+          description: data.error || 'Failed to update capability',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update capability',
+        variant: 'destructive',
+      })
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const openDeleteDialog = (capability: Capability) => {
+    setDeletingCapability(capability)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteCapability = async () => {
+    if (!deletingCapability) return
+
+    try {
+      const response = await fetch(`/api/admin/capabilities?id=${deletingCapability.id}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        toast({
+          title: 'Success',
+          description: 'Capability deleted successfully',
+        })
+        setDeleteDialogOpen(false)
+        setDeletingCapability(null)
+        fetchData()
+      } else {
+        const data = await response.json()
+        toast({
+          title: 'Error',
+          description: data.error || 'Failed to delete capability',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete capability',
+        variant: 'destructive',
+      })
+    }
+  }
+
   const groupedCapabilities = capabilities.reduce((acc, cap) => {
     const category = cap.category || 'other'
     if (!acc[category]) {
@@ -164,6 +340,97 @@ function RoleCapabilitiesPage() {
             Manage which capabilities are assigned to each role
           </p>
         </div>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Capability
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[525px]">
+            <DialogHeader>
+              <DialogTitle>Create New Capability</DialogTitle>
+              <DialogDescription>
+                Add a new capability to the system. It will be available for assignment to roles.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="name">Name *</Label>
+                <Input
+                  id="name"
+                  placeholder="e.g., DOCUMENT_CREATE"
+                  value={newCapability.name}
+                  onChange={(e) =>
+                    setNewCapability({ ...newCapability, name: e.target.value.toUpperCase().replace(/\s+/g, '_') })
+                  }
+                  disabled={creating}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Use UPPER_CASE format with underscores
+                </p>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Describe what this capability allows"
+                  value={newCapability.description}
+                  onChange={(e) =>
+                    setNewCapability({ ...newCapability, description: e.target.value })
+                  }
+                  disabled={creating}
+                  rows={3}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="category">Category *</Label>
+                <Select
+                  value={newCapability.category}
+                  onValueChange={(value) =>
+                    setNewCapability({ ...newCapability, category: value })
+                  }
+                  disabled={creating}
+                >
+                  <SelectTrigger id="category">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="system">System</SelectItem>
+                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="document">Document</SelectItem>
+                    <SelectItem value="organization">Organization</SelectItem>
+                    <SelectItem value="analytics">Analytics</SelectItem>
+                    <SelectItem value="audit">Audit</SelectItem>
+                    <SelectItem value="workflow">Workflow</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDialogOpen(false)
+                  setNewCapability({ name: '', description: '', category: 'system' })
+                }}
+                disabled={creating}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleCreateCapability} disabled={creating}>
+                {creating ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create Capability'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="flex gap-6">
@@ -223,6 +490,7 @@ function RoleCapabilitiesPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead className="w-[300px]">Capability</TableHead>
+                          <TableHead className="w-[100px] text-center">Actions</TableHead>
                           {roles.map((role) => (
                             <TableHead key={role.id} className="text-center">
                               <div className="flex flex-col items-center">
@@ -246,6 +514,28 @@ function RoleCapabilitiesPage() {
                                 <div className="text-xs text-muted-foreground">
                                   {capability.description}
                                 </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center justify-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                  onClick={() => openEditDialog(capability)}
+                                  title="Edit capability"
+                                >
+                                  <Pencil className="w-4 h-4 text-blue-600" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                  onClick={() => openDeleteDialog(capability)}
+                                  title="Delete capability"
+                                >
+                                  <Trash2 className="w-4 h-4 text-red-600" />
+                                </Button>
                               </div>
                             </TableCell>
                             {roles.map((role) => {
@@ -327,6 +617,128 @@ function RoleCapabilitiesPage() {
           </Card>
         ))}
       </div>
+
+      {/* Edit Capability Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-[525px]">
+          <DialogHeader>
+            <DialogTitle>Edit Capability</DialogTitle>
+            <DialogDescription>
+              Update capability information. Name changes will affect all resources using this capability.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-name">Name *</Label>
+              <Input
+                id="edit-name"
+                value={editForm.name}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, name: e.target.value.toUpperCase().replace(/\s+/g, '_') })
+                }
+                disabled={creating}
+              />
+              <p className="text-xs text-muted-foreground">
+                Use UPPER_CASE format with underscores
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-description">Description</Label>
+              <Textarea
+                id="edit-description"
+                placeholder="Describe what this capability allows"
+                value={editForm.description}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, description: e.target.value })
+                }
+                disabled={creating}
+                rows={3}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-category">Category *</Label>
+              <Select
+                value={editForm.category}
+                onValueChange={(value) =>
+                  setEditForm({ ...editForm, category: value })
+                }
+                disabled={creating}
+              >
+                <SelectTrigger id="edit-category">
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="system">System</SelectItem>
+                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="document">Document</SelectItem>
+                  <SelectItem value="organization">Organization</SelectItem>
+                  <SelectItem value="analytics">Analytics</SelectItem>
+                  <SelectItem value="audit">Audit</SelectItem>
+                  <SelectItem value="workflow">Workflow</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditDialogOpen(false)
+                setEditingCapability(null)
+              }}
+              disabled={creating}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleEditCapability} disabled={creating}>
+              {creating ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  Updating...
+                </>
+              ) : (
+                'Update Capability'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Capability Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Capability</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                Are you sure you want to delete <strong className="font-mono">{deletingCapability?.name}</strong>?
+              </p>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mt-3">
+                <div className="flex gap-2">
+                  <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-yellow-800">
+                    <p className="font-semibold">Warning:</p>
+                    <ul className="list-disc list-inside mt-1 space-y-1">
+                      <li>All role assignments will be removed</li>
+                      <li>Resources using this capability will lose access control</li>
+                      <li>This action cannot be undone</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCapability}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete Capability
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

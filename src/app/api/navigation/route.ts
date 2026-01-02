@@ -15,18 +15,32 @@ export async function GET(req: NextRequest) {
     const session = await getServerSession(authOptions)
     
     if (!session?.user?.id) {
+      console.log('[API /navigation] Unauthorized - no session')
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
     
+    console.log('[API /navigation] Fetching navigation for user:', session.user.email)
+    
     // Get navigation for user
     const navigation = await getNavigationForUser(session.user.id)
     
-    return NextResponse.json({ navigation })
+    console.log('[API /navigation] Returning', navigation.length, 'items')
+    
+    return NextResponse.json(
+      { navigation },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        }
+      }
+    )
   } catch (error) {
-    console.error('Error fetching navigation:', error)
+    console.error('[API /navigation] Error fetching navigation:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

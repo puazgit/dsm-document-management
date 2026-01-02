@@ -3,20 +3,19 @@
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useEffect, ReactNode } from 'react'
+import { Capability } from '@/hooks/use-capabilities'
 
 interface ProtectedRouteProps {
   children: ReactNode
-  requiredRoles?: string[]
-  requiredPermissions?: string[]
-  requiredCapabilities?: string[]
+  requiredCapabilities?: Capability[]
+  requireAll?: boolean
   redirectTo?: string
 }
 
 export function ProtectedRoute({ 
   children, 
-  requiredRoles = [],
-  requiredPermissions = [],
   requiredCapabilities = [],
+  requireAll = false,
   redirectTo = '/auth/login'
 }: ProtectedRouteProps) {
   const { data: session, status } = useSession()
@@ -30,35 +29,21 @@ export function ProtectedRoute({
       return
     }
 
-    // Check roles
-    if (requiredRoles.length > 0) {
-      const userRole = session.user.role
-      if (!requiredRoles.includes(userRole)) {
-        router.push('/unauthorized')
-        return
-      }
-    }
-
-    // Check capabilities (priority over roles)
+    // Check capabilities from session
     if (requiredCapabilities.length > 0) {
-      const userCapabilities = session.user.capabilities || []
-      const hasRequiredCapability = requiredCapabilities.some(cap => 
-        userCapabilities.includes(cap)
-      )
+      const userCapabilities = (session.user as any).capabilities || []
       
-      if (!hasRequiredCapability) {
+      const hasRequiredCapabilities = requireAll
+        ? requiredCapabilities.every(cap => userCapabilities.includes(cap))
+        : requiredCapabilities.some(cap => userCapabilities.includes(cap))
+      
+      if (!hasRequiredCapabilities) {
         console.warn('User lacks required capabilities:', requiredCapabilities)
         router.push('/unauthorized')
         return
       }
     }
-
-    // Check permissions (this would need to be implemented when we have permissions in session)
-    if (requiredPermissions.length > 0) {
-      // TODO: Implement permission checking when permissions are added to session
-      console.log('Permission checking not yet implemented:', requiredPermissions)
-    }
-  }, [session, status, router, requiredRoles, requiredPermissions, requiredCapabilities, redirectTo])
+  }, [session, status, router, requiredCapabilities, requireAll, redirectTo])
 
   // Show minimal loading - don't block UI for too long
   if (status === 'loading') {
@@ -69,22 +54,15 @@ export function ProtectedRoute({
     return null // Will redirect
   }
 
-  // Additional role checking for render
-  if (requiredRoles.length > 0) {
-    const userRole = session.user.role
-    if (!requiredRoles.includes(userRole)) {
-      return null // Will redirect
-    }
-  }
-
   // Additional capability checking for render
   if (requiredCapabilities.length > 0) {
-    const userCapabilities = session.user.capabilities || []
-    const hasRequiredCapability = requiredCapabilities.some(cap => 
-      userCapabilities.includes(cap)
-    )
+    const userCapabilities = (session.user as any).capabilities || []
     
-    if (!hasRequiredCapability) {
+    const hasRequiredCapabilities = requireAll
+      ? requiredCapabilities.every(cap => userCapabilities.includes(cap))
+      : requiredCapabilities.some(cap => userCapabilities.includes(cap))
+    
+    if (!hasRequiredCapabilities) {
       return null // Will redirect
     }
   }

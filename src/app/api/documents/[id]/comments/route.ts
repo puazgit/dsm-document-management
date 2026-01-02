@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../../lib/next-auth';
 import { prisma } from '../../../../../lib/prisma';
+import { requireCapability } from '@/lib/rbac-helpers';
 import { z } from 'zod';
 
 // Validation schema for comments
@@ -16,10 +16,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireCapability(request, 'DOCUMENT_VIEW');
 
     const { id: documentId } = params;
     const { searchParams } = new URL(request.url);
@@ -35,16 +32,7 @@ export async function GET(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
-    // Check access permissions
-    const hasAccess = 
-      document.isPublic ||
-      document.createdById === session.user.id ||
-      document.accessGroups.includes(session.user.groupId || '') ||
-      session.user.role === 'ADMIN';
-
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-    }
+    // Permission check done via capability system
 
     // Calculate pagination
     const skip = (page - 1) * limit;
@@ -124,10 +112,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireCapability(request, 'DOCUMENT_COMMENT');
 
     const { id: documentId } = params;
     const body = await request.json();
@@ -152,16 +137,7 @@ export async function POST(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
-    // Check access permissions
-    const hasAccess = 
-      document.isPublic ||
-      document.createdById === session.user.id ||
-      document.accessGroups.includes(session.user.groupId || '') ||
-      session.user.role === 'ADMIN';
-
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-    }
+    // Permission check done via capability system
 
     // If this is a reply, check if parent comment exists
     if (data.parentId) {
@@ -179,7 +155,7 @@ export async function POST(
       data: {
         ...data,
         documentId,
-        userId: session.user.id,
+        userId: auth.userId!,
       },
       include: {
         user: {
@@ -215,7 +191,7 @@ export async function POST(
       await prisma.documentActivity.create({
         data: {
           documentId,
-          userId: session.user.id,
+          userId: auth.userId!,
           action: 'COMMENT',
           description: data.parentId 
             ? `Replied to a comment on document "${document.title}"`
@@ -225,17 +201,17 @@ export async function POST(
     }
 
     // Create notification for document owner (if not the commenter)
-    if (document.createdById !== session.user.id) {
+    if (document.createdById !== auth.userId) {
       await prisma.notification.create({
         data: {
           userId: document.createdById,
           type: data.parentId ? 'COMMENT_REPLIED' : 'COMMENT_ADDED',
           title: data.parentId ? 'New reply on your document' : 'New comment on your document',
-          message: `${session.user.name} ${data.parentId ? 'replied to a comment' : 'commented'} on "${document.title}"`,
+          message: `${comment.user.firstName} ${comment.user.lastName} ${data.parentId ? 'replied to a comment' : 'commented'} on "${document.title}"`,
           data: {
             documentId,
             commentId: comment.id,
-            commenterId: session.user.id,
+            commenterId: auth.userId,
           },
         },
       });

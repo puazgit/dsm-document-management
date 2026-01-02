@@ -24,8 +24,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 
 // Dynamic import for PDF viewer
-const SecurePDFViewer = dynamic(
-  () => import('@/components/documents/pdf-viewer').then(mod => ({ default: mod.SecurePDFViewer })),
+const PDFViewerWrapper = dynamic(
+  () => import('@/components/documents/pdf-viewer-wrapper').then(mod => ({ default: mod.PDFViewerWrapper })),
   { ssr: false, loading: () => <div className="flex items-center justify-center h-96">Loading PDF viewer...</div> }
 );
 
@@ -125,7 +125,6 @@ interface SearchResponse {
     fileType?: string;
     minSize?: number;
     maxSize?: number;
-    isPublic?: boolean;
     hasComments?: boolean;
     sortBy?: string;
     sortOrder?: string;
@@ -164,7 +163,7 @@ function UserMenu() {
         .join('')
         .toUpperCase()
         .slice(0, 2)
-    : session.user.email?.[0].toUpperCase() || 'U';
+    : session?.user?.email?.[0]?.toUpperCase() || 'U';
 
   return (
     <DropdownMenu>
@@ -174,7 +173,7 @@ function UserMenu() {
           className="relative rounded-full h-9 w-9 ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Avatar className="h-9 w-9">
-            <AvatarImage src={session.user.image || undefined} alt={session.user.name || ''} />
+            <AvatarImage src={undefined} alt={session?.user?.name || ''} />
             <AvatarFallback className="text-sm bg-primary text-primary-foreground">
               {userInitials}
             </AvatarFallback>
@@ -585,10 +584,10 @@ export function SearchPage({ initialQuery = "" }: SearchPageProps) {
           </DialogHeader>
           <div className="flex-1 overflow-hidden">
             {selectedDocument && session && (
-              <SecurePDFViewer
+              <PDFViewerWrapper
                 fileUrl={`/api/documents/${selectedDocument.id}/download`}
                 fileName={selectedDocument.fileName}
-                userRole={session.user.role}
+                userRole={(session.user as any).role}
                 canDownload={false}
                 document={selectedDocument}
               />

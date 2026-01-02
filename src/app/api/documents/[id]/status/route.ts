@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../../lib/next-auth';
 import { prisma } from '../../../../../lib/prisma';
+import { requireCapability } from '@/lib/rbac-helpers';
 import { z } from 'zod';
 import { serializeForResponse } from '../../../../../lib/bigint-utils';
-import { hasCapability, type CapabilityUser } from '@/lib/capabilities';
 import { 
   DocumentStatus, 
   isTransitionAllowed, 
@@ -12,6 +12,7 @@ import {
   WORKFLOW_DESCRIPTIONS 
 } from '../../../../../config/document-workflow';
 import { trackDocumentStatusChanged } from '../../../../../lib/document-history';
+import { hasCapability, type CapabilityUser } from '@/lib/capabilities';
 
 // Validation schema for status change
 const StatusChangeSchema = z.object({
@@ -27,6 +28,11 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    const auth = await requireCapability(request, 'DOCUMENT_EDIT');
+    if (!auth.authorized || !auth.userId) {
+      return auth.error || NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -56,20 +62,20 @@ export async function POST(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
-    // Check if transition is allowed
-    const userPermissions = session.user.permissions || [];
+    // Get user permissions and role
+    // DEPRECATED: Migrated to capability-based authorization
+    const userPermissions: string[] = [];
     const userRole = session.user.role || '';
-    
-    // Get user's role level from database
+
+    // Get user's roles from database
     const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: auth.userId! },
       include: {
         userRoles: {
           include: {
             role: {
               select: {
                 id: true,
-                level: true,
                 name: true
               }
             }
@@ -78,38 +84,18 @@ export async function POST(
       }
     });
     
-    // Get highest role level
-    const userLevel = currentUser?.userRoles.reduce((maxLevel, userRole) => {
-      return Math.max(maxLevel, userRole.role.level);
-    }, 0) || 0;
-    
-    // Check capability-based admin access
-    const capUser: CapabilityUser = { 
-      id: session.user.id, 
-      email: session.user.email || '', 
-      roles: currentUser?.userRoles.map(ur => ({
-        id: ur.role.id,
-        name: ur.role.name,
-        level: ur.role.level
-      })) || []
-    };
-    const hasAdminCapability = await hasCapability(capUser, 'ADMIN_ACCESS');
-    
-    const effectivePermissions = hasAdminCapability ? 
-      ['*', 'documents.create', 'documents.read', 'documents.update', 'documents.delete', 'documents.approve'] : 
-      userPermissions;
+    const effectivePermissions = userPermissions;
 
     const currentStatus = document.status as DocumentStatus;
-    const isAllowed = await isTransitionAllowed(currentStatus, newStatus, userRole, effectivePermissions, userLevel);
+    const isAllowed = await isTransitionAllowed(currentStatus, newStatus, userRole, effectivePermissions);
 
     if (!isAllowed) {
-      const allowedTransitions = await getAllowedTransitions(currentStatus, userRole, effectivePermissions, userLevel);
+      const allowedTransitions = await getAllowedTransitions(currentStatus, userRole, effectivePermissions);
       return NextResponse.json({ 
-        error: `Status transition from ${currentStatus} to ${newStatus} is not allowed for your role (level ${userLevel})`,
+        error: `Status transition from ${currentStatus} to ${newStatus} is not allowed for your role`,
         allowedTransitions: allowedTransitions.map(t => ({
           to: t.to,
-          description: t.description,
-          minLevel: t.minLevel
+          description: t.description
         }))
       }, { status: 403 });
     }
@@ -117,17 +103,16 @@ export async function POST(
     // Additional fields based on status
     const updateData: any = {
       status: newStatus,
-      updatedById: session.user.id,
+      updatedById: auth.userId,
       updatedAt: new Date(),
     };
 
     // Set specific timestamps based on status
     if (newStatus === DocumentStatus.APPROVED) {
-      updateData.approvedById = session.user.id;
+      updateData.approvedById = auth.userId;
       updateData.approvedAt = new Date();
     } else if (newStatus === DocumentStatus.PUBLISHED) {
       updateData.publishedAt = new Date();
-      updateData.isPublic = true; // Auto-set to public when published
     }
 
     // Update document status
@@ -177,7 +162,7 @@ export async function POST(
     await prisma.documentActivity.create({
       data: {
         documentId,
-        userId: session.user.id,
+        userId: auth.userId!,
         action: 'UPDATE',
         description: activityDescription,
         metadata: {
@@ -202,7 +187,7 @@ export async function POST(
       
       await trackDocumentStatusChanged(
         documentId,
-        session.user.id,
+        auth.userId,
         currentStatus,
         newStatus,
         historyReason
@@ -221,7 +206,7 @@ export async function POST(
       await prisma.comment.create({
         data: {
           documentId,
-          userId: session.user.id,
+          userId: auth.userId!,
           content: commentContent,
         },
       });
@@ -231,7 +216,7 @@ export async function POST(
     const notifications: any[] = [];
 
     // Notify document owner if not the same user
-    if (document.createdById !== session.user.id) {
+    if (document.createdById !== auth.userId) {
       let notificationType: 'DOCUMENT_APPROVED' | 'DOCUMENT_REJECTED' | 'DOCUMENT_PUBLISHED' | 'SYSTEM_MAINTENANCE' = 'SYSTEM_MAINTENANCE'; // Default
       let title = 'Document Status Changed';
       let message = `Your document "${document.title}" status has been changed to ${newStatus}`;
@@ -321,7 +306,8 @@ export async function GET(
     }
 
     // Get user permissions and role
-    const userPermissions = session.user.permissions || [];
+    // DEPRECATED: Migrated to capability-based authorization
+    const userPermissions: string[] = [];
     const userRole = session.user.role || '';
     
     // Get user's role level from database
@@ -333,7 +319,6 @@ export async function GET(
             role: {
               select: {
                 id: true,
-                level: true,
                 name: true,
                 displayName: true
               }
@@ -343,12 +328,7 @@ export async function GET(
       }
     });
     
-    // Get highest role level
-    const userLevel = currentUser?.userRoles.reduce((maxLevel, userRole) => {
-      return Math.max(maxLevel, userRole.role.level);
-    }, 0) || 0;
-    
-    const highestRole = currentUser?.userRoles.find(ur => ur.role.level === userLevel)?.role;
+    const highestRole = currentUser?.userRoles?.[0]?.role;
     
     // Check capability-based admin access for GET endpoint
     const capUserGet: CapabilityUser = { 
@@ -356,8 +336,7 @@ export async function GET(
       email: session.user.email || '', 
       roles: currentUser?.userRoles.map(ur => ({
         id: ur.role.id,
-        name: ur.role.name,
-        level: ur.role.level
+        name: ur.role.name
       })) || []
     };
     const hasAdminCapabilityGet = await hasCapability(capUserGet, 'ADMIN_ACCESS');
@@ -367,7 +346,20 @@ export async function GET(
       userPermissions;
 
     const currentStatus = document.status as DocumentStatus;
-    const allowedTransitions = await getAllowedTransitions(currentStatus, userRole, effectivePermissions, userLevel);
+    const allowedTransitions = await getAllowedTransitions(currentStatus, userRole, effectivePermissions);
+
+    // Check if user can modify (document creator or has admin/edit capability)
+    const capUserModify: CapabilityUser = { 
+      id: session.user.id, 
+      email: session.user.email || '', 
+      roles: currentUser?.userRoles.map(ur => ({
+        id: ur.role.id,
+        name: ur.role.name
+      })) || []
+    };
+    const canModify = document.createdById === session.user.id || 
+                      await hasCapability(capUserModify, 'ADMIN_ACCESS') ||
+                      await hasCapability(capUserModify, 'DOCUMENT_EDIT');
 
     return NextResponse.json(serializeForResponse({
       document: {
@@ -379,16 +371,14 @@ export async function GET(
       allowedTransitions: allowedTransitions.map(t => ({
         to: t.to,
         description: t.description,
-        minLevel: t.minLevel,
         allowedBy: t.allowedBy
       })),
       userInfo: {
         role: userRole,
-        level: userLevel,
         roleName: highestRole?.name,
         roleDisplayName: highestRole?.displayName,
         permissions: userPermissions,
-        canModify: document.createdById === session.user.id || userLevel >= 70 // Manager+ or document creator
+        canModify
       }
     }));
   } catch (error) {

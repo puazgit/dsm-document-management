@@ -44,7 +44,7 @@ const getPageInfo = (pathname: string) => {
     case '/admin/roles':
       return {
         title: 'Role Management',
-        description: 'Configure roles and permissions'
+        description: 'Configure roles and capabilities'
       }
     case '/admin/settings':
       return {

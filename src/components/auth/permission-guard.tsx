@@ -2,21 +2,23 @@
 
 import { useSession } from 'next-auth/react'
 import { ReactNode } from 'react'
+import { useCapabilities, Capability } from '@/hooks/use-capabilities'
 
 interface PermissionGuardProps {
   children: ReactNode
-  requiredPermissions: string[]
+  requiredCapabilities: Capability[]
   fallback?: ReactNode
-  requireAll?: boolean // true = require ALL permissions, false = require ANY permission
+  requireAll?: boolean // true = require ALL capabilities, false = require ANY capability
 }
 
 export function PermissionGuard({ 
   children, 
-  requiredPermissions, 
+  requiredCapabilities, 
   fallback = null,
   requireAll = false 
 }: PermissionGuardProps) {
-  const { data: session, status } = useSession()
+  const { hasAnyCapability, hasAllCapabilities } = useCapabilities()
+  const { status } = useSession()
 
   if (status === 'loading') {
     return (
@@ -26,15 +28,9 @@ export function PermissionGuard({
     )
   }
 
-  if (!session?.user) {
-    return fallback as JSX.Element
-  }
-
-  const userPermissions = (session.user as any).permissions as string[] || []
-
   const hasPermission = requireAll
-    ? requiredPermissions.every(permission => userPermissions.includes(permission))
-    : requiredPermissions.some(permission => userPermissions.includes(permission))
+    ? hasAllCapabilities(requiredCapabilities)
+    : hasAnyCapability(requiredCapabilities)
 
   if (!hasPermission) {
     return fallback as JSX.Element
@@ -43,36 +39,5 @@ export function PermissionGuard({
   return <>{children}</>
 }
 
-// Hook for checking permissions in components
-export function usePermissions() {
-  const { data: session } = useSession()
-  
-  const userPermissions = (session?.user as any)?.permissions as string[] || []
-  
-  const hasPermission = (permission: string | string[], requireAll = false): boolean => {
-    if (typeof permission === 'string') {
-      return userPermissions.includes(permission)
-    }
-    
-    return requireAll
-      ? permission.every(p => userPermissions.includes(p))
-      : permission.some(p => userPermissions.includes(p))
-  }
-
-  const hasRole = (role: string): boolean => {
-    const userRole = session?.user?.role
-    return userRole === role
-  }
-
-  const isAdmin = (): boolean => {
-    return hasRole('admin') || hasPermission('admin.access')
-  }
-
-  return {
-    userPermissions,
-    hasPermission,
-    hasRole,
-    isAdmin,
-    user: session?.user
-  }
-}
+// Hook for checking capabilities in components (re-export from use-capabilities)
+export { useCapabilities as usePermissions } from '@/hooks/use-capabilities'

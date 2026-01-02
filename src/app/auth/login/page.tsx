@@ -18,7 +18,7 @@ const Label = ({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelEleme
 )
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("")
+  const [emailOrUsername, setEmailOrUsername] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
@@ -34,7 +34,7 @@ export default function LoginPage() {
 
     try {
       const result = await signIn("credentials", {
-        email,
+        emailOrUsername,
         password,
         redirect: false,
       })
@@ -43,7 +43,7 @@ export default function LoginPage() {
         console.log('[LOGIN] Login failed:', result.error)
         toast({
           title: "Login Failed",
-          description: "Invalid email or password",
+          description: "Invalid email/username or password",
           variant: "destructive",
         })
       } else {
@@ -92,16 +92,16 @@ export default function LoginPage() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="emailOrUsername">Email or Username</Label>
                 <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
+                  id="emailOrUsername"
+                  name="emailOrUsername"
+                  type="text"
+                  autoComplete="username"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
+                  value={emailOrUsername}
+                  onChange={(e) => setEmailOrUsername(e.target.value)}
+                  placeholder="Enter your email or username"
                 />
               </div>
 
@@ -130,13 +130,13 @@ export default function LoginPage() {
 
             <div className="mt-6">
               <div className="text-sm text-center text-gray-600">
-                <p>Demo Credentials:</p>
+                <p>Demo Credentials (use email or username):</p>
                 <div className="p-3 mt-2 bg-gray-100 rounded-md">
                   <p className="font-mono text-xs">
-                    <strong>Admin:</strong> admin@dsm.com / admin123<br />
-                    <strong>PPD:</strong> ppd@dsm.com / ppd123<br />
-                    <strong>Manager:</strong> manager@dsm.com / manager123<br />
-                    <strong>Member:</strong> member@dsm.com / member123
+                    <strong>Admin:</strong> admin@dsm.com or username / admin123<br />
+                    <strong>PPD:</strong> ppd@dsm.com or username / ppd123<br />
+                    <strong>Manager:</strong> manager@dsm.com or username / manager123<br />
+                    <strong>Member:</strong> member@dsm.com or username / member123
                   </p>
                 </div>
               </div>

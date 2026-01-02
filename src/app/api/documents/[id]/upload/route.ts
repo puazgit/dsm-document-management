@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../../lib/next-auth';
 import { prisma } from '../../../../../lib/prisma';
+import { requireCapability } from '@/lib/rbac-helpers';
 import { writeFile, mkdir, unlink } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
@@ -12,6 +13,11 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    const auth = await requireCapability(request, 'DOCUMENT_EDIT');
+    if (!auth.authorized || !auth.userId) {
+      return auth.error || NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -32,20 +38,7 @@ export async function POST(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
-    // Check permissions
-    const userPermissions = session.user.permissions || [];
-    const userRole = session.user.role?.toLowerCase();
-    const isOwner = existingDocument.createdById === session.user.id;
-    
-    const canUpdate = 
-      userPermissions.includes('documents.update') ||
-      userPermissions.includes('documents.update.own') ||
-      isOwner ||
-      ['admin', 'editor', 'administrator', 'ppd', 'dirut', 'gm', 'kadiv'].includes(userRole);
-
-    if (!canUpdate) {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
-    }
+    // Permission check done via capability system
 
     const formData = await request.formData();
     const file = formData.get('file') as File;

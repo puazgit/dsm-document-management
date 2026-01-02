@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/next-auth'
 import { prisma } from '@/lib/prisma'
-import { checkApiPermission } from '@/lib/permissions'
+import { requireCapability } from '@/lib/rbac-helpers'
 import { auditHelpers } from '@/lib/audit'
 import { z } from 'zod'
 
@@ -16,45 +15,13 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Check authentication and permissions
-    const session = await getServerSession(authOptions)
-    console.log('🔐 Group Assignment - Session check:', { user: session?.user?.email, hasUser: !!session?.user })
-    
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Check if current user has permission to assign groups
-    const currentUser = await prisma.user.findUnique({
-      where: { email: session.user.email! },
-      include: { 
-        userRoles: { 
-          include: { role: true } 
-        },
-        group: true
-      }
-    })
-
-    // Allow group assignment for admin, ppd, manager, or kadiv
-    const canAssignGroups = currentUser?.userRoles.some(ur => 
-      ['administrator', 'ppd', 'manager', 'kadiv'].includes(ur.role.name)
-    ) || currentUser?.group?.name === 'administrator'
-
-    if (!canAssignGroups) {
-      return NextResponse.json({ 
-        error: 'Insufficient permissions', 
-        details: 'Group assignment requires administrator, ppd, manager, or kadiv role'
-      }, { status: 403 })
-    }
+    const auth = await requireCapability(request, 'USER_MANAGE')
 
     const userId = params.id
-    console.log('📝 Group Assignment Request:', { userId, requestingUser: currentUser?.email })
     
     const body = await request.json()
-    console.log('📝 Request body:', body)
     
     const { groupId } = assignGroupSchema.parse(body)
-    console.log('🎯 Parsed groupId:', groupId)
 
     // Check if user exists
     const user = await prisma.user.findUnique({
@@ -97,13 +64,12 @@ export async function PUT(
     })
 
     // Log group assignment/removal
-    const assignedById = (session.user as any).id
     if (groupId && user.groupId !== groupId) {
       // Group assignment
       await auditHelpers.groupAssigned(
         userId,
         groupId,
-        assignedById,
+        auth.userId!,
         updatedUser.group?.name || 'Unknown',
         request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
         request.headers.get('user-agent') || undefined
@@ -113,7 +79,7 @@ export async function PUT(
       await auditHelpers.groupRemoved(
         userId,
         user.groupId,
-        assignedById,
+        auth.userId!,
         user.group?.name || 'Unknown',
         request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
         request.headers.get('user-agent') || undefined
@@ -154,20 +120,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Check authentication
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const permissionCheck = await checkApiPermission(request, 'users.read')
-    
-    if (!permissionCheck.success) {
-      return NextResponse.json(
-        { error: permissionCheck.error },
-        { status: permissionCheck.error === 'Unauthorized' ? 401 : 403 }
-      )
-    }
+    const auth = await requireCapability(request, 'USER_VIEW')
 
     const userId = params.id
 

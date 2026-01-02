@@ -42,16 +42,6 @@ export const resources = [
     requiredCapability: 'DOCUMENT_VIEW',
     sortOrder: 1,
   },
-  {
-    id: 'nav-documents-create',
-    type: 'navigation',
-    path: '/documents/new',
-    name: 'Create Document',
-    description: 'Create new document',
-    parentId: 'nav-documents',
-    requiredCapability: 'DOCUMENT_CREATE',
-    sortOrder: 2,
-  },
   
   // Admin Menu
   {
@@ -85,24 +75,36 @@ export const resources = [
     sortOrder: 2,
   },
   {
-    id: 'nav-admin-permissions',
+    id: 'nav-admin-rbac-resources',
     type: 'navigation',
-    path: '/admin/permissions',
-    name: 'Permission Management',
-    description: 'Manage permissions',
+    path: '/admin/rbac/resources',
+    name: 'RBAC Resources',
+    description: 'Manage navigation, routes, and API resources',
     parentId: 'nav-admin',
-    requiredCapability: 'PERMISSION_MANAGE',
+    requiredCapability: 'ADMIN_ACCESS',
+    icon: 'Network',
     sortOrder: 3,
   },
   {
-    id: 'nav-admin-organizations',
+    id: 'nav-admin-rbac-assignments',
     type: 'navigation',
-    path: '/admin/organizations',
-    name: 'Organizations',
-    description: 'Manage organizational units',
+    path: '/admin/rbac/assignments',
+    name: 'RBAC Assignments',
+    description: 'Manage role-capability assignments',
     parentId: 'nav-admin',
-    requiredCapability: 'ORGANIZATION_MANAGE',
-    sortOrder: 4,
+    requiredCapability: 'ADMIN_ACCESS',
+    icon: 'Shield',
+    sortOrder: 5,
+  },
+  {
+    id: 'nav-admin-groups',
+    type: 'navigation',
+    path: '/admin/groups',
+    name: 'Groups',
+    description: 'Manage user groups',
+    parentId: 'nav-admin',
+    requiredCapability: 'GROUP_MANAGE',
+    sortOrder: 6,
   },
   {
     id: 'nav-admin-audit',
@@ -112,7 +114,7 @@ export const resources = [
     description: 'View audit logs',
     parentId: 'nav-admin',
     requiredCapability: 'AUDIT_VIEW',
-    sortOrder: 5,
+    sortOrder: 7,
   },
   
   // Analytics Menu
@@ -158,13 +160,6 @@ export const resources = [
     requiredCapability: 'DOCUMENT_VIEW',
   },
   {
-    id: 'route-documents-new',
-    type: 'route',
-    path: '/documents/new',
-    name: 'Create Document Route',
-    requiredCapability: 'DOCUMENT_CREATE',
-  },
-  {
     id: 'route-documents-edit',
     type: 'route',
     path: '/documents/:id/edit',
@@ -193,18 +188,25 @@ export const resources = [
     requiredCapability: 'ROLE_MANAGE',
   },
   {
-    id: 'route-admin-permissions',
+    id: 'route-admin-rbac-resources',
     type: 'route',
-    path: '/admin/permissions',
-    name: 'Permission Management Route',
-    requiredCapability: 'PERMISSION_MANAGE',
+    path: '/admin/rbac/resources',
+    name: 'RBAC Resources Route',
+    requiredCapability: 'ADMIN_ACCESS',
   },
   {
-    id: 'route-admin-organizations',
+    id: 'route-admin-rbac-assignments',
     type: 'route',
-    path: '/admin/organizations',
-    name: 'Organizations Route',
-    requiredCapability: 'ORGANIZATION_MANAGE',
+    path: '/admin/rbac/assignments',
+    name: 'RBAC Assignments Route',
+    requiredCapability: 'ADMIN_ACCESS',
+  },
+  {
+    id: 'route-admin-groups',
+    type: 'route',
+    path: '/admin/groups',
+    name: 'Groups Route',
+    requiredCapability: 'GROUP_MANAGE',
   },
   {
     id: 'route-admin-audit',
@@ -433,24 +435,57 @@ export const resources = [
     metadata: { method: 'GET' },
   },
   
-  // Organization APIs
+  // Group APIs
   {
-    id: 'api-organizations-list',
+    id: 'api-groups-list',
     type: 'api',
-    path: '/api/organizations',
-    name: 'List Organizations API',
-    description: 'GET /api/organizations',
-    requiredCapability: 'ORGANIZATION_VIEW',
+    path: '/api/groups',
+    name: 'List Groups API',
+    description: 'GET /api/groups',
+    requiredCapability: 'GROUP_VIEW',
     metadata: { method: 'GET' },
   },
   {
-    id: 'api-organizations-manage',
+    id: 'api-groups-manage',
     type: 'api',
-    path: '/api/organizations',
-    name: 'Manage Organizations API',
-    description: 'POST /api/organizations',
-    requiredCapability: 'ORGANIZATION_MANAGE',
+    path: '/api/groups',
+    name: 'Manage Groups API',
+    description: 'POST /api/groups',
+    requiredCapability: 'GROUP_MANAGE',
     metadata: { method: 'POST' },
+  },  
+  // =====================
+  // PDF/DOCUMENT RESOURCES (existing endpoints only)
+  // =====================
+  
+  // PDF Routes
+  {
+    id: 'route-document-view',
+    type: 'route',
+    path: '/documents/:id/view',
+    name: 'Document PDF Viewer Route',
+    description: 'View document PDF',
+    requiredCapability: 'PDF_VIEW',
+  },
+  
+  // Document APIs
+  {
+    id: 'api-document-download',
+    type: 'api',
+    path: '/api/documents/:id/download',
+    name: 'Download Document API',
+    description: 'GET /api/documents/:id/download - Download document file',
+    requiredCapability: 'DOCUMENT_DOWNLOAD',
+    metadata: { method: 'GET' },
+  },
+  {
+    id: 'api-document-version',
+    type: 'api',
+    path: '/api/documents/:id/version/:version',
+    name: 'Get Document Version API',
+    description: 'GET /api/documents/:id/version/:version - Get specific document version',
+    requiredCapability: 'PDF_VIEW',
+    metadata: { method: 'GET' },
   },
 ]
 

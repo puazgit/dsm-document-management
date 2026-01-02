@@ -47,6 +47,6 @@ export const iconMappings: Record<string, string> = {
   permissions: 'Key',
   analytics: 'BarChart3',
   audit: 'Activity',
-  organizations: 'Building2',
+  groups: 'Users',
   profile: 'User',
 }

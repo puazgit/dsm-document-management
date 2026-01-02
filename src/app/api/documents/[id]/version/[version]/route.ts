@@ -41,14 +41,15 @@ export async function GET(
         return NextResponse.json({ error: 'Current file not found on disk' }, { status: 404 });
       }
 
-      // Check permissions for current document
-      const userPermissions = session.user.permissions || [];
+      // Check permissions for current document (capability-based)
+      const userCapabilities = session.user.capabilities || [];
       const userRole = session.user.role?.toLowerCase();
       const isOwner = currentDocument.createdById === session.user.id;
       
       const canRead = 
-        userPermissions.includes('documents.read') ||
-        userPermissions.includes('pdf.view') ||
+        userCapabilities.includes('DOCUMENT_VIEW') ||
+        userCapabilities.includes('DOCUMENT_READ') ||
+        userCapabilities.includes('PDF_VIEW') ||
         isOwner ||
         ['admin', 'editor', 'administrator', 'ppd', 'dirut', 'gm', 'kadiv', 'org_supervisor'].includes(userRole);
 
@@ -129,14 +130,15 @@ export async function GET(
       return NextResponse.json({ error: 'Document version not found' }, { status: 404 });
     }
 
-    // Check permissions
-    const userPermissions = session.user.permissions || [];
+    // Check permissions (capability-based)
+    const userCapabilities = session.user.capabilities || [];
     const userRole = session.user.role?.toLowerCase();
     const isOwner = documentVersion.document.createdById === session.user.id;
     
     const canRead = 
-      userPermissions.includes('documents.read') ||
-      userPermissions.includes('pdf.view') ||
+      userCapabilities.includes('DOCUMENT_VIEW') ||
+      userCapabilities.includes('DOCUMENT_READ') ||
+      userCapabilities.includes('PDF_VIEW') ||
       isOwner ||
       ['admin', 'editor', 'administrator', 'ppd', 'dirut', 'gm', 'kadiv', 'org_supervisor'].includes(userRole);
 

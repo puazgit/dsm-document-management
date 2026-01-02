@@ -1,9 +1,13 @@
 /**
  * Centralized Role/Group Configuration
  * 
- * Note: In this system, "Groups" act as "Roles" for organizational simplicity.
- * - Users belong to Groups (organizational units)
- * - Groups have hierarchical levels and permissions
+ * MIGRATION NOTE: This file still uses permission strings for backward compatibility
+ * New code should use the capability-based system from Prisma schema
+ * 
+ * @deprecated Permission-based checks - Migrate to capability-based system
+ * - Groups have hierarchical levels and permissions (legacy)
+ * - Groups have hierarchical levels and capabilities (modern)
+ * - Use: RoleCapability and RoleCapabilityAssignment models
  * - Session stores group name as "role" for backward compatibility
  */
 
@@ -161,6 +165,8 @@ export function hasRoleAccess(userRole: string, requiredRoles: string[]): boolea
 
 /**
  * Check if user role has specific permission
+ * @deprecated Use UnifiedAccessControl.hasCapability() instead
+ * Legacy function maintained for backward compatibility
  */
 export function hasPermission(userRole: string, permission: string): boolean {
   // Note: This function is deprecated, use capability-based checks instead

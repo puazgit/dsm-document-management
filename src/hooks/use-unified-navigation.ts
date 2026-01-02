@@ -10,16 +10,23 @@ export function useUnifiedNavigation() {
     async function fetchNavigation() {
       try {
         setLoading(true)
-        const response = await fetch('/api/navigation')
+        // Add cache busting to force fresh data
+        const response = await fetch('/api/navigation?_t=' + Date.now(), {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+          }
+        })
         
         if (!response.ok) {
           throw new Error('Failed to fetch navigation')
         }
         
         const data = await response.json()
+        console.log('[useUnifiedNavigation] Fetched navigation items:', data.navigation?.length || 0)
         setNavigation(data.navigation || [])
       } catch (err) {
-        console.error('Error fetching navigation:', err)
+        console.error('[useUnifiedNavigation] Error fetching navigation:', err)
         setError(err instanceof Error ? err.message : 'Unknown error')
       } finally {
         setLoading(false)

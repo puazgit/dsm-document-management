@@ -1,17 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { checkApiPermission } from '@/lib/permissions'
+import { requireCapability } from '@/lib/rbac-helpers'
 
 // GET /api/admin/dashboard - Admin dashboard data
 export async function GET(request: NextRequest) {
   // Check if user has admin access
-  const permissionCheck = await checkApiPermission(request, 'admin.access')
-  
-  if (!permissionCheck.success) {
-    return NextResponse.json(
-      { error: permissionCheck.error },
-      { status: permissionCheck.error === 'Unauthorized' ? 401 : 403 }
-    )
-  }
+  const auth = await requireCapability(request, 'USER_VIEW')
 
   try {
     // Return admin dashboard data

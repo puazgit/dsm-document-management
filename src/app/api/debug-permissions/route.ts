@@ -15,12 +15,15 @@ export async function GET(request: NextRequest) {
         id: session.user.id,
         email: session.user.email,
         role: session.user.role,
-        permissions: session.user.permissions || []
+        capabilities: session.user.capabilities || []
       },
-      hasDocumentEditPermission: {
-        'documents.update': session.user.permissions?.includes('documents.update'),
-        'documents.update.own': session.user.permissions?.includes('documents.update.own')
-      }
+      hasDocumentEditCapability: {
+        'DOCUMENT_UPDATE': session.user.capabilities?.includes('DOCUMENT_UPDATE'),
+        'DOCUMENT_UPDATE_OWN': session.user.capabilities?.includes('DOCUMENT_UPDATE_OWN'),
+        'DOCUMENT_EDIT': session.user.capabilities?.includes('DOCUMENT_EDIT')
+      },
+      // Legacy permission fields removed - use capabilities instead
+      note: 'Migrated to capability-based authorization'
     })
   } catch (error) {
     console.error('Debug permissions error:', error)

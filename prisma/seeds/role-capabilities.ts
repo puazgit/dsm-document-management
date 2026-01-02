@@ -76,6 +76,48 @@ export const capabilities = [
     description: 'Publish documents',
     category: 'document',
   },
+  {
+    name: 'DOCUMENT_DOWNLOAD',
+    description: 'Download documents',
+    category: 'document',
+  },
+  {
+    name: 'DOCUMENT_COMMENT',
+    description: 'Comment on documents',
+    category: 'document',
+  },
+  {
+    name: 'DOCUMENT_MANAGE',
+    description: 'Full document management (all operations)',
+    category: 'document',
+  },
+  
+  // PDF-Specific Capabilities
+  {
+    name: 'PDF_VIEW',
+    description: 'View PDF documents',
+    category: 'document',
+  },
+  {
+    name: 'PDF_DOWNLOAD',
+    description: 'Download PDF documents',
+    category: 'document',
+  },
+  {
+    name: 'PDF_PRINT',
+    description: 'Print PDF documents',
+    category: 'document',
+  },
+  {
+    name: 'PDF_COPY',
+    description: 'Copy content from PDF documents',
+    category: 'document',
+  },
+  {
+    name: 'PDF_WATERMARK',
+    description: 'Control PDF watermark settings',
+    category: 'document',
+  },
   
   // Organizational Management
   {

@@ -14,7 +14,6 @@ interface User {
   id: string;
   email: string;
   role?: string;
-  level?: number;
   groupId?: string | null;
   group?: {
     name: string;
@@ -24,7 +23,6 @@ interface User {
 interface Document {
   id: string;
   status: string;
-  isPublic: boolean;
   accessGroups: string[];
   createdById: string;
 }
@@ -84,9 +82,10 @@ export async function canAccessDocument(
     }
     
     // User not in allowed groups - check if high-level role can override
-    const userLevel = user.level || 0;
-    if (userLevel >= 70) {
-      // Level 70+ (Manager+) can access if document is approved/published
+    // Managers+ can access approved/published documents regardless of group
+    const hasManagerAccess = userPermissions?.includes('WORKFLOW_APPROVE') || 
+                            userPermissions?.includes('ADMIN_ACCESS');
+    if (hasManagerAccess) {
       return ['APPROVED', 'PUBLISHED'].includes(document.status);
     }
     
@@ -94,71 +93,53 @@ export async function canAccessDocument(
     return false;
   }
 
-  // Rule 5: No specific accessGroups - follow default rules
-  if (document.isPublic) {
-    // Public document - check status-based access
-    return canAccessByStatus(user, document, userPermissions);
-  }
-
-  // Private document with no specific groups - level 50+ can access
-  const userLevel = user.level || 0;
-  const canAccessPrivate = userLevel >= 50 ||
-    (userPermissions && userPermissions.includes('documents.read'));
-    
-  if (canAccessPrivate) {
-    return canAccessByStatus(user, document, userPermissions);
-  }
-
-  return false;
+  // Rule 5: No specific accessGroups - use capability-based access
+  // Documents without access restrictions can be viewed based on user capabilities and status
+  return canAccessByStatus(user, document, userPermissions);
 }
 
 /**
- * Check if user can access document based on status and role level
- * Uses level-based access control consistent with workflow system
- * Level hierarchy: admin=100, manager=70-90, editor=50, viewer=10-40
+ * Check if user can access document based on status and capabilities
+ * Uses capability-based access control
  */
 function canAccessByStatus(user: User, document: Document, userPermissions?: string[]): boolean {
-  const userLevel = user.level || 0;
-
-  // Check if user has full document permissions (bypass level check)
-  if (userPermissions) {
-    const hasFullDocumentAccess = userPermissions.includes('*') || 
-      (userPermissions.includes('documents.update') && 
-       userPermissions.includes('documents.approve') && 
-       userPermissions.includes('documents.read') &&
-       userPermissions.includes('documents.create'));
-    
-    if (hasFullDocumentAccess) {
-      return true;
-    }
+  // Check if user has full document access
+  const hasFullAccess = userPermissions?.includes('ADMIN_ACCESS') || 
+                        userPermissions?.includes('DOCUMENT_FULL_ACCESS');
+  
+  if (hasFullAccess) {
+    return true;
   }
 
-  // Permission-based check as fallback
-  const hasReadPermission = userPermissions && userPermissions.includes('documents.read');
+  // Capability checks
+  const canEdit = userPermissions?.includes('DOCUMENT_EDIT');
+  const canCreate = userPermissions?.includes('DOCUMENT_CREATE');
+  const canView = userPermissions?.includes('DOCUMENT_VIEW');
+  const canApprove = userPermissions?.includes('WORKFLOW_APPROVE');
 
   switch (document.status) {
     case 'DRAFT':
     case 'PENDING_REVIEW':
-      // Level 50+ (Editor+) can see drafts and pending review
-      return userLevel >= 50 || Boolean(hasReadPermission);
+      // Editors+ can see drafts and pending review
+      return !!(canEdit || canCreate || canView);
 
     case 'PENDING_APPROVAL':
-      // Level 70+ (Manager+) can see pending approval
-      return userLevel >= 70 || Boolean(hasReadPermission);
+      // Approvers+ can see pending approval
+      return !!(canApprove || canEdit || canView);
 
     case 'APPROVED':
     case 'PUBLISHED':
-      // Level 10+ (all except guest) can see published documents
-      return userLevel >= 10;
+      // Anyone with view capability can see published documents
+      return !!(canView || true); // Published docs are generally accessible
 
     case 'REJECTED':
-      // Level 50+ (Editor+) can see rejected documents
-      return userLevel >= 50 || Boolean(hasReadPermission);
+      // Editors+ can see rejected documents
+      return !!(canEdit || canCreate || canView);
 
     case 'ARCHIVED':
     case 'EXPIRED':
-      // Level 50+ (Editor+) can see archived/expired
-      return userLevel >= 50 || Boolean(hasReadPermission);
+      // Editors+ can see archived/expired
+      return !!(canEdit || canCreate || canView);
 
     default:
       return false;
@@ -201,33 +182,33 @@ export function buildDocumentAccessWhere(user: User, userPermissions?: string[])
     { createdById: user.id }
   ];
 
-  const userLevel = user.level || 0;
-
   // Add group-specific access
   if (userGroupName) {
     accessConditions.push({
       AND: [
         { accessGroups: { has: userGroupName } },
-        ...getStatusConditionsForRole(role, userPermissions, userLevel)
+        ...getStatusConditionsForRole(role, userPermissions)
       ]
     });
   }
 
-  // Add public documents access based on role level
+  // Add documents without group restrictions (accessible to all with proper capabilities)
   accessConditions.push({
     AND: [
-      { isPublic: true },
       { accessGroups: { isEmpty: true } }, // No specific group restrictions
-      ...getStatusConditionsForRole(role, userPermissions, userLevel)
+      ...getStatusConditionsForRole(role, userPermissions)
     ]
   });
 
-  // Add level-based access for documents without group restrictions
-  if (userLevel >= 50 || (userPermissions && userPermissions.includes('documents.read'))) {
+  // Add capability-based access for documents without group restrictions
+  const canEdit = userPermissions?.includes('DOCUMENT_EDIT') || 
+                  userPermissions?.includes('DOCUMENT_CREATE') ||
+                  userPermissions?.includes('ADMIN_ACCESS');
+  if (canEdit || userPermissions?.includes('DOCUMENT_VIEW')) {
     accessConditions.push({
       AND: [
         { accessGroups: { isEmpty: true } },
-        ...getStatusConditionsForRole(role, userPermissions, userLevel)
+        ...getStatusConditionsForRole(role, userPermissions)
       ]
     });
   }
@@ -236,66 +217,55 @@ export function buildDocumentAccessWhere(user: User, userPermissions?: string[])
 }
 
 /**
- * Get status conditions based on role level
- * Uses level-based access control for consistency with workflow system
- * Note: This function now requires user object with level, passed through buildDocumentAccessWhere
+ * Get status conditions based on capabilities
+ * Uses capability-based access control
  */
-function getStatusConditionsForRole(role: string, userPermissions?: string[], userLevel?: number): any[] {
-  // Users with full document permissions can see all statuses
-  if (userPermissions) {
-    const hasFullDocumentAccess = userPermissions.includes('*') || 
-      (userPermissions.includes('documents.update') && 
-       userPermissions.includes('documents.approve') && 
-       userPermissions.includes('documents.read') &&
-       userPermissions.includes('documents.create'));
-    
-    if (hasFullDocumentAccess) {
-      return [
-        { status: { in: ['DRAFT', 'PENDING_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED', 'ARCHIVED', 'EXPIRED'] } }
-      ];
-    }
-  }
+function getStatusConditionsForRole(role: string, userPermissions?: string[]): any[] {
+  // Check capabilities
+  const hasFullAccess = userPermissions?.includes('ADMIN_ACCESS') || 
+                        userPermissions?.includes('DOCUMENT_FULL_ACCESS');
+  const canApprove = userPermissions?.includes('WORKFLOW_APPROVE');
+  const canEdit = userPermissions?.includes('DOCUMENT_EDIT');
+  const canCreate = userPermissions?.includes('DOCUMENT_CREATE');
+  const canView = userPermissions?.includes('DOCUMENT_VIEW');
 
-  const level = userLevel || 0;
-
-  // Level-based access control
-  if (level >= 100) {
-    // Admin (100+): All statuses
+  // Admin/Full access: All statuses
+  if (hasFullAccess) {
     return [
       { status: { in: ['DRAFT', 'PENDING_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED', 'ARCHIVED', 'EXPIRED'] } }
     ];
-  } else if (level >= 70) {
-    // Manager+ (70-99): All except archived
+  }
+
+  // Approvers: Can see up to pending approval and published
+  if (canApprove) {
     return [
-      { status: { in: ['DRAFT', 'PENDING_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED'] } }
+      { status: { in: ['PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED'] } }
     ];
-  } else if (level >= 50) {
-    // Editor (50-69): Draft through published, rejected
+  }
+
+  // Editors/Creators: Draft through published, rejected
+  if (canEdit || canCreate) {
     return [
-      { status: { in: ['DRAFT', 'PENDING_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED'] } }
+      { status: { in: ['DRAFT', 'PENDING_REVIEW', 'APPROVED', 'PUBLISHED', 'REJECTED'] } }
     ];
-  } else if (level >= 40) {
-    // Higher viewers (40-49): Approved and published
+  }
+
+  // Viewers: Only approved and published
+  if (canView) {
     return [
       { status: { in: ['APPROVED', 'PUBLISHED'] } }
     ];
-  } else if (level >= 10) {
-    // Regular users (10-39): Only published
-    return [
-      { status: 'PUBLISHED' }
-    ];
-  } else {
-    // Guest (0-9): Only published and public
-    return [
-      { status: 'PUBLISHED' },
-      { isPublic: true }
-    ];
   }
+
+  // Default: Only published
+  return [
+    { status: 'PUBLISHED' }
+  ];
 }
 
 /**
- * Get user with group and role level information
- * Fetches highest role level for level-based access control
+ * Get user with group and role information
+ * Fetches user roles for capability-based access control
  */
 export async function getUserWithGroup(userId: string): Promise<User | null> {
   const user = await prisma.user.findUnique({
@@ -314,8 +284,7 @@ export async function getUserWithGroup(userId: string): Promise<User | null> {
         include: {
           role: {
             select: {
-              name: true,
-              level: true
+              name: true
             }
           }
         }
@@ -325,11 +294,6 @@ export async function getUserWithGroup(userId: string): Promise<User | null> {
 
   if (!user) return null;
 
-  // Get highest role level from all user roles
-  const userLevel = user.userRoles.reduce((maxLevel, userRole) => {
-    return Math.max(maxLevel, userRole.role.level);
-  }, 0);
-
   // Get primary role name
   const primaryRole = user.userRoles?.[0]?.role?.name || user.group?.name || 'user';
 
@@ -337,7 +301,6 @@ export async function getUserWithGroup(userId: string): Promise<User | null> {
     id: user.id,
     email: user.email,
     role: primaryRole,
-    level: userLevel,
     groupId: user.groupId,
     group: user.group
   };

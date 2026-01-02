@@ -1,3 +1,17 @@
+/**
+ * Permission Matrix Component
+ * 
+ * ⚠️ LEGACY COMPONENT - This manages the old Permission system
+ * 
+ * MIGRATION STATUS: DEPRECATED but functional
+ * - This component is kept for managing legacy RolePermission data
+ * - Modern system uses RoleCapabilityAssignment instead
+ * - Consider creating a new CapabilityMatrix component for modern UI
+ * 
+ * NOTE: This component still works but operates on deprecated Permission tables
+ * New features should use capability-based components
+ */
+
 'use client'
 
 import { useState, useEffect } from 'react'

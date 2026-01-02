@@ -45,49 +45,12 @@ export async function PUT(
     const body = await request.json()
     const { permissionIds } = assignPermissionsSchema.parse(body)
 
-    // Verify all permissions exist
-    const permissions = await prisma.permission.findMany({
-      where: { id: { in: permissionIds } },
-    })
-
-    if (permissions.length !== permissionIds.length) {
-      return NextResponse.json(
-        { error: 'One or more permissions not found' },
-        { status: 400 }
-      )
-    }
-
-        // Use transaction to update roles
-    await prisma.$transaction(async (tx) => {
-      // Remove existing roles
-      await tx.rolePermission.deleteMany({
-        where: { roleId: params.id },
-      })
-
-      // Add new roles
-      if (permissionIds.length > 0) {
-        await tx.rolePermission.createMany({
-          data: permissionIds.map((permissionId) => ({
-            roleId: params.id,
-            permissionId,
-          })),
-        })
-      }
-    })
-
-    // Return updated role with permissions
-    const updatedRole = await prisma.role.findUnique({
-      where: { id: params.id },
-      include: {
-        rolePermissions: {
-          include: {
-            permission: true,
-          },
-        },
-      },
-    })
-
-    return NextResponse.json(updatedRole)
+    // Permission system has been replaced with capabilities
+    // Return deprecation notice
+    return NextResponse.json({
+      error: 'This endpoint is deprecated. Use /api/roles/[id]/capabilities instead',
+      deprecatedSince: '2024'
+    }, { status: 410 })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -134,65 +97,11 @@ export async function PATCH(
     const body = await request.json()
     const { permissionId, isGranted } = updateSinglePermissionSchema.parse(body)
 
-    // Check if permission exists
-    const permission = await prisma.permission.findUnique({
-      where: { id: permissionId },
-    })
-
-    if (!permission) {
-      return NextResponse.json(
-        { error: 'Permission not found' },
-        { status: 404 }
-      )
-    }
-
-    // Update or create role permission
-    const existingRolePermission = await prisma.rolePermission.findUnique({
-      where: {
-        roleId_permissionId: {
-          roleId: params.id,
-          permissionId,
-        },
-      },
-    })
-
-    if (existingRolePermission) {
-      // Update existing permission
-      await prisma.rolePermission.update({
-        where: {
-          roleId_permissionId: {
-            roleId: params.id,
-            permissionId,
-          },
-        },
-        data: {
-          isGranted,
-        },
-      })
-    } else if (isGranted) {
-      // Create new permission (only if granting)
-      await prisma.rolePermission.create({
-        data: {
-          roleId: params.id,
-          permissionId,
-          isGranted,
-        },
-      })
-    }
-
-    // Get updated role with permissions
-    const updatedRole = await prisma.role.findUnique({
-      where: { id: params.id },
-      include: {
-        rolePermissions: {
-          include: {
-            permission: true,
-          },
-        },
-      },
-    })
-
-    return NextResponse.json(updatedRole)
+    // Permission system has been replaced with capabilities
+    return NextResponse.json({
+      error: 'This endpoint is deprecated. Use /api/roles/[id]/capabilities instead',
+      deprecatedSince: '2024'
+    }, { status: 410 })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

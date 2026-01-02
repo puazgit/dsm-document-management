@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../../lib/next-auth';
 import { prisma } from '../../../../../lib/prisma';
+import { requireCapability } from '@/lib/rbac-helpers';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 
@@ -11,10 +11,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireCapability(request, 'DOCUMENT_DOWNLOAD');
 
     const { id } = params;
 
@@ -36,94 +33,7 @@ export async function GET(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
-    // Check access permissions
-    // Get user's group name from database for proper access check
-    const userWithGroup = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: { group: true }
-    });
-    
-    const userGroupName = userWithGroup?.group?.name;
-    
-    const hasAccess = 
-      document.isPublic ||
-      document.createdById === session.user.id ||
-      document.accessGroups.includes(session.user.groupId || '') ||
-      document.accessGroups.includes(userGroupName || '') ||
-      document.accessGroups.includes(session.user.role || '') ||
-      ['administrator', 'ADMIN', 'admin'].includes(session.user.role);
-
-    if (!hasAccess) {
-      console.log('❌ Access denied. Checked:', {
-        isPublic: document.isPublic,
-        isOwner: document.createdById === session.user.id,
-        groupIdMatch: document.accessGroups.includes(session.user.groupId || ''),
-        groupNameMatch: document.accessGroups.includes(userGroupName || ''),
-        roleMatch: document.accessGroups.includes(session.user.role || ''),
-        isAdmin: ['administrator', 'ADMIN', 'admin'].includes(session.user.role)
-      });
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-    }
-
-    // Check download permissions from database
-    console.log('🔍 Checking download permissions for user:', session.user.email, 'role:', session.user.role);
-    
-    let canDownload = false;
-    
-    // Document owner can always download
-    if (document.createdById === session.user.id) {
-      console.log('✅ Download allowed: Document owner');
-      canDownload = true;
-    } else {
-      // Check database permissions
-      const userWithPermissions = await prisma.user.findUnique({
-        where: { email: session.user.email },
-        include: {
-          userRoles: {
-            where: { isActive: true },
-            include: {
-              role: {
-                include: {
-                  rolePermissions: {
-                    include: {
-                      permission: true
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      });
-
-      if (userWithPermissions) {
-        const permissions = userWithPermissions.userRoles.flatMap(userRole => 
-          userRole.role.rolePermissions.map(rp => rp.permission.name)
-        );
-        
-        const hasPdfDownload = permissions.includes('pdf.download');
-        const hasDocDownload = permissions.includes('documents.download');
-        
-        console.log('📄 User permissions:', permissions.filter(p => p.includes('pdf') || p.includes('download')));
-        console.log('🔑 PDF download permission:', hasPdfDownload);
-        console.log('📁 Document download permission:', hasDocDownload);
-        
-        canDownload = hasPdfDownload || hasDocDownload;
-        
-        if (canDownload) {
-          console.log('✅ Download allowed: User has database permissions');
-        }
-      }
-    }
-
-    if (!canDownload) {
-      console.log('❌ Download denied: No permissions found');
-      return NextResponse.json({ 
-        error: 'Download not allowed for your role', 
-        message: `Users with role '${session.user.role}' do not have download permissions. Contact an administrator for access.`,
-        allowedActions: ['view']
-      }, { status: 403 });
-    }
+    // Permission check done via capability system (DOCUMENT_DOWNLOAD)
 
     // Check if file exists
     const filePath = join(process.cwd(), document.filePath.replace(/^\//, ''));
@@ -139,14 +49,40 @@ export async function GET(
 
       // Log download activity only for published documents
       if (document.status === 'PUBLISHED') {
-        await prisma.documentActivity.create({
-          data: {
+        // Check for duplicate download logs within the last 5 minutes
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        const recentDownload = await prisma.documentActivity.findFirst({
+          where: {
             documentId: id,
-            userId: session.user.id,
+            userId: auth.userId!,
             action: 'DOWNLOAD',
-            description: `Document "${document.title}" was downloaded`,
+            createdAt: {
+              gte: fiveMinutesAgo,
+            },
+          },
+          orderBy: {
+            createdAt: 'desc',
           },
         });
+
+        if (recentDownload) {
+          console.log(`⏭️  [DOWNLOAD] Skipping duplicate download log - already downloaded recently at: ${recentDownload.createdAt.toISOString()}`);
+        } else {
+          await prisma.documentActivity.create({
+            data: {
+              documentId: id,
+              userId: auth.userId!,
+              action: 'DOWNLOAD',
+              description: `Document "${document.title}" was downloaded`,
+              metadata: {
+                source: 'document_download',
+                fileName: document.fileName,
+                fileSize: document.fileSize ? document.fileSize.toString() : null,
+                timestamp: new Date().toISOString(),
+              } as any,
+            },
+          });
+        }
       }
 
       // Set appropriate headers for file download

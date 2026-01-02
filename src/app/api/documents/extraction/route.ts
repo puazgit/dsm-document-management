@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/next-auth'
 import { prisma } from '@/lib/prisma'
+import { requireCapability } from '@/lib/rbac-helpers'
 import {
   processPdfExtraction,
   processBatchPdfExtraction,
@@ -13,11 +13,7 @@ import {
 // GET /api/documents/extraction/stats - Get extraction statistics
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await requireCapability(request, 'DOCUMENT_VIEW')
 
     const searchParams = request.nextUrl.searchParams
     const action = searchParams.get('action')
@@ -54,11 +50,7 @@ export async function GET(request: NextRequest) {
 // POST /api/documents/extraction - Trigger extraction
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await requireCapability(request, 'DOCUMENT_MANAGE')
 
     const body = await request.json()
     const { documentId, documentIds, action } = body

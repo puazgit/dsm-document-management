@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/next-auth';
 import { prisma } from '../../../../lib/prisma';
+import { requireCapability } from '@/lib/rbac-helpers';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { serializeForResponse } from '../../../../lib/bigint-utils';
@@ -18,7 +18,6 @@ const SearchSchema = z.object({
   fileType: z.string().optional(),
   minSize: z.string().transform(Number).optional(),
   maxSize: z.string().transform(Number).optional(),
-  isPublic: z.string().transform(Boolean).optional(),
   hasComments: z.string().transform(Boolean).optional(),
   searchIn: z.enum(['all', 'title', 'content', 'metadata']).default('all'), // Where to search
   sortBy: z.enum(['relevance', 'createdAt', 'updatedAt', 'title', 'downloadCount', 'viewCount', 'fileSize']).default('relevance'),
@@ -45,7 +44,6 @@ async function handleFullTextSearch(params: any) {
       fileType,
       minSize,
       maxSize,
-      isPublic,
       hasComments,
       searchIn,
       sortBy,
@@ -128,12 +126,6 @@ async function handleFullTextSearch(params: any) {
   if (maxSize) {
     conditions.push(`d.file_size <= $${paramIndex++}`);
     params_sql.push(maxSize);
-  }
-
-  // Public/private filter
-  if (isPublic !== undefined) {
-    conditions.push(`d.is_public = $${paramIndex++}`);
-    params_sql.push(isPublic);
   }
 
   // Has comments filter
@@ -234,7 +226,7 @@ async function handleFullTextSearch(params: any) {
   console.log('[SEARCH API] Executing SQL with params:', params_sql);
   console.log('[SEARCH API] Search query SQL:', searchQuerySQL.substring(0, 500));
   
-  let documents, countResult;
+  let documents: any, countResult: any;
   try {
     [documents, countResult] = await Promise.all([
       prisma.$queryRawUnsafe(searchQuerySQL, ...params_sql),
@@ -327,7 +319,6 @@ async function handleFullTextSearch(params: any) {
       fileType,
       minSize,
       maxSize,
-      isPublic,
       hasComments,
       searchIn,
       sortBy,
@@ -413,10 +404,7 @@ async function getFacets(baseWhere: string, baseParams: any[], currentDocTypeId?
 // GET /api/documents/search - Advanced document search
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireCapability(request, 'DOCUMENT_VIEW');
 
     const { searchParams } = new URL(request.url);
     const query = Object.fromEntries(searchParams.entries());
@@ -434,7 +422,6 @@ export async function GET(request: NextRequest) {
       fileType,
       minSize,
       maxSize,
-      isPublic,
       hasComments,
       searchIn,
       sortBy,
@@ -458,30 +445,31 @@ export async function GET(request: NextRequest) {
         fileType,
         minSize,
         maxSize,
-        isPublic,
         hasComments,
         searchIn,
         sortBy,
         sortOrder,
         page,
         limit,
-        session,
       });
     }
 
     // Build where clause for regular (non-FTS) search
     const where: any = {};
 
-    // Access control - users can only see documents they have access to
-    if (session.user.role !== 'ADMIN') {
-      where.OR = [
-        { createdById: session.user.id }, // Documents they created
-        { isPublic: true }, // Public documents
-        { accessGroups: { has: session.user.groupId || '' } }, // Documents accessible to their group
-        { accessGroups: { has: session.user.role || '' } }, // Documents accessible to their role
-        { status: 'PUBLISHED' }, // All published documents are visible to everyone
-      ];
-    }
+    // Get user for access control
+    const user = await prisma.user.findUnique({
+      where: { id: auth.userId! },
+      select: { id: true, groupId: true }
+    });
+
+    // Access control - apply to all non-admin users
+    where.OR = [
+      { createdById: auth.userId }, // Documents they created
+      { accessGroups: { has: user?.groupId || '' } }, // Documents accessible to their group
+      { accessGroups: { isEmpty: true } }, // Documents without group restrictions
+      { status: 'PUBLISHED' }, // All published documents visible based on capabilities
+    ];
 
     // Filter by document type
     if (documentTypeId) {
@@ -531,11 +519,6 @@ export async function GET(request: NextRequest) {
       if (maxSize) {
         where.fileSize.lte = maxSize;
       }
-    }
-
-    // Filter by public/private
-    if (isPublic !== undefined) {
-      where.isPublic = isPublic;
     }
 
     // Filter by documents with comments
@@ -678,7 +661,6 @@ export async function GET(request: NextRequest) {
         fileType,
         minSize,
         maxSize,
-        isPublic,
         hasComments,
         sortBy,
         sortOrder,

@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/next-auth'
 import { prisma } from '@/lib/prisma'
-import { checkApiPermission } from '@/lib/permissions'
 import { auditHelpers } from '@/lib/audit'
-import { requireRoles, checkRoleAccess } from '@/lib/auth-utils'
-import { canManageUsers, type CapabilityUser } from '@/lib/capabilities'
+import { requireCapability } from '@/lib/rbac-helpers'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { serializeForResponse } from '../../../lib/bigint-utils'
@@ -37,53 +35,9 @@ const updateUserSchema = z.object({
 // GET /api/users - List all users with pagination  
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication first
-    const session = await getServerSession(authOptions)
-    console.log('🔐 Session check:', { user: session?.user?.email, hasUser: !!session?.user })
-    
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // For user management, check permissions more flexibly
-    const currentUser = await prisma.user.findUnique({
-      where: { email: session.user.email! },
-      include: { 
-        userRoles: { 
-          include: { role: true } 
-        },
-        group: true
-      }
-    })
-
-    console.log('👤 Current user:', { 
-      email: currentUser?.email, 
-      roles: currentUser?.userRoles.map(ur => ur.role.name),
-      group: currentUser?.group?.name
-    })
-
-    // Check capability-based access
-    const capUser: CapabilityUser = {
-      id: currentUser!.id,
-      email: currentUser!.email,
-      roles: currentUser!.userRoles.map(ur => ({
-        id: ur.role.id,
-        name: ur.role.name,
-        level: ur.role.level
-      }))
-    };
-    
-    const hasUserManageCapability = await canManageUsers(capUser);
-
-    console.log('🔑 Access check:', { hasUserManageCapability, userRoles: currentUser?.userRoles.length })
-
-    if (!hasUserManageCapability) {
-      console.log('❌ Access denied for user:', currentUser?.email)
-      return NextResponse.json({ 
-        error: 'Insufficient permissions', 
-        details: 'User management requires USER_MANAGE capability'
-      }, { status: 403 })
-    }
+    // Check capability using database-driven RBAC
+    const auth = await requireCapability(request, 'USER_VIEW')
+    if (!auth.authorized) return auth.error
 
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
@@ -163,8 +117,12 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/users - Create new user
-export const POST = requireRoles(['administrator'])(async function(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
+    // Check capability using database-driven RBAC
+    const auth = await requireCapability(request, 'USER_MANAGE')
+    if (!auth.authorized) return auth.error
+
     const body = await request.json()
     const validatedData = createUserSchema.parse(body)
 
@@ -219,7 +177,7 @@ export const POST = requireRoles(['administrator'])(async function(request: Next
     
     await auditHelpers.userCreated(
       user.id,
-      (request as any).user.id,
+      auth.userId!,
       {
         username: user.username,
         email: user.email,
@@ -236,7 +194,7 @@ export const POST = requireRoles(['administrator'])(async function(request: Next
         data: {
           userId: user.id,
           roleId: validatedData.roleId,
-          assignedBy: (request as any).user.id,
+          assignedBy: auth.userId!,
         },
       })
       
@@ -249,7 +207,7 @@ export const POST = requireRoles(['administrator'])(async function(request: Next
         await auditHelpers.roleAssigned(
           user.id,
           validatedData.roleId,
-          (request as any).user.id,
+          auth.userId!,
           role.name,
           clientIp,
           userAgent
@@ -275,4 +233,4 @@ export const POST = requireRoles(['administrator'])(async function(request: Next
       { status: 500 }
     )
   }
-})
+}

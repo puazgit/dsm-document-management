@@ -1,3 +1,14 @@
+/**
+ * @deprecated This component is no longer used in the codebase.
+ * Document viewing is now handled by:
+ * - /documents/[id]/view page (for full-page PDF viewing)
+ * - EnhancedPDFViewer component (for embedded PDF viewing with EmbedPDF)
+ * - PDFViewerWrapper (wrapper for EnhancedPDFViewer)
+ * 
+ * This component previously had issues with duplicate VIEW logging.
+ * Consider removing this file if confirmed unused across all environments.
+ */
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -38,15 +49,8 @@ export function DocumentViewer({ document, open, onClose, onRefresh }: DocumentV
         const data = await response.json();
         setDocumentDetails(data);
         
-        // Log VIEW activity
-        try {
-          await fetch(`/api/documents/${document.id}/view`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-          });
-        } catch (error) {
-          console.error('Failed to log view activity:', error);
-        }
+        // NOTE: VIEW logging is now handled by the dedicated PDF viewer component
+        // to prevent duplicate logs and ensure proper session tracking
       } else {
         toast({
           title: 'Error',
@@ -168,9 +172,9 @@ export function DocumentViewer({ document, open, onClose, onRefresh }: DocumentV
 
         {loading ? (
           <div className="space-y-4">
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-48 w-full" />
+            <Skeleton className="w-full h-32" />
+            <Skeleton className="w-full h-24" />
+            <Skeleton className="w-full h-48" />
           </div>
         ) : (
           <Tabs defaultValue="details" className="w-full">
@@ -188,7 +192,7 @@ export function DocumentViewer({ document, open, onClose, onRefresh }: DocumentV
             </TabsList>
 
             <TabsContent value="details" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg">Document Information</CardTitle>
@@ -249,7 +253,7 @@ export function DocumentViewer({ document, open, onClose, onRefresh }: DocumentV
 
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Tags</label>
-                      <div className="flex gap-1 flex-wrap">
+                      <div className="flex flex-wrap gap-1">
                         {(documentDetails?.tags || document.tags || []).map((tag: string, index: number) => (
                           <Badge key={index} variant="outline" className="text-xs">
                             {tag}
@@ -311,11 +315,11 @@ export function DocumentViewer({ document, open, onClose, onRefresh }: DocumentV
                   {documentDetails?.versions?.length > 0 ? (
                     <div className="space-y-4">
                       {documentDetails.versions.map((version: any) => (
-                        <div key={version.id} className="border rounded-lg p-4">
-                          <div className="flex justify-between items-start">
+                        <div key={version.id} className="p-4 border rounded-lg">
+                          <div className="flex items-start justify-between">
                             <div>
                               <h4 className="font-medium">Version {version.version}</h4>
-                              <p className="text-sm text-muted-foreground mt-1">
+                              <p className="mt-1 text-sm text-muted-foreground">
                                 {version.changes || 'No changes recorded'}
                               </p>
                               <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
@@ -331,7 +335,7 @@ export function DocumentViewer({ document, open, onClose, onRefresh }: DocumentV
                       ))}
                     </div>
                   ) : (
-                    <p className="text-center text-muted-foreground py-8">
+                    <p className="py-8 text-center text-muted-foreground">
                       No version history available
                     </p>
                   )}
@@ -358,11 +362,11 @@ export function DocumentViewer({ document, open, onClose, onRefresh }: DocumentV
                   {documentDetails?.activities?.length > 0 ? (
                     <div className="space-y-4">
                       {documentDetails.activities.map((activity: any) => (
-                        <div key={activity.id} className="border-l-2 border-gray-200 pl-4">
-                          <div className="flex justify-between items-start">
+                        <div key={activity.id} className="pl-4 border-l-2 border-gray-200">
+                          <div className="flex items-start justify-between">
                             <div>
                               <h4 className="font-medium">{activity.action.replace('_', ' ')}</h4>
-                              <p className="text-sm text-muted-foreground mt-1">
+                              <p className="mt-1 text-sm text-muted-foreground">
                                 {activity.description}
                               </p>
                               <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
@@ -377,7 +381,7 @@ export function DocumentViewer({ document, open, onClose, onRefresh }: DocumentV
                       ))}
                     </div>
                   ) : (
-                    <p className="text-center text-muted-foreground py-8">
+                    <p className="py-8 text-center text-muted-foreground">
                       No activity recorded
                     </p>
                   )}

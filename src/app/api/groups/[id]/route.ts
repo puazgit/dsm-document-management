@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../../../../lib/next-auth'
 import { prisma } from '../../../../lib/prisma'
-import { checkApiPermission } from '../../../../lib/permissions'
+import { requireCapability } from '../../../../lib/rbac-helpers'
 import { auditHelpers } from '../../../../lib/audit'
 import { z } from 'zod'
 
@@ -19,19 +17,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Check if user has admin role
-    const userRole = session.user.role?.toLowerCase()
-    if (!userRole || !['admin', 'administrator'].includes(userRole)) {
-      return NextResponse.json(
-        { error: 'Forbidden - Admin access required' },
-        { status: 403 }
-      )
-    }
+    // Require USER_MANAGE capability for viewing group details
+    const auth = await requireCapability(request, 'USER_MANAGE')
 
     const group = await prisma.group.findUnique({
       where: { id: params.id },
@@ -74,27 +61,8 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Check if user has admin role
-    const userRole = session.user.role?.toLowerCase()
-    console.log('🔍 PUT /api/groups/[id] - Debug:', { 
-      email: session.user.email, 
-      role: session.user.role, 
-      userRole, 
-      check: ['admin', 'administrator'].includes(userRole || '')
-    })
-    
-    if (!userRole || !['admin', 'administrator'].includes(userRole)) {
-      console.log('❌ PUT /api/groups/[id] - Access DENIED')
-      return NextResponse.json(
-        { error: 'Forbidden - Admin access required' },
-        { status: 403 }
-      )
-    }
+    // Require USER_MANAGE capability for updating groups
+    const auth = await requireCapability(request, 'USER_MANAGE')
 
     const group = await prisma.group.findUnique({
       where: { id: params.id }
@@ -107,7 +75,6 @@ export async function PUT(
     const body = await request.json()
     console.log('PUT /api/groups/[id] - Request body:', JSON.stringify(body, null, 2))
     console.log('PUT /api/groups/[id] - Group ID:', params.id)
-    console.log('PUT /api/groups/[id] - User role:', session.user.role)
     
     let validatedData
     try {
@@ -148,7 +115,7 @@ export async function PUT(
 
     await auditHelpers.groupUpdated(
       updatedGroup.id,
-      session.user.id,
+      auth.userId!,
       {
         name: updatedGroup.name,
         changes: validatedData,
@@ -182,19 +149,8 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Check if user has admin role
-    const userRole = session.user.role?.toLowerCase()
-    if (!userRole || !['admin', 'administrator'].includes(userRole)) {
-      return NextResponse.json(
-        { error: 'Forbidden - Admin access required' },
-        { status: 403 }
-      )
-    }
+    // Require USER_DELETE capability for deleting groups
+    const auth = await requireCapability(request, 'USER_DELETE')
 
     const group = await prisma.group.findUnique({
       where: { id: params.id },
@@ -239,7 +195,7 @@ export async function DELETE(
 
     await auditHelpers.groupDeleted(
       params.id,
-      session.user.id,
+      auth.userId!,
       {
         name: group.name,
         displayName: group.displayName

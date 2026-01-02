@@ -43,9 +43,10 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
-import { getFilteredNavigation } from "../lib/navigation"
+import { getNavigationItems, getFilteredNavigation, NavItem } from "../lib/navigation-db"
 import { useState, useEffect } from "react"
-import { useRoleVisibility, RoleGuard } from "../hooks/use-role-visibility"
+import { useRoleVisibility } from "../hooks/use-role-visibility"
+import { CapabilityGuard } from "../hooks/use-capabilities"
 import { getRoleConfig } from "../config/roles"
 
 // Helper function to get role display with icon
@@ -110,18 +111,37 @@ export function AppSidebar() {
     }
   }, [session?.user])
 
-  // Auto-open parent items when child is active  
+  const [navigationItems, setNavigationItems] = useState<NavItem[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Load navigation from database
   useEffect(() => {
     if (!session?.user) return
 
-    const userRole = session.user.role || 'user'
-    const userPermissions: string[] = [] // TODO: Get from session when permissions are added
-    const navigationItems = getFilteredNavigation(userRole, userPermissions)
+    const loadNavigation = async () => {
+      try {
+        const allNavItems = await getNavigationItems()
+        const userCapabilities = (session.user as any).capabilities || []
+        const filtered = getFilteredNavigation(allNavItems, userCapabilities)
+        setNavigationItems(filtered)
+      } catch (error) {
+        console.error('Failed to load navigation:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
 
-    const findParentOfActivePath = (items: any[], currentPath: string) => {
+    loadNavigation()
+  }, [session?.user])
+
+  // Auto-open parent items when child is active  
+  useEffect(() => {
+    if (!session?.user || navigationItems.length === 0) return
+
+    const findParentOfActivePath = (items: NavItem[], currentPath: string) => {
       for (const item of items) {
         if (item.children) {
-          const childMatch = item.children.some((child: any) => 
+          const childMatch = item.children.some((child: NavItem) => 
             currentPath === child.href || currentPath.startsWith(child.href + '/')
           )
           if (childMatch) {
@@ -144,14 +164,9 @@ export function AppSidebar() {
         return newItems
       })
     }
-  }, [pathname, session?.user])
+  }, [pathname, session?.user, navigationItems])
 
-  if (!session?.user) return null
-
-  const userRole = session.user.role || 'user'
-  const userPermissions = session.user.permissions || []
-  
-  const navigationItems = getFilteredNavigation(userRole, userPermissions)
+  if (!session?.user || loading) return null
 
   const toggleItem = (href: string) => {
     setOpenItems(prev => {
@@ -323,7 +338,7 @@ export function AppSidebar() {
                     <span className="font-semibold truncate">{session.user.name}</span>
                     <span className="text-xs truncate">{session.user.email}</span>
                     <span className="truncate text-[10px] text-muted-foreground font-medium">
-                      {getRoleDisplay(session.user.role || 'guest')}
+                      {getRoleDisplay((session.user as any).role || 'guest')}
                     </span>
                   </div>
                 </SidebarMenuButton>
@@ -340,22 +355,22 @@ export function AppSidebar() {
                     Profile
                   </Link>
                 </DropdownMenuItem>
-                <RoleGuard requiredRoles={['admin', 'administrator']}>
+                <CapabilityGuard anyOf={['ADMIN_ACCESS', 'SYSTEM_CONFIG']}>
                   <DropdownMenuItem asChild>
                     <Link href="/admin/settings">
                       <Settings className="w-4 h-4" />
                       Admin Settings
                     </Link>
                   </DropdownMenuItem>
-                </RoleGuard>
-                <RoleGuard requiredRoles={['admin', 'administrator', 'ppd.pusat', 'ppd.unit']}>
+                </CapabilityGuard>
+                <CapabilityGuard capability="USER_VIEW">
                   <DropdownMenuItem asChild>
                     <Link href="/admin/users">
                       <Users className="w-4 h-4" />
                       Manage Users
                     </Link>
                   </DropdownMenuItem>
-                </RoleGuard>
+                </CapabilityGuard>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/auth/login" })}>
                   <LogOut className="w-4 h-4" />

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
@@ -17,7 +18,7 @@ import { Switch } from '../ui/switch';
 import { useToast } from '../../hooks/use-toast';
 import { DocumentStatusWorkflow } from './document-status-workflow';
 import { DocumentHistory } from './document-history';
-import { useRoleVisibility, RoleGuard, FeatureToggle } from '../../hooks/use-role-visibility';
+import { useRoleVisibility } from '../../hooks/use-role-visibility';
 
 // Utility functions for cleaner permission checks
 const hasDocumentAccess = (userSession: any, document: any) => {
@@ -67,9 +68,9 @@ const ActionMenuItem = ({
 };
 
 // Dynamic import to ensure client-side only execution with error handling
-const SecurePDFViewer = dynamic(
-  () => import('./pdf-viewer').then(mod => ({ default: mod.SecurePDFViewer })).catch(err => {
-    console.warn('Failed to load SecurePDFViewer:', err);
+const PDFViewerWrapper = dynamic(
+  () => import('./pdf-viewer-wrapper').then(mod => ({ default: mod.PDFViewerWrapper })).catch(err => {
+    console.warn('Failed to load PDFViewerWrapper:', err);
     return { default: () => <div className="p-4 text-center text-red-600">Failed to load PDF viewer</div> };
   }),
   { 
@@ -78,14 +79,6 @@ const SecurePDFViewer = dynamic(
       <span className="text-gray-600">Loading PDF viewer...</span>
     </div> 
   }
-);
-
-const PDFViewer = dynamic(
-  () => import('./pdf-viewer').then(mod => ({ default: mod.PDFViewer })).catch(err => {
-    console.warn('Failed to load PDFViewer:', err);
-    return { default: () => <div className="p-4 text-center text-red-600">Failed to load PDF viewer</div> };
-  }),
-  { ssr: false }
 );
 
 interface DocumentsListProps {
@@ -111,6 +104,7 @@ export function DocumentsList({
   onPageChange,
   userSession,
 }: DocumentsListProps) {
+  const router = useRouter();
   const roleVisibility = useRoleVisibility();
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
   const [showViewer, setShowViewer] = useState(false);
@@ -122,7 +116,6 @@ export function DocumentsList({
     description: '',
     documentTypeId: '',
     tags: '',
-    isPublic: false,
     accessGroups: [] as string[],
     expiresAt: ''
   });
@@ -139,9 +132,9 @@ export function DocumentsList({
 
   // Debug: Log userSession in DocumentsList
   console.log('📋 DocumentsList userSession:', {
-    role: userSession?.user?.role,
-    permissions: userSession?.user?.permissions,
-    hasPdfDownload: userSession?.user?.permissions?.includes('pdf.download')
+    role: (userSession?.user as any)?.role,
+    capabilities: (userSession?.user as any)?.capabilities,
+    hasPdfDownload: (userSession?.user as any)?.capabilities?.includes('PDF_DOWNLOAD')
   });
 
   // Handle scroll to show/hide shadow indicators
@@ -286,7 +279,6 @@ export function DocumentsList({
       description: doc.description || '',
       documentTypeId: doc.documentTypeId || '',
       tags: doc.tags ? doc.tags.join(', ') : '',
-      isPublic: doc.isPublic || false,
       accessGroups: doc.accessGroups || [],
       expiresAt: doc.expiresAt ? new Date(doc.expiresAt).toISOString().split('T')[0] || '' : ''
     });
@@ -308,7 +300,6 @@ export function DocumentsList({
           description: editFormData.description,
           documentTypeId: editFormData.documentTypeId,
           tags: editFormData.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
-          isPublic: editFormData.isPublic,
           accessGroups: editFormData.accessGroups,
           expiresAt: editFormData.expiresAt ? new Date(editFormData.expiresAt).toISOString() : null
         }),
@@ -346,7 +337,6 @@ export function DocumentsList({
       description: '', 
       documentTypeId: '', 
       tags: '', 
-      isPublic: false, 
       accessGroups: [], 
       expiresAt: '' 
     });
@@ -572,14 +562,16 @@ export function DocumentsList({
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <ActionMenuItem 
-                            document={document} 
-                            action="view" 
-                            onClick={() => handleViewDocument(document)} 
-                            label={isPDFFile(document) ? 'Preview PDF' : 'View Details'}
-                            userSession={userSession}
-                            roleVisibility={roleVisibility}
-                          />
+                          {isPDFFile(document) && (
+                            <ActionMenuItem 
+                              document={document} 
+                              action="view" 
+                              onClick={() => router.push(`/documents/${document.id}/view`)} 
+                              label="View Full Screen"
+                              userSession={userSession}
+                              roleVisibility={roleVisibility}
+                            />
+                          )}
                           <ActionMenuItem 
                             document={document} 
                             action="history" 
@@ -729,14 +721,16 @@ export function DocumentsList({
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <ActionMenuItem 
-                              document={document} 
-                              action="view" 
-                              onClick={() => handleViewDocument(document)} 
-                              label={isPDFFile(document) ? 'Preview PDF' : 'View Details'}
-                              userSession={userSession}
-                              roleVisibility={roleVisibility}
-                            />
+                            {isPDFFile(document) && (
+                              <ActionMenuItem 
+                                document={document} 
+                                action="view" 
+                                onClick={() => router.push(`/documents/${document.id}/view`)} 
+                                label="View Full Screen"
+                                userSession={userSession}
+                                roleVisibility={roleVisibility}
+                              />
+                            )}
                             <ActionMenuItem 
                               document={document} 
                               action="history" 
@@ -832,9 +826,9 @@ export function DocumentsList({
                 
                 {isPDFFile(selectedDocument) && (
                   <div className="flex gap-2">
-                    {/* Download button - only show if user has permissions */}
-                    {(userSession?.user?.permissions?.includes('pdf.download') || 
-                      userSession?.user?.permissions?.includes('documents.download') ||
+                    {/* Download button - only show if user has capabilities */}
+                    {(userSession?.user?.capabilities?.includes('PDF_DOWNLOAD') || 
+                      userSession?.user?.capabilities?.includes('DOCUMENT_DOWNLOAD') ||
                       selectedDocument?.createdById === userSession?.user?.id) && (
                       <Button
                         variant="default"
@@ -860,12 +854,12 @@ export function DocumentsList({
               </div>
             </DialogHeader>
             
-            <div className="overflow-y-auto max-h-[85vh]">
+            <div className="flex flex-col h-[85vh]">
               {isPDFFile(selectedDocument) ? (
-                <SecurePDFViewer
+                <PDFViewerWrapper
                   fileUrl={`/api/documents/${selectedDocument.id}/download`}
                   fileName={selectedDocument.fileName}
-                  userRole={userSession?.user?.role || 'viewer'}
+                  userRole={(userSession?.user as any)?.role || 'viewer'}
                   canDownload={false}
                   document={selectedDocument}
                 />
@@ -956,21 +950,7 @@ export function DocumentsList({
               </div>
             </div>
 
-            {/* Access Control */}
-            <div className="space-y-4">
-              <h4 className="text-sm font-medium text-foreground">Access Control</h4>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="edit-public"
-                  checked={editFormData.isPublic}
-                  onCheckedChange={(checked) => setEditFormData(prev => ({ ...prev, isPublic: checked }))}
-                />
-                <Label htmlFor="edit-public">Make this document public</Label>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Public documents can be accessed by all users in the system
-              </p>
-            </div>
+
 
             {/* Expiration */}
             <div className="space-y-4">

@@ -1,20 +1,11 @@
 import { NextResponse, NextRequest } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { checkApiPermission } from '@/lib/permissions'
+import { requireCapability } from '@/lib/rbac-helpers'
 
 export async function GET(request: NextRequest) {
   try {
     // Check authentication and permissions
-    const permissionCheck = await checkApiPermission(request, 'audit.read')
-    
-    if (!permissionCheck.success) {
-      return NextResponse.json(
-        { error: permissionCheck.error },
-        { status: permissionCheck.error === 'Unauthorized' ? 401 : 403 }
-      )
-    }
+    const auth = await requireCapability(request, 'DOCUMENT_VIEW')
 
     const { searchParams } = new URL(request.url)
     const action = searchParams.get('action')

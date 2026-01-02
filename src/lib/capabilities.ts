@@ -14,7 +14,6 @@ export interface CapabilityUser {
   roles?: Array<{
     id: string;
     name: string;
-    level: number;
   }>;
 }
 
@@ -263,46 +262,4 @@ export async function canManageRoles(user: CapabilityUser | null | undefined): P
  */
 export async function canConfigureSystem(user: CapabilityUser | null | undefined): Promise<boolean> {
   return hasAnyCapability(user, ['ADMIN_ACCESS', 'SYSTEM_CONFIGURE']);
-}
-
-/**
- * Get role level for user (highest level among assigned roles)
- * Useful for workflow level checks
- * 
- * @param user User object with roles
- * @returns number Highest role level (100 for admin, 70 for manager, etc.)
- * 
- * @example
- * ```ts
- * const level = getUserRoleLevel(user);
- * if (level >= 70) {
- *   // Manager or higher
- * }
- * ```
- */
-export function getUserRoleLevel(user: CapabilityUser | null | undefined): number {
-  if (!user?.roles || user.roles.length === 0) return 0;
-  
-  return Math.max(...user.roles.map(role => role.level));
-}
-
-/**
- * Check if user meets minimum role level requirement
- * 
- * @param user User object with roles
- * @param minLevel Minimum required level
- * @returns boolean True if user meets or exceeds level
- * 
- * @example
- * ```ts
- * if (meetsMinLevel(user, 70)) {
- *   // User is manager or higher
- * }
- * ```
- */
-export function meetsMinLevel(
-  user: CapabilityUser | null | undefined,
-  minLevel: number
-): boolean {
-  return getUserRoleLevel(user) >= minLevel;
 }

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/next-auth'
 import { prisma } from '@/lib/prisma'
+import { requireCapability } from '@/lib/rbac-helpers'
+import { UnifiedAccessControl } from '@/lib/unified-access-control'
 
 /**
  * GET /api/documents/suggestions - Get autocomplete suggestions
@@ -9,9 +10,9 @@ import { prisma } from '@/lib/prisma'
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const auth = await requireCapability(request, 'DOCUMENT_VIEW')
+    if (!auth.authorized) {
+      return auth.error;
     }
 
     const { searchParams } = new URL(request.url)
@@ -50,13 +51,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Add access control for non-admin users
-    if (session.user.role !== 'admin' && session.user.role !== 'administrator') {
+    // Check if user has admin access via capability (already checked DOCUMENT_VIEW above)
+    const hasAdminAccess = await UnifiedAccessControl.hasCapability(auth.userId!, 'ADMIN_ACCESS');
+    if (!hasAdminAccess) {
       whereClause.AND = [
         {
           OR: [
-            { createdById: session.user.id },
-            { isPublic: true },
+            { createdById: auth.userId },
             { status: 'PUBLISHED' },
+            { accessGroups: { isEmpty: true } },
           ],
         },
       ]

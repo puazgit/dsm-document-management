@@ -1,12 +1,18 @@
+/**
+ * Authorization utilities for API routes and middleware
+ * 
+ * MIGRATION NOTE: Permission-based functions are deprecated
+ * - hasPermission() checks use static role configs (DEPRECATED)
+ * - Modern code should use UnifiedAccessControl.hasCapability()
+ * - Capability-based system queries database for dynamic permissions
+ * 
+ * Unified approach using centralized role configuration
+ */
+
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { hasRoleAccess, hasPermission, normalizeRoleName, getRoleConfig } from '@/config/roles'
-
-/**
- * Authorization utilities for API routes and middleware
- * Unified approach using centralized role configuration
- */
 
 export interface AuthResult {
   success: boolean
@@ -95,7 +101,7 @@ export async function checkRoleAccess(
     const roleConfig = getRoleConfig(userResult.user.role)
     return {
       success: false,
-      error: `Insufficient permissions. Required: [${requiredRoles.join(', ')}], Current: ${roleConfig?.displayName || userResult.user.role}`,
+      error: `Insufficient permissions. Required: [${requiredRoles.join(', ')}], Current: ${userResult.user.role}`,
       status: 403
     }
   }
@@ -105,6 +111,8 @@ export async function checkRoleAccess(
 
 /**
  * Check if user has specific permission
+ * @deprecated Use UnifiedAccessControl.hasCapability() instead
+ * This function uses static role configuration, not dynamic database capabilities
  */
 export async function checkPermissionAccess(
   request: NextRequest,
@@ -156,6 +164,8 @@ export function requireRoles(requiredRoles: string[]) {
 
 /**
  * API route wrapper for permission-based authorization
+ * @deprecated Use requireCapability() from rbac-helpers.ts instead
+ * This function uses static role configuration, not dynamic database capabilities
  */
 export function requirePermission(permission: string) {
   return function <T extends any[]>(
@@ -191,6 +201,8 @@ export async function userHasRole(request: NextRequest, requiredRole: string): P
 
 /**
  * Simple permission check for conditional logic (non-blocking)
+ * @deprecated Use UnifiedAccessControl.hasCapability() instead
+ * This function uses static role configuration, not dynamic database capabilities
  */
 export async function userHasPermission(request: NextRequest, permission: string): Promise<boolean> {
   const userResult = await getCurrentUser(request)

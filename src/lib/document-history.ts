@@ -230,7 +230,6 @@ function generateHistoryMessage(entry: any): string {
       if (field === 'description') return 'Description updated';
       if (field === 'tags') return 'Tags updated';
       if (field === 'accessGroups') return 'Access permissions updated';
-      if (field === 'isPublic') return 'Visibility settings updated';
       return `${field} updated`;
     default:
       return entry.changeReason || `Document ${action}`;

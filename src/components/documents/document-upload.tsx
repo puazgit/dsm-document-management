@@ -35,7 +35,6 @@ export function DocumentUpload({ open, onClose, onSuccess, documentTypes }: Docu
     title: '',
     description: '',
     documentTypeId: '',
-    isPublic: false,
     tags: '',
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -164,7 +163,6 @@ export function DocumentUpload({ open, onClose, onSuccess, documentTypes }: Docu
       uploadFormData.append('title', formData.title);
       uploadFormData.append('description', formData.description);
       uploadFormData.append('documentTypeId', formData.documentTypeId);
-      uploadFormData.append('isPublic', formData.isPublic.toString());
       uploadFormData.append('accessGroups', JSON.stringify(selectedGroups));
       uploadFormData.append('tags', JSON.stringify(formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag)));
 
@@ -221,7 +219,6 @@ export function DocumentUpload({ open, onClose, onSuccess, documentTypes }: Docu
       title: '',
       description: '',
       documentTypeId: '',
-      isPublic: false,
       tags: '',
     });
     setSelectedFile(null);
@@ -362,21 +359,6 @@ export function DocumentUpload({ open, onClose, onSuccess, documentTypes }: Docu
               />
             </div>
 
-            <div className="flex items-end col-span-1">
-              <label className="flex items-center space-x-2 h-9">
-                <input
-                  type="checkbox"
-                  id="isPublic"
-                  checked={formData.isPublic}
-                  onChange={(e) => setFormData(prev => ({ ...prev, isPublic: e.target.checked }))}
-                  disabled={uploading}
-                  className="border-gray-300 rounded"
-                />
-                <Label htmlFor="isPublic" className="text-sm cursor-pointer">
-                  Public document
-                </Label>
-              </label>
-            </div>
           </div>
 
           {/* Access Groups Multi-Select */}

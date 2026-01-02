@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/next-auth';
 import { prisma } from '../../../../lib/prisma';
+import { requireCapability } from '@/lib/rbac-helpers';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -45,15 +45,13 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024;
 // POST /api/documents/upload - Upload file and create/update document
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    console.log('[UPLOAD] Starting document upload request');
+    const auth = await requireCapability(request, 'DOCUMENT_CREATE');
+    console.log('[UPLOAD] Auth successful:', { userId: auth.userId });
     
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     // Check if user exists in database and get fresh user data
     const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: auth.userId },
       select: { 
         id: true, 
         email: true, 
@@ -64,7 +62,7 @@ export async function POST(request: NextRequest) {
     });
     
     if (!currentUser) {
-      console.error('User not found:', { sessionUserId: session.user.id });
+      console.error('User not found:', { authUserId: auth.userId });
       return NextResponse.json({ 
         error: 'User account not found. Please login again.',
       }, { status: 400 });
@@ -82,10 +80,19 @@ export async function POST(request: NextRequest) {
     const title = formData.get('title') as string;
     const description = formData.get('description') as string | null;
     const documentTypeId = formData.get('documentTypeId') as string;
-    const isPublic = formData.get('isPublic') === 'true';
     const accessGroups = formData.get('accessGroups') ? JSON.parse(formData.get('accessGroups') as string) : [];
     const tags = formData.get('tags') ? JSON.parse(formData.get('tags') as string) : [];
     const metadata = formData.get('metadata') ? JSON.parse(formData.get('metadata') as string) : {};
+
+    console.log('[UPLOAD] Parsed data:', { 
+      title, 
+      description, 
+      documentTypeId, 
+      accessGroups, 
+      tags, 
+      metadata,
+      fileSize: file.size 
+    });
 
     if (!file) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
@@ -130,7 +137,7 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes);
     await writeFile(filePath, buffer);
 
-    let document;
+    let document: any;
 
     if (documentId) {
       // Update existing document with new file
@@ -142,11 +149,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Document not found' }, { status: 404 });
       }
 
-      // Check edit permissions
+      // Check edit permissions (capability already checked)
       const canEdit = 
-        existingDocument.createdById === currentUser.id ||
-        session.user.role === 'ADMIN' ||
-        session.user.role === 'manager';
+        existingDocument.createdById === currentUser.id;
 
       if (!canEdit) {
         return NextResponse.json({ error: 'Access denied' }, { status: 403 });
@@ -243,7 +248,6 @@ export async function POST(request: NextRequest) {
           mimeType: file.type,
           documentTypeId,
           createdById: currentUser.id,
-          isPublic: false, // Always false on upload, will be true when status becomes PUBLISHED
           accessGroups,
           tags,
           metadata,
@@ -300,7 +304,12 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error uploading file:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: errorMessage,
+      stack: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : undefined) : undefined
+    }, { status: 500 });
   }
 }
 

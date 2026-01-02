@@ -14,16 +14,20 @@ export enum AuditAction {
   REVOKE = 'REVOKE',
   ACTIVATE = 'ACTIVATE',
   DEACTIVATE = 'DEACTIVATE',
-  PERMISSION_GRANT = 'PERMISSION_GRANT',
-  PERMISSION_REVOKE = 'PERMISSION_REVOKE',
+  PERMISSION_GRANT = 'PERMISSION_GRANT', // @deprecated Use CAPABILITY_GRANT
+  PERMISSION_REVOKE = 'PERMISSION_REVOKE', // @deprecated Use CAPABILITY_REVOKE
+  CAPABILITY_GRANT = 'CAPABILITY_GRANT', // Modern capability grant
+  CAPABILITY_REVOKE = 'CAPABILITY_REVOKE', // Modern capability revoke
 }
 
 export enum AuditResource {
   USER = 'USER',
   ROLE = 'ROLE', 
-  PERMISSION = 'PERMISSION',
+  PERMISSION = 'PERMISSION', // @deprecated Use CAPABILITY
   USER_ROLE = 'USER_ROLE',
-  ROLE_PERMISSION = 'ROLE_PERMISSION',
+  ROLE_PERMISSION = 'ROLE_PERMISSION', // @deprecated Use ROLE_CAPABILITY
+  ROLE_CAPABILITY = 'ROLE_CAPABILITY', // Modern capability assignment
+  CAPABILITY = 'CAPABILITY', // Modern capability
   PROFILE = 'PROFILE',
   PASSWORD = 'PASSWORD',
   SESSION = 'SESSION',
@@ -297,7 +301,10 @@ export const auditHelpers = {
       userAgent,
     }),
 
-  // Permission management
+  // Permission management (DEPRECATED - Use capability functions below)
+  /**
+   * @deprecated Use capabilityGranted() instead
+   */
   permissionGranted: (roleId: string, permissionId: string, actorId: string, details: any, ipAddress?: string, userAgent?: string) =>
     createAuditLog({
       action: AuditAction.PERMISSION_GRANT,
@@ -309,6 +316,9 @@ export const auditHelpers = {
       userAgent,
     }),
 
+  /**
+   * @deprecated Use capabilityRevoked() instead
+   */
   permissionRevoked: (roleId: string, permissionId: string, actorId: string, details: any, ipAddress?: string, userAgent?: string) =>
     createAuditLog({
       action: AuditAction.PERMISSION_REVOKE,
@@ -316,6 +326,37 @@ export const auditHelpers = {
       resourceId: `${roleId}-${permissionId}`,
       actorId,
       details,
+      ipAddress,
+      userAgent,
+    }),
+
+  // Capability management (MODERN - Use these for new code)
+  capabilityGranted: (roleId: string, capabilityId: string, actorId: string, details: any, ipAddress?: string, userAgent?: string) =>
+    createAuditLog({
+      action: AuditAction.CAPABILITY_GRANT,
+      resource: AuditResource.ROLE_CAPABILITY,
+      resourceId: `${roleId}-${capabilityId}`,
+      actorId,
+      details: {
+        ...details,
+        capabilityId,
+        roleId,
+      },
+      ipAddress,
+      userAgent,
+    }),
+
+  capabilityRevoked: (roleId: string, capabilityId: string, actorId: string, details: any, ipAddress?: string, userAgent?: string) =>
+    createAuditLog({
+      action: AuditAction.CAPABILITY_REVOKE,
+      resource: AuditResource.ROLE_CAPABILITY,
+      resourceId: `${roleId}-${capabilityId}`,
+      actorId,
+      details: {
+        ...details,
+        capabilityId,
+        roleId,
+      },
       ipAddress,
       userAgent,
     }),
@@ -395,7 +436,6 @@ export const auditHelpers = {
       details: { 
         name: groupData.name,
         displayName: groupData.displayName,
-        level: groupData.level,
       },
       ipAddress,
       userAgent,
@@ -421,7 +461,6 @@ export const auditHelpers = {
       details: { 
         name: groupData.name,
         displayName: groupData.displayName,
-        level: groupData.level,
       },
       ipAddress,
       userAgent,

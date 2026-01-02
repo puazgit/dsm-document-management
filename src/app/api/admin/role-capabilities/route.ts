@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     }
     
     const roles = await prisma.role.findMany({
-      orderBy: { level: 'desc' },
+      orderBy: { name: 'asc' },
       include: {
         capabilityAssignments: {
           include: {

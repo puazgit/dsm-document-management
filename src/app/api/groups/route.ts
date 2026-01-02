@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../../../lib/next-auth'
 import { prisma } from '../../../lib/prisma'
-import { checkApiPermission } from '../../../lib/permissions'
+import { requireCapability } from '../../../lib/rbac-helpers'
 import { auditHelpers } from '../../../lib/audit'
 import { requireRoles, getCurrentUser } from '../../../lib/auth-utils'
 import { z } from 'zod'
@@ -23,15 +21,9 @@ const updateGroupSchema = z.object({
 // GET /api/groups - List all groups
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication
-    const session = await getServerSession(authOptions)
-    console.log('🔐 Groups API - Session check:', { user: session?.user?.email, hasUser: !!session?.user })
-    
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // Check authentication - all authenticated users can view groups
+    const auth = await requireCapability(request, 'USER_VIEW')
 
-    // All authenticated users can view groups for document access control
     const { searchParams } = new URL(request.url)
     const includeUsers = searchParams.get('includeUsers') === 'true'
 
@@ -74,7 +66,12 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/groups - Create new group
-export const POST = requireRoles(['administrator'])(async function(request: NextRequest) {
+export async function POST(request: NextRequest) {
+  // Check capability - creating groups requires USER_MANAGE
+  const auth = await requireCapability(request, 'USER_MANAGE')
+  if (!auth.authorized) {
+    return auth.error
+  }
   try {
 
     const body = await request.json()
@@ -137,4 +134,4 @@ export const POST = requireRoles(['administrator'])(async function(request: Next
       { status: 500 }
     )
   }
-})
+}
