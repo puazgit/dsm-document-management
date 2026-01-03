@@ -16,6 +16,10 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force",
     "db:deploy": "prisma migrate deploy",
+    "db:backup": "bash scripts/backup-database.sh",
+    "db:backup:full": "bash scripts/backup-full.sh",
+    "db:restore": "bash scripts/restore-database.sh",
+    "db:restore:full": "bash scripts/restore-full.sh",
     "sync:counters": "tsx scripts/sync-document-counters.ts"
   },
   "dependencies": {
