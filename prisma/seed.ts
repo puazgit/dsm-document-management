@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { seedRoleCapabilities } from './seeds/role-capabilities';
 import { assignRoleCapabilities } from './seeds/assign-role-capabilities';
+import { seedDocuments } from './seeds/documents';
 
 const prisma = new PrismaClient();
 
@@ -743,6 +744,9 @@ async function main() {
 
   const assignedUserRoles = await Promise.all(userRoleAssignments);
   console.log(`✅ Assigned ${assignedUserRoles.length} roles to users`);
+
+  // Seed documents and related data
+  await seedDocuments();
 }
 
 main()

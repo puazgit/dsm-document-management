@@ -12,7 +12,7 @@ import {
   WORKFLOW_DESCRIPTIONS 
 } from '../../../../../config/document-workflow';
 import { trackDocumentStatusChanged } from '../../../../../lib/document-history';
-import { hasCapability, type CapabilityUser } from '@/lib/capabilities';
+import { hasCapability, getUserCapabilities, type CapabilityUser } from '@/lib/capabilities';
 
 // Validation schema for status change
 const StatusChangeSchema = z.object({
@@ -63,11 +63,9 @@ export async function POST(
     }
 
     // Get user permissions and role
-    // DEPRECATED: Migrated to capability-based authorization
-    const userPermissions: string[] = [];
     const userRole = session.user.role || '';
 
-    // Get user's roles from database
+    // Get user's roles and capabilities from database
     const currentUser = await prisma.user.findUnique({
       where: { id: auth.userId! },
       include: {
@@ -76,21 +74,54 @@ export async function POST(
             role: {
               select: {
                 id: true,
-                name: true
+                name: true,
+                level: true
               }
             }
           }
         }
       }
     });
+
+    // Get user level from highest role
+    const userLevel = currentUser?.userRoles.reduce((maxLevel, ur) => {
+      return Math.max(maxLevel, ur.role.level || 0)
+    }, 0) || 0
+
+    // Build capability user object for getUserCapabilities
+    const capUser: CapabilityUser = {
+      id: auth.userId!,
+      roles: currentUser?.userRoles.map(ur => ({ name: ur.role.name })) || []
+    }
+
+    // Get user capabilities from database
+    const userCapabilities = await getUserCapabilities(capUser)
     
-    const effectivePermissions = userPermissions;
+    // Map capabilities to permissions for workflow checking
+    const effectivePermissions: string[] = []
+    
+    // If user has ADMIN_ACCESS, grant all permissions
+    if (userCapabilities.includes('ADMIN_ACCESS')) {
+      effectivePermissions.push('*', 'documents.create', 'documents.read', 'documents.update', 'documents.delete', 'documents.approve', 'documents.publish')
+    } else {
+      // Map specific capabilities to permissions
+      if (userCapabilities.includes('DOCUMENT_VIEW')) effectivePermissions.push('documents.read')
+      if (userCapabilities.includes('DOCUMENT_CREATE')) effectivePermissions.push('documents.create')
+      if (userCapabilities.includes('DOCUMENT_EDIT')) effectivePermissions.push('documents.update')
+      if (userCapabilities.includes('DOCUMENT_DELETE')) effectivePermissions.push('documents.delete')
+      if (userCapabilities.includes('DOCUMENT_APPROVE')) effectivePermissions.push('documents.approve')
+      if (userCapabilities.includes('DOCUMENT_PUBLISH')) effectivePermissions.push('documents.publish')
+    }
+    
+    console.log('POST Status Change - User:', auth.userId, 'Level:', userLevel, 'Permissions:', effectivePermissions)
+
+    console.log('POST Status Change - User:', auth.userId, 'Level:', userLevel, 'Permissions:', effectivePermissions)
 
     const currentStatus = document.status as DocumentStatus;
-    const isAllowed = await isTransitionAllowed(currentStatus, newStatus, userRole, effectivePermissions);
+    const isAllowed = await isTransitionAllowed(currentStatus, newStatus, userRole, effectivePermissions, userLevel);
 
     if (!isAllowed) {
-      const allowedTransitions = await getAllowedTransitions(currentStatus, userRole, effectivePermissions);
+      const allowedTransitions = await getAllowedTransitions(currentStatus, userRole, effectivePermissions, userLevel);
       return NextResponse.json({ 
         error: `Status transition from ${currentStatus} to ${newStatus} is not allowed for your role`,
         allowedTransitions: allowedTransitions.map(t => ({
@@ -305,11 +336,6 @@ export async function GET(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
-    // Get user permissions and role
-    // DEPRECATED: Migrated to capability-based authorization
-    const userPermissions: string[] = [];
-    const userRole = session.user.role || '';
-    
     // Get user's role level from database
     const currentUser = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -320,7 +346,8 @@ export async function GET(
               select: {
                 id: true,
                 name: true,
-                displayName: true
+                displayName: true,
+                level: true
               }
             }
           }
@@ -329,9 +356,11 @@ export async function GET(
     });
     
     const highestRole = currentUser?.userRoles?.[0]?.role;
+    const userRole = highestRole?.name || session.user.role || '';
+    const userLevel = highestRole?.level || 0;
     
-    // Check capability-based admin access for GET endpoint
-    const capUserGet: CapabilityUser = { 
+    // Get user capabilities from database
+    const capUser: CapabilityUser = { 
       id: session.user.id, 
       email: session.user.email || '', 
       roles: currentUser?.userRoles.map(ur => ({
@@ -339,27 +368,36 @@ export async function GET(
         name: ur.role.name
       })) || []
     };
-    const hasAdminCapabilityGet = await hasCapability(capUserGet, 'ADMIN_ACCESS');
     
-    const effectivePermissions = hasAdminCapabilityGet ? 
-      ['*', 'documents.create', 'documents.read', 'documents.update', 'documents.delete', 'documents.approve'] : 
-      userPermissions;
+    const userCapabilities = await getUserCapabilities(capUser);
+    
+    // Map capabilities to permissions for workflow checking
+    const effectivePermissions: string[] = [];
+    
+    // Check specific capabilities and add corresponding permissions
+    if (userCapabilities.includes('ADMIN_ACCESS')) {
+      effectivePermissions.push('*', 'documents.create', 'documents.read', 'documents.update', 'documents.delete', 'documents.approve', 'documents.publish');
+    } else {
+      if (userCapabilities.includes('DOCUMENT_CREATE')) effectivePermissions.push('documents.create');
+      if (userCapabilities.includes('DOCUMENT_VIEW')) effectivePermissions.push('documents.read');
+      if (userCapabilities.includes('DOCUMENT_EDIT')) effectivePermissions.push('documents.update');
+      if (userCapabilities.includes('DOCUMENT_DELETE')) effectivePermissions.push('documents.delete');
+      if (userCapabilities.includes('DOCUMENT_APPROVE')) effectivePermissions.push('documents.approve');
+      if (userCapabilities.includes('DOCUMENT_PUBLISH')) effectivePermissions.push('documents.publish');
+      
+      // Full access capabilities grant all permissions
+      if (userCapabilities.includes('DOCUMENT_FULL_ACCESS') || userCapabilities.includes('DOCUMENT_MANAGE')) {
+        effectivePermissions.push('documents.create', 'documents.read', 'documents.update', 'documents.delete', 'documents.approve', 'documents.publish');
+      }
+    }
 
     const currentStatus = document.status as DocumentStatus;
-    const allowedTransitions = await getAllowedTransitions(currentStatus, userRole, effectivePermissions);
+    const allowedTransitions = await getAllowedTransitions(currentStatus, userRole, effectivePermissions, userLevel);
 
     // Check if user can modify (document creator or has admin/edit capability)
-    const capUserModify: CapabilityUser = { 
-      id: session.user.id, 
-      email: session.user.email || '', 
-      roles: currentUser?.userRoles.map(ur => ({
-        id: ur.role.id,
-        name: ur.role.name
-      })) || []
-    };
     const canModify = document.createdById === session.user.id || 
-                      await hasCapability(capUserModify, 'ADMIN_ACCESS') ||
-                      await hasCapability(capUserModify, 'DOCUMENT_EDIT');
+                      userCapabilities.includes('ADMIN_ACCESS') ||
+                      userCapabilities.includes('DOCUMENT_EDIT');
 
     return NextResponse.json(serializeForResponse({
       document: {
@@ -377,7 +415,7 @@ export async function GET(
         role: userRole,
         roleName: highestRole?.name,
         roleDisplayName: highestRole?.displayName,
-        permissions: userPermissions,
+        permissions: effectivePermissions,
         canModify
       }
     }));

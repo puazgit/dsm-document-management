@@ -30,6 +30,7 @@ interface RoleVisibilityConfig {
   canUpload: boolean;
   canEdit: boolean;
   canDelete: boolean;
+  canDownload: boolean;
   canApprove: boolean;
   canViewAnalytics: boolean;
   canManageUsers: boolean;
@@ -61,6 +62,7 @@ export function useRoleVisibility(): RoleVisibilityConfig {
     const canUpload = capabilities.canCreateDocuments;
     const canEdit = capabilities.canEditDocuments;
     const canDelete = capabilities.canDeleteDocuments;
+    const canDownload = capabilities.canDownloadDocuments;
     const canApprove = capabilities.canApproveDocuments;
     const canViewAnalytics = capabilities.canViewDocuments || capabilities.canViewUsers;
     const canManageUsers = capabilities.canManageUsers;
@@ -135,6 +137,7 @@ export function useRoleVisibility(): RoleVisibilityConfig {
       canUpload,
       canEdit,
       canDelete,
+      canDownload,
       canApprove,
       canViewAnalytics,
       canManageUsers,
@@ -149,7 +152,7 @@ export function useRoleVisibility(): RoleVisibilityConfig {
       userLevel,
       isAdmin: capabilities.isAdmin,
       isManager: capabilities.isManager,
-      isGuest: capabilities.isViewer,
+      isGuest: !capabilities.canViewDocuments,
       
       // Permission checks (deprecated)
       hasPermission,

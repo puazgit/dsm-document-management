@@ -104,7 +104,7 @@ export default function DocumentViewPage() {
             fileUrl={`/api/documents/${documentId}/view`}
             fileName={document.fileName}
             userRole={session?.user?.role || 'viewer'}
-            canDownload={session?.user?.capabilities?.includes('PDF_VIEW') || session?.user?.capabilities?.includes('PDF_DOWNLOAD') || false}
+            canDownload={session?.user?.capabilities?.includes('PDF_DOWNLOAD') || session?.user?.capabilities?.includes('DOCUMENT_DOWNLOAD') || false}
             document={document}
           />
         ) : (

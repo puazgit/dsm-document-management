@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
 import { Button } from '../ui/button'
@@ -60,6 +60,21 @@ export function DocumentStatusWorkflow({
   const [comment, setComment] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest('.status-dropdown-container')) {
+        setDropdownOpen(false)
+      }
+    }
+    if (dropdownOpen) {
+      window.document.addEventListener('click', handleClickOutside)
+      return () => window.document.removeEventListener('click', handleClickOutside)
+    }
+  }, [dropdownOpen])
 
   // Helper function to capitalize status text
   const capitalizeStatus = (status: string) => {
@@ -90,7 +105,9 @@ export function DocumentStatusWorkflow({
   const loadAllowedTransitions = async () => {
     try {
       const response = await fetch(`/api/documents/${document.id}/status`)
-      if (!response.ok) throw new Error('Failed to load status info')
+      if (!response.ok) {
+        throw new Error('Failed to load status info')
+      }
       
       const data = await response.json()
       setAllowedTransitions(data.allowedTransitions || [])
@@ -223,40 +240,46 @@ export function DocumentStatusWorkflow({
       <div className="flex items-center gap-2">
         {/* Status Actions Dropdown - Only show if user has session */}
         {session?.user ? (
-          <DropdownMenu onOpenChange={(open) => open && loadAllowedTransitions()}>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className={`${getStatusColor(document.status)} border-0 text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity h-auto px-2 py-1 rounded-full`}
+          <div className="relative status-dropdown-container">
+            <button 
+              className={`${getStatusColor(document.status)} border-0 text-xs font-medium hover:opacity-80 transition-opacity h-auto px-2 py-1 rounded-full inline-flex items-center justify-center`}
+              style={{ cursor: 'pointer' }}
+              onClick={(e) => {
+                e.stopPropagation()
+                setDropdownOpen(!dropdownOpen)
+                if (!dropdownOpen) loadAllowedTransitions()
+              }}
+            >
+              {capitalizeStatus(document.status)}
+            </button>
+            {dropdownOpen && (
+              <div 
+                className="absolute right-0 z-50 w-64 mt-2 bg-white border rounded-md shadow-lg"
+                onClick={(e) => e.stopPropagation()}
               >
-                {capitalizeStatus(document.status)}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel className="text-xs">Change Status</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              
-              {allowedTransitions.length > 0 ? (
-                allowedTransitions.map((transition) => (
-                  <DropdownMenuItem
-                    key={transition.to}
-                    onClick={() => openTransitionDialog(transition)}
-                    className="flex items-center gap-2 text-sm"
-                  >
-                    <div>
-                      <div className="font-medium">{capitalizeStatus(transition.to)}</div>
-                      <div className="text-xs text-muted-foreground">{transition.description}</div>
-                    </div>
-                  </DropdownMenuItem>
-                ))
-              ) : (
-                <DropdownMenuItem disabled className="text-sm">
-                  No actions available
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <div className="px-3 py-2 text-xs font-semibold border-b">Change Status</div>
+                <div className="py-1">
+                  {allowedTransitions.length > 0 ? (
+                    allowedTransitions.map((transition) => (
+                      <button
+                        key={transition.to}
+                        onClick={() => {
+                          openTransitionDialog(transition)
+                          setDropdownOpen(false)
+                        }}
+                        className="flex flex-col w-full gap-1 px-3 py-2 text-sm text-left hover:bg-gray-100"
+                      >
+                        <div className="font-medium">{capitalizeStatus(transition.to)}</div>
+                        <div className="text-xs text-gray-500">{transition.description}</div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-3 py-2 text-sm text-gray-500">No actions available</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         ) : (
           <Badge className={`${getStatusColor(document.status)} border-0 text-xs font-medium`}>
             {capitalizeStatus(document.status)}

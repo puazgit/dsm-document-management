@@ -67,7 +67,17 @@ export default function RolesManagementPage() {
     description: '',
     capabilities: []
   })
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
   const { toast } = useToast()
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setOpenDropdownId(null)
+    if (openDropdownId) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [openDropdownId])
 
   const fetchRoles = async () => {
     try {
@@ -424,28 +434,49 @@ export default function RolesManagementPage() {
                         {new Date(role.createdAt).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEditDialog(role)}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            {!role.isSystem && (
-                              <DropdownMenuItem
-                                className="text-destructive"
-                                onClick={() => handleDeleteRole(role.id, role.displayName)}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <div className="relative">
+                          <Button 
+                            variant="ghost" 
+                            className="h-8 w-8 p-0"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setOpenDropdownId(openDropdownId === role.id ? null : role.id)
+                            }}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                          {openDropdownId === role.id && (
+                            <div 
+                              className="absolute right-0 mt-1 w-[160px] bg-white rounded-md shadow-lg border z-50"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="py-1">
+                                <button
+                                  onClick={() => {
+                                    openEditDialog(role)
+                                    setOpenDropdownId(null)
+                                  }}
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center"
+                                >
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit
+                                </button>
+                                {!role.isSystem && (
+                                  <button
+                                    onClick={() => {
+                                      handleDeleteRole(role.id, role.displayName)
+                                      setOpenDropdownId(null)
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center text-red-600"
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))

@@ -25,17 +25,30 @@ const hasDocumentAccess = (userSession: any, document: any) => {
   return document?.createdById === userSession?.user?.id;
 };
 
-const canPerformAction = (action: string, permissions: string[], document: any, userSession: any, roleVisibility: any) => {
-  const actionPermissions = {
-    view: ['documents.read', 'pdf.view'],
-    history: ['documents.read'],
-    edit: ['documents.update'],
-    download: ['documents.read', 'pdf.download'],
-    delete: ['documents.delete']
-  };
+const canPerformAction = (action: string, document: any, userSession: any, roleVisibility: any) => {
+  // Check if user owns the document
+  const isOwner = hasDocumentAccess(userSession, document);
   
-  const requiredPerms = actionPermissions[action as keyof typeof actionPermissions] || [];
-  return roleVisibility.hasAnyPermission(requiredPerms) || hasDocumentAccess(userSession, document);
+  // Map actions to capability checks
+  switch (action) {
+    case 'view':
+      // Anyone with view capability can view documents
+      return !roleVisibility.isGuest || isOwner;
+    case 'history':
+      // Only editors, admins, or document owner can see history (for audit trail)
+      return roleVisibility.canEdit || roleVisibility.isAdmin || isOwner;
+    case 'edit':
+      // Only users with edit capability or document owner can edit
+      return roleVisibility.canEdit || isOwner;
+    case 'download':
+      // Only users with download capability or document owner can download
+      return roleVisibility.canDownload || isOwner;
+    case 'delete':
+      // Only users with delete capability or document owner can delete
+      return roleVisibility.canDelete || isOwner;
+    default:
+      return false;
+  }
 };
 
 // Simplified ActionMenuItem component
@@ -56,7 +69,7 @@ const ActionMenuItem = ({
   userSession: any;
   roleVisibility: any;
 }) => {
-  const hasAccess = canPerformAction(action, [], document, userSession, roleVisibility);
+  const hasAccess = canPerformAction(action, document, userSession, roleVisibility);
   
   if (!hasAccess) return null;
   
@@ -111,6 +124,7 @@ export function DocumentsList({
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingDocument, setEditingDocument] = useState<any>(null);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState({
     title: '',
     description: '',
@@ -474,7 +488,24 @@ export function DocumentsList({
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold leading-tight">{document.title}</h3>
+                      {canPerformAction('view', document, userSession, roleVisibility) ? (
+                        <h3 className="font-semibold leading-tight">
+                          <button
+                            onClick={() => {
+                              if (isPDFFile(document)) {
+                                router.push(`/documents/${document.id}/view`);
+                              } else {
+                                handleViewDocument(document);
+                              }
+                            }}
+                            className="text-left transition-colors hover:text-blue-600 hover:underline"
+                          >
+                            {document.title}
+                          </button>
+                        </h3>
+                      ) : (
+                        <h3 className="font-semibold leading-tight text-muted-foreground">{document.title}</h3>
+                      )}
                       {document.description && (
                         <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
                           {document.description}
@@ -548,69 +579,59 @@ export function DocumentsList({
                     >
                       {isPDFFile(document) ? 'Preview' : 'View'}
                     </Button>
-                    {(roleVisibility.hasAnyPermission(['documents.read', 'documents.update', 'documents.delete', 'pdf.view', 'pdf.download']) || 
-                      document?.createdById === userSession?.user?.id || 
-                      !roleVisibility.isGuest) && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            disabled={actionLoading === document.id}
-                          >
-                            {actionLoading === document.id ? '...' : 'More'}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {isPDFFile(document) && (
-                            <ActionMenuItem 
-                              document={document} 
-                              action="view" 
-                              onClick={() => router.push(`/documents/${document.id}/view`)} 
-                              label="View Full Screen"
-                              userSession={userSession}
-                              roleVisibility={roleVisibility}
-                            />
-                          )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger className="inline-flex items-center justify-center px-3 text-sm font-medium transition-colors border rounded-md whitespace-nowrap border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 disabled:pointer-events-none disabled:opacity-50">
+                        {actionLoading === document.id ? '...' : 'More'}
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" sideOffset={5}>
+                        {isPDFFile(document) && (
                           <ActionMenuItem 
                             document={document} 
-                            action="history" 
-                            onClick={() => {
-                              setSelectedDocumentForHistory(document);
-                              setShowHistoryModal(true);
-                            }} 
-                            label="History"
+                            action="view" 
+                            onClick={() => router.push(`/documents/${document.id}/view`)} 
+                            label="View Document"
                             userSession={userSession}
                             roleVisibility={roleVisibility}
                           />
-                          <ActionMenuItem 
-                            document={document} 
-                            action="edit" 
-                            onClick={() => handleEdit(document)} 
-                            label="Edit"
-                            userSession={userSession}
-                            roleVisibility={roleVisibility}
-                          />
-                          <ActionMenuItem 
-                            document={document} 
-                            action="download" 
-                            onClick={() => handleDownload(document)} 
-                            label="Download"
-                            userSession={userSession}
-                            roleVisibility={roleVisibility}
-                          />
-                          <ActionMenuItem 
-                            document={document} 
-                            action="delete" 
-                            onClick={() => handleDelete(document)} 
-                            label="Delete"
-                            className="text-red-600"
-                            userSession={userSession}
-                            roleVisibility={roleVisibility}
-                          />
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
+                        )}
+                        <ActionMenuItem 
+                          document={document} 
+                          action="history" 
+                          onClick={() => {
+                            setSelectedDocumentForHistory(document);
+                            setShowHistoryModal(true);
+                          }} 
+                          label="History"
+                          userSession={userSession}
+                          roleVisibility={roleVisibility}
+                        />
+                        <ActionMenuItem 
+                          document={document} 
+                          action="edit" 
+                          onClick={() => handleEdit(document)} 
+                          label="Edit"
+                          userSession={userSession}
+                          roleVisibility={roleVisibility}
+                        />
+                        <ActionMenuItem 
+                          document={document} 
+                          action="download" 
+                          onClick={() => handleDownload(document)} 
+                          label="Download"
+                          userSession={userSession}
+                          roleVisibility={roleVisibility}
+                        />
+                        <ActionMenuItem 
+                          document={document} 
+                          action="delete" 
+                          onClick={() => handleDelete(document)} 
+                          label="Delete"
+                          className="text-red-600"
+                          userSession={userSession}
+                          roleVisibility={roleVisibility}
+                        />
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               ))}
@@ -644,7 +665,22 @@ export function DocumentsList({
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="font-medium truncate">{document.title}</p>
+                            {canPerformAction('view', document, userSession, roleVisibility) ? (
+                              <button
+                                onClick={() => {
+                                  if (isPDFFile(document)) {
+                                    router.push(`/documents/${document.id}/view`);
+                                  } else {
+                                    handleViewDocument(document);
+                                  }
+                                }}
+                                className="font-medium truncate transition-colors hover:text-blue-600 hover:underline text-left"
+                              >
+                                {document.title}
+                              </button>
+                            ) : (
+                              <p className="font-medium truncate text-muted-foreground">{document.title}</p>
+                            )}
                             {isPDFFile(document) && (
                               <Badge variant="secondary" className="h-5 text-xs shrink-0">
                                 PDF
@@ -701,77 +737,64 @@ export function DocumentsList({
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      {(roleVisibility.hasAnyPermission(['documents.read', 'documents.update', 'documents.delete', 'pdf.view', 'pdf.download']) || 
-                        document?.createdById === userSession?.user?.id || 
-                        !roleVisibility.isGuest) ? (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="w-8 h-8 p-0" 
-                              disabled={actionLoading === document.id}
-                            >
-                              <span className="sr-only">Open menu</span>
-                              {actionLoading === document.id ? (
-                                <span className="text-xs">...</span>
-                              ) : (
-                                <span className="text-xs">⋮</span>
-                              )}
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {isPDFFile(document) && (
-                              <ActionMenuItem 
-                                document={document} 
-                                action="view" 
-                                onClick={() => router.push(`/documents/${document.id}/view`)} 
-                                label="View Full Screen"
-                                userSession={userSession}
-                                roleVisibility={roleVisibility}
-                              />
-                            )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger className="inline-flex items-center justify-center w-8 h-8 p-0 transition-colors rounded hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50">
+                          <span className="sr-only">Open menu</span>
+                          {actionLoading === document.id ? (
+                            <span className="text-xs">...</span>
+                          ) : (
+                            <span className="text-lg">⋮</span>
+                          )}
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" sideOffset={5}>
+                          {isPDFFile(document) && (
                             <ActionMenuItem 
                               document={document} 
-                              action="history" 
-                              onClick={() => {
-                                setSelectedDocumentForHistory(document);
-                                setShowHistoryModal(true);
-                              }} 
-                              label="History"
+                              action="view" 
+                              onClick={() => router.push(`/documents/${document.id}/view`)} 
+                              label="View Document"
                               userSession={userSession}
                               roleVisibility={roleVisibility}
                             />
-                            <ActionMenuItem 
-                              document={document} 
-                              action="edit" 
-                              onClick={() => handleEdit(document)} 
-                              label="Edit"
-                              userSession={userSession}
-                              roleVisibility={roleVisibility}
-                            />
-                            <ActionMenuItem 
-                              document={document} 
-                              action="download" 
-                              onClick={() => handleDownload(document)} 
-                              label="Download"
-                              userSession={userSession}
-                              roleVisibility={roleVisibility}
-                            />
-                            <ActionMenuItem 
-                              document={document} 
-                              action="delete" 
-                              onClick={() => handleDelete(document)} 
-                              label="Delete"
-                              className="text-red-600"
-                              userSession={userSession}
-                              roleVisibility={roleVisibility}
-                            />
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No actions</span>
-                      )}
+                          )}
+                          <ActionMenuItem 
+                            document={document} 
+                            action="history" 
+                            onClick={() => {
+                              setSelectedDocumentForHistory(document);
+                              setShowHistoryModal(true);
+                            }} 
+                            label="History"
+                            userSession={userSession}
+                            roleVisibility={roleVisibility}
+                          />
+                          <ActionMenuItem 
+                            document={document} 
+                            action="edit" 
+                            onClick={() => handleEdit(document)} 
+                            label="Edit"
+                            userSession={userSession}
+                            roleVisibility={roleVisibility}
+                          />
+                          <ActionMenuItem 
+                            document={document} 
+                            action="download" 
+                            onClick={() => handleDownload(document)} 
+                            label="Download"
+                            userSession={userSession}
+                            roleVisibility={roleVisibility}
+                          />
+                          <ActionMenuItem 
+                            document={document} 
+                            action="delete" 
+                            onClick={() => handleDelete(document)} 
+                            label="Delete"
+                            className="text-red-600"
+                            userSession={userSession}
+                            roleVisibility={roleVisibility}
+                          />
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}

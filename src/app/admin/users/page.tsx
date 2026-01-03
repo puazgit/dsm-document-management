@@ -113,7 +113,17 @@ function UsersManagementPage() {
   const [isGroupAssignmentOpen, setIsGroupAssignmentOpen] = useState(false)
   const [selectedUserForEdit, setSelectedUserForEdit] = useState<User | null>(null)
   const [isEditUserOpen, setIsEditUserOpen] = useState(false)
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
   const { toast } = useToast()
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setOpenDropdownId(null)
+    if (openDropdownId) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [openDropdownId])
 
   const fetchRoles = useCallback(async () => {
     try {
@@ -691,41 +701,66 @@ function UsersManagementPage() {
                           <Users className="h-3 w-3 mr-1" />
                           Group
                         </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEditUser(user)}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleStatusChange(user.id, !user.isActive)}
+                        <div className="relative">
+                          <Button 
+                            variant="ghost" 
+                            className="h-8 w-8 p-0"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setOpenDropdownId(openDropdownId === user.id ? null : user.id)
+                            }}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                          {openDropdownId === user.id && (
+                            <div 
+                              className="absolute right-0 mt-1 w-[160px] bg-white rounded-md shadow-lg border z-50"
+                              onClick={(e) => e.stopPropagation()}
                             >
-                              {user.isActive ? (
-                                <>
-                                  <Ban className="mr-2 h-4 w-4" />
-                                  Deactivate
-                                </>
-                              ) : (
-                                <>
-                                  <CheckCircle className="mr-2 h-4 w-4" />
-                                  Activate
-                                </>
-                              )}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="text-destructive"
-                              onClick={() => handleDeleteUser(user)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                              <div className="py-1">
+                                <button
+                                  onClick={() => {
+                                    handleEditUser(user)
+                                    setOpenDropdownId(null)
+                                  }}
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center"
+                                >
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    handleStatusChange(user.id, !user.isActive)
+                                    setOpenDropdownId(null)
+                                  }}
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center"
+                                >
+                                  {user.isActive ? (
+                                    <>
+                                      <Ban className="mr-2 h-4 w-4" />
+                                      Deactivate
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle className="mr-2 h-4 w-4" />
+                                      Activate
+                                    </>
+                                  )}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    handleDeleteUser(user)
+                                    setOpenDropdownId(null)
+                                  }}
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center text-red-600"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -846,49 +881,86 @@ function UsersManagementPage() {
                                 <Users className="h-3 w-3 mr-1" />
                                 Group
                               </Button>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" className="h-8 w-8 p-0">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => handleEditUser(user)}>
-                                    <Edit className="mr-2 h-4 w-4" />
-                                    Edit
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleManageRoles(user)}>
-                                    <Shield className="mr-2 h-4 w-4" />
-                                    Manage Roles
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleManageGroup(user)}>
-                                    <Users className="mr-2 h-4 w-4" />
-                                    Manage Group
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => handleStatusChange(user.id, !user.isActive)}
+                              <div className="relative">
+                                <Button 
+                                  variant="ghost" 
+                                  className="h-8 w-8 p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setOpenDropdownId(openDropdownId === user.id ? null : user.id)
+                                  }}
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                                {openDropdownId === user.id && (
+                                  <div 
+                                    className="absolute right-0 mt-1 w-[160px] bg-white rounded-md shadow-lg border z-50"
+                                    onClick={(e) => e.stopPropagation()}
                                   >
-                                    {user.isActive ? (
-                                      <>
-                                        <Ban className="mr-2 h-4 w-4" />
-                                        Deactivate
-                                      </>
-                                    ) : (
-                                      <>
-                                        <CheckCircle className="mr-2 h-4 w-4" />
-                                        Activate
-                                      </>
-                                    )}
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem 
-                                    className="text-destructive"
-                                    onClick={() => handleDeleteUser(user)}
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Delete
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                                    <div className="py-1">
+                                      <button
+                                        onClick={() => {
+                                          handleEditUser(user)
+                                          setOpenDropdownId(null)
+                                        }}
+                                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center"
+                                      >
+                                        <Edit className="mr-2 h-4 w-4" />
+                                        Edit
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          handleManageRoles(user)
+                                          setOpenDropdownId(null)
+                                        }}
+                                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center"
+                                      >
+                                        <Shield className="mr-2 h-4 w-4" />
+                                        Manage Roles
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          handleManageGroup(user)
+                                          setOpenDropdownId(null)
+                                        }}
+                                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center"
+                                      >
+                                        <Users className="mr-2 h-4 w-4" />
+                                        Manage Group
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          handleStatusChange(user.id, !user.isActive)
+                                          setOpenDropdownId(null)
+                                        }}
+                                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center"
+                                      >
+                                        {user.isActive ? (
+                                          <>
+                                            <Ban className="mr-2 h-4 w-4" />
+                                            Deactivate
+                                          </>
+                                        ) : (
+                                          <>
+                                            <CheckCircle className="mr-2 h-4 w-4" />
+                                            Activate
+                                          </>
+                                        )}
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          handleDeleteUser(user)
+                                          setOpenDropdownId(null)
+                                        }}
+                                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center text-red-600"
+                                      >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Delete
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </TableCell>
                         </TableRow>

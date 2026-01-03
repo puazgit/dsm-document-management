@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { Button } from '../ui/button';
-import { Download, AlertCircle } from 'lucide-react';
+import { Download, AlertCircle, Printer } from 'lucide-react';
 import { Alert, AlertDescription } from '../ui/alert';
 
 interface EnhancedPDFViewerProps {
@@ -25,6 +25,7 @@ export function EnhancedPDFViewer({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
   const { data: session } = useSession();
 
   // State for dynamic permissions from database
@@ -62,8 +63,9 @@ export function EnhancedPDFViewer({
         // Fetch user capabilities from session (migrated from permissions)
         const userCapabilities = session?.user?.capabilities || [];
         
-        // If we have session capabilities, use them
-        if (userCapabilities.length > 0) {
+        // Always use capabilities from database if session exists
+        // Only fallback to role-based if NO session at all
+        if (session?.user) {
           const canDownload = userCapabilities.includes('PDF_DOWNLOAD') ||
                             userCapabilities.includes('DOCUMENT_DOWNLOAD');
           const canPrint = userCapabilities.includes('PDF_PRINT');
@@ -83,7 +85,7 @@ export function EnhancedPDFViewer({
             canCopy
           });
         } else {
-          // Fallback to role-based permissions
+          // Fallback to role-based permissions ONLY if no session
           console.log('🔄 [Enhanced] Using Fallback Permissions for role:', userRole);
           const fallbackPermissions = getFallbackPermissions(userRole);
           setCurrentPermissions(fallbackPermissions);
@@ -234,13 +236,13 @@ export function EnhancedPDFViewer({
       
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = window.document.createElement('a');
       a.href = url;
       a.download = fileName;
-      document.body.appendChild(a);
+      window.document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      window.document.body.removeChild(a);
       
       console.log('✅ Download completed');
     } catch (error) {
@@ -251,6 +253,71 @@ export function EnhancedPDFViewer({
     }
   };
 
+  // Handle print
+  const handlePrint = async () => {
+    if (!currentPermissions.canPrint) {
+      alert('Print not permitted for your role.');
+      return;
+    }
+
+    if (isPrinting) return;
+
+    setIsPrinting(true);
+    try {
+      console.log('🖨️ Printing document...');
+      
+      // Fetch PDF blob
+      const response = await fetch(fileUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch PDF: ${response.status} ${response.statusText}`);
+      }
+      
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      // Create hidden iframe for printing
+      const iframe = window.document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = blobUrl;
+      window.document.body.appendChild(iframe);
+      
+      // Wait for iframe to load, then print
+      iframe.onload = () => {
+        try {
+          // Give browser time to render PDF
+          setTimeout(() => {
+            iframe.contentWindow?.print();
+            
+            // Cleanup after print dialog closes (wait a bit)
+            setTimeout(() => {
+              window.document.body.removeChild(iframe);
+              window.URL.revokeObjectURL(blobUrl);
+              console.log('✅ Print dialog opened');
+            }, 1000);
+          }, 500);
+        } catch (err) {
+          console.error('Print iframe error:', err);
+          window.document.body.removeChild(iframe);
+          window.URL.revokeObjectURL(blobUrl);
+          alert('Print failed. Please try again.');
+        }
+      };
+      
+      iframe.onerror = () => {
+        console.error('Failed to load PDF in iframe');
+        window.document.body.removeChild(iframe);
+        window.URL.revokeObjectURL(blobUrl);
+        alert('Failed to load PDF for printing.');
+      };
+      
+    } catch (error) {
+      console.error('Print error:', error);
+      alert('Print failed. Please try again.');
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
   // Security: Disable right-click
   const disableRightClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -258,23 +325,39 @@ export function EnhancedPDFViewer({
 
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Custom Download Button Header */}
-      {canDownload && permissionsLoaded && (
+      {/* Custom Action Buttons Header */}
+      {(currentPermissions.canPrint || currentPermissions.canDownload) && permissionsLoaded && (
         <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-muted-foreground">PDF Document</span>
             <span className="text-xs text-muted-foreground">• {fileName}</span>
           </div>
-          <Button
-            onClick={handleDownload}
-            disabled={isDownloading || !currentPermissions.canDownload}
-            variant="outline"
-            size="sm"
-            className="gap-2"
-          >
-            <Download className="w-4 h-4" />
-            {isDownloading ? 'Downloading...' : 'Download'}
-          </Button>
+          <div className="flex items-center gap-2">
+            {currentPermissions.canPrint && (
+              <Button
+                onClick={handlePrint}
+                disabled={isPrinting || !currentPermissions.canPrint}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <Printer className="w-4 h-4" />
+                {isPrinting ? 'Printing...' : 'Print'}
+              </Button>
+            )}
+            {currentPermissions.canDownload && (
+              <Button
+                onClick={handleDownload}
+                disabled={isDownloading || !currentPermissions.canDownload}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <Download className="w-4 h-4" />
+                {isDownloading ? 'Downloading...' : 'Download'}
+              </Button>
+            )}
+          </div>
         </div>
       )}
 

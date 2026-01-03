@@ -7,7 +7,7 @@ import { Input } from '../../components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { toast } from '../../hooks/use-toast';
-import { DocumentUpload } from '../../components/documents/document-upload';
+import { DocumentUploadV2 } from '../../components/documents/document-upload-v2';
 import { DocumentsList } from '../../components/documents/documents-list';
 import { CapabilityGuard } from '../../hooks/use-capabilities';
 import { withAuth } from '../../components/auth/with-auth';
@@ -296,7 +296,7 @@ function DocumentsPage() {
       />
 
       {/* Upload Dialog */}
-      <DocumentUpload
+      <DocumentUploadV2
         open={showUploadDialog}
         onClose={() => setShowUploadDialog(false)}
         onSuccess={handleUploadSuccess}
