@@ -61,7 +61,7 @@ interface SearchDocument {
   mime_type?: string;
   version: string;
   status: string;
-  access_groups: string[];
+  access_groups?: string[];
   tags?: string[];
   metadata?: any;
   document_type_id: string;
@@ -73,7 +73,6 @@ interface SearchDocument {
   approved_at?: Date;
   view_count: number;
   download_count: number;
-  access_groups?: string[];
   search_rank?: number;
   title_highlight?: string;
   description_highlight?: string;

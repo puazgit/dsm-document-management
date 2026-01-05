@@ -77,6 +77,8 @@ export default function RolesManagementPage() {
       document.addEventListener('click', handleClickOutside)
       return () => document.removeEventListener('click', handleClickOutside)
     }
+    // Return void cleanup function for non-openDropdownId case
+    return () => {};
   }, [openDropdownId])
 
   const fetchRoles = async () => {

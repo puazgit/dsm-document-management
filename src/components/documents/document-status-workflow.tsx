@@ -61,19 +61,26 @@ export function DocumentStatusWorkflow({
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const dropdownRef = React.useRef<HTMLDivElement>(null)
 
   // Close dropdown when clicking outside
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement
-      if (!target.closest('.status-dropdown-container')) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setDropdownOpen(false)
       }
     }
+    
     if (dropdownOpen) {
-      window.document.addEventListener('click', handleClickOutside)
-      return () => window.document.removeEventListener('click', handleClickOutside)
+      // Use setTimeout to avoid immediate closing
+      setTimeout(() => {
+        window.document.addEventListener('mousedown', handleClickOutside)
+      }, 0)
+      return () => {
+        window.document.removeEventListener('mousedown', handleClickOutside)
+      }
     }
+    return () => {};
   }, [dropdownOpen])
 
   // Helper function to capitalize status text
@@ -240,15 +247,17 @@ export function DocumentStatusWorkflow({
       <div className="flex items-center gap-2">
         {/* Status Actions Dropdown - Only show if user has session */}
         {session?.user ? (
-          <div className="relative status-dropdown-container">
+          <div className="relative status-dropdown-container" ref={dropdownRef}>
             <button 
               className={`${getStatusColor(document.status)} border-0 text-xs font-medium hover:opacity-80 transition-opacity h-auto px-2 py-1 rounded-full inline-flex items-center justify-center`}
               style={{ cursor: 'pointer' }}
               onClick={(e) => {
+                e.preventDefault()
                 e.stopPropagation()
                 setDropdownOpen(!dropdownOpen)
                 if (!dropdownOpen) loadAllowedTransitions()
               }}
+              type="button"
             >
               {capitalizeStatus(document.status)}
             </button>

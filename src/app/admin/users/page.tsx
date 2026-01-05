@@ -123,6 +123,8 @@ function UsersManagementPage() {
       document.addEventListener('click', handleClickOutside)
       return () => document.removeEventListener('click', handleClickOutside)
     }
+    // Return void cleanup function for non-openDropdownId case
+    return () => {};
   }, [openDropdownId])
 
   const fetchRoles = useCallback(async () => {

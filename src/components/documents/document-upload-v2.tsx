@@ -37,7 +37,7 @@ interface DocumentUploadProps {
   documentTypes: DocumentType[];
 }
 
-interface FormData {
+interface UploadFormData {
   title: string;
   description: string;
   documentTypeId: string;
@@ -78,7 +78,7 @@ export function DocumentUploadV2({ open, onClose, onSuccess, documentTypes }: Do
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState<UploadFormData>({
     title: '',
     description: '',
     documentTypeId: '',
@@ -159,13 +159,15 @@ export function DocumentUploadV2({ open, onClose, onSuccess, documentTypes }: Do
     // Handle accepted file
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0];
-      setSelectedFile(file);
-      setErrors(prev => ({ ...prev, file: undefined }));
-      
-      // Auto-fill title from filename if empty
-      if (!formData.title) {
-        const fileName = file.name.replace(/\.[^/.]+$/, '');
-        setFormData(prev => ({ ...prev, title: fileName }));
+      if (file) {
+        setSelectedFile(file);
+        setErrors(prev => ({ ...prev, file: undefined }));
+        
+        // Auto-fill title from filename if empty
+        if (!formData.title) {
+          const fileName = file.name.replace(/\.[^/.]+$/, '');
+          setFormData(prev => ({ ...prev, title: fileName }));
+        }
       }
     }
   }, [formData.title]);
@@ -400,7 +402,7 @@ export function DocumentUploadV2({ open, onClose, onSuccess, documentTypes }: Do
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-sm truncate">{selectedFile.name}</div>
                         <div className="text-xs text-muted-foreground mt-1">
-                          {formatFileSize(selectedFile.size)} • {selectedFile.type.split('/')[1].toUpperCase()}
+                          {formatFileSize(selectedFile.size)} • {(selectedFile.type.split('/')[1] || 'file').toUpperCase()}
                         </div>
                       </div>
                       {!uploading && (

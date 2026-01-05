@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
+import { Badge } from '../../components/ui/badge';
+import { Label } from '../../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { toast } from '../../hooks/use-toast';
@@ -226,6 +228,30 @@ function DocumentsPage() {
                 className="flex-1"
               />
               <Button onClick={handleSearch}>Search</Button>
+            </div>
+
+            {/* Quick Status Filters */}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Quick Status Filter</Label>
+              <div className="flex flex-wrap gap-2">
+                <Badge
+                  variant={selectedStatus === 'all' ? 'default' : 'outline'}
+                  className="cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => setSelectedStatus('all')}
+                >
+                  All Status
+                </Badge>
+                {Object.keys(statusColors).map((status) => (
+                  <Badge
+                    key={status}
+                    variant={selectedStatus === status ? 'default' : 'outline'}
+                    className="cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => setSelectedStatus(status)}
+                  >
+                    {status.replace('_', ' ')}
+                  </Badge>
+                ))}
+              </div>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

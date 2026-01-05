@@ -48,9 +48,9 @@ export default function SidebarTestPage() {
                 {item.children.map((child: NavItem, childIndex: number) => (
                   <div key={childIndex} className="text-sm text-gray-600 ml-2">
                     • {child.title} ({child.href})
-                    {child.requiredCapabilities && child.requiredCapabilities.length > 0 && (
+                    {child.requiredCapability && (
                       <span className="text-xs text-gray-500">
-                        {' '}- Capabilities: {child.requiredCapabilities.join(', ')}
+                        {' '}- Capability: {child.requiredCapability}
                       </span>
                     )}
                   </div>
