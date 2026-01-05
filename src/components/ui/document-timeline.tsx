@@ -57,28 +57,28 @@ export function DocumentTimeline() {
       case 'created':
         return <FileText className="h-4 w-4 text-blue-600" />
       case 'approved':
-        return <CheckCircle className="h-4 w-4 text-green-600" />
+        return <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
       case 'rejected':
-        return <XCircle className="h-4 w-4 text-red-600" />
+        return <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
       case 'archived':
-        return <Archive className="h-4 w-4 text-gray-600" />
+        return <Archive className="h-4 w-4 text-gray-600 dark:text-gray-400" />
       default:
-        return <Clock className="h-4 w-4 text-gray-600" />
+        return <Clock className="h-4 w-4 text-gray-600 dark:text-gray-400" />
     }
   }
 
   const getActionColor = (action: string) => {
     switch (action.toLowerCase()) {
       case 'created':
-        return 'border-blue-500 bg-blue-50'
+        return 'border-blue-500 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20'
       case 'approved':
-        return 'border-green-500 bg-green-50'
+        return 'border-green-500 bg-green-50 dark:border-green-700 dark:bg-green-900/20'
       case 'rejected':
-        return 'border-red-500 bg-red-50'
+        return 'border-red-500 bg-red-50 dark:border-red-700 dark:bg-red-900/20'
       case 'archived':
-        return 'border-gray-500 bg-gray-50'
+        return 'border-gray-500 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50'
       default:
-        return 'border-gray-300 bg-gray-50'
+        return 'border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-800/50'
     }
   }
 

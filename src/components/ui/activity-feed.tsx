@@ -67,17 +67,17 @@ export function ActivityFeed() {
         return <Eye {...iconProps} className="h-4 w-4 text-green-600" />
       case "commented":
       case "comment":
-        return <MessageCircle {...iconProps} className="h-4 w-4 text-purple-600" />
+        return <MessageCircle {...iconProps} className="h-4 w-4 text-purple-600 dark:text-purple-400" />
       case "approved":
-        return <CheckCircle {...iconProps} className="h-4 w-4 text-green-600" />
+        return <CheckCircle {...iconProps} className="h-4 w-4 text-green-600 dark:text-green-400" />
       case "rejected":
-        return <XCircle {...iconProps} className="h-4 w-4 text-red-600" />
+        return <XCircle {...iconProps} className="h-4 w-4 text-red-600 dark:text-red-400" />
       case "downloaded":
-        return <DownloadIcon {...iconProps} className="h-4 w-4 text-indigo-600" />
+        return <DownloadIcon {...iconProps} className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
       case "archived":
-        return <Archive {...iconProps} className="h-4 w-4 text-gray-600" />
+        return <Archive {...iconProps} className="h-4 w-4 text-gray-600 dark:text-gray-400" />
       case "user_added":
-        return <UserPlus {...iconProps} className="h-4 w-4 text-orange-600" />
+        return <UserPlus {...iconProps} className="h-4 w-4 text-orange-600 dark:text-orange-400" />
       case 'settings_changed':
       case 'updated':
         return <Settings {...iconProps} className="h-4 w-4 text-muted-foreground" />
@@ -90,27 +90,27 @@ export function ActivityFeed() {
     switch (type.toLowerCase()) {
       case "created":
       case "upload":
-        return "border-blue-200 bg-blue-50"
+        return "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20"
       case "viewed":
       case "view":
-        return "border-green-200 bg-green-50"
+        return "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20"
       case "comment":
-        return "border-purple-200 bg-purple-50"
+        return "border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-900/20"
       case "approved":
-        return "border-green-200 bg-green-50"
+        return "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20"
       case "rejected":
-        return "border-red-200 bg-red-50"
+        return "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20"
       case "downloaded":
-        return "border-indigo-200 bg-indigo-50"
+        return "border-indigo-200 bg-indigo-50 dark:border-indigo-800 dark:bg-indigo-900/20"
       case "archived":
-        return "border-gray-200 bg-gray-50"
+        return "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50"
       case "user_added":
-        return "border-orange-200 bg-orange-50"
+        return "border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-900/20"
       case "settings_changed":
       case "updated":
-        return "border-gray-200 bg-gray-50"
+        return "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50"
       default:
-        return "border-gray-200 bg-gray-50"
+        return "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50"
     }
   }
 

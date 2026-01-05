@@ -16,7 +16,8 @@ export function Providers({
       attribute="class"
       defaultTheme="system"
       enableSystem
-      disableTransitionOnChange
+      disableTransitionOnChange={false}
+      storageKey="dsmt-theme"
     >
       <SessionProvider session={session}>
         {children}

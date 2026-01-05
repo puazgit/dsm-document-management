@@ -61,7 +61,7 @@ interface SearchDocument {
   mime_type?: string;
   version: string;
   status: string;
-  is_public: boolean;
+  access_groups: string[];
   tags?: string[];
   metadata?: any;
   document_type_id: string;

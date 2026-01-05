@@ -294,7 +294,7 @@ export interface DocumentVersion {
  */
 export enum DocumentStatus {
   DRAFT = 'DRAFT',
-  PENDING_REVIEW = 'PENDING_REVIEW',
+  IN_REVIEW = 'IN_REVIEW',
   PENDING_APPROVAL = 'PENDING_APPROVAL',
   APPROVED = 'APPROVED',
   PUBLISHED = 'PUBLISHED',

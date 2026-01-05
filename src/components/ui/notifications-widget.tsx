@@ -77,13 +77,13 @@ export function NotificationsWidget() {
       case 'document':
         return <FileText className="h-4 w-4 text-blue-600" />
       case 'user':
-        return <UserPlus className="h-4 w-4 text-green-600" />
+        return <UserPlus className="h-4 w-4 text-green-600 dark:text-green-400" />
       case 'approval':
-        return <CheckCircle className="h-4 w-4 text-green-600" />
+        return <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
       case 'alert':
-        return <AlertCircle className="h-4 w-4 text-orange-600" />
+        return <AlertCircle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
       default:
-        return <Bell className="h-4 w-4 text-gray-600" />
+        return <Bell className="h-4 w-4 text-gray-600 dark:text-gray-400" />
     }
   }
 
@@ -160,7 +160,7 @@ export function NotificationsWidget() {
                     : 'bg-blue-50 border-blue-200'
                 }`}
               >
-                <div className={`p-2 rounded-full ${notification.isRead ? 'bg-gray-100' : 'bg-white'}`}>
+                <div className={`p-2 rounded-full ${notification.isRead ? 'bg-gray-100 dark:bg-gray-800' : 'bg-white dark:bg-gray-700'}`}>
                   {getNotificationIcon(notification.type)}
                 </div>
                 

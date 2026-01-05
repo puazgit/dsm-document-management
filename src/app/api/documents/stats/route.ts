@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
       prisma.document.count({
         where: {
           ...userAccessWhere,
-          status: { in: ['PENDING_REVIEW', 'PENDING_APPROVAL'] },
+          status: { in: ['IN_REVIEW', 'PENDING_APPROVAL'] },
         },
       }),
 
@@ -183,8 +183,9 @@ export async function GET(request: NextRequest) {
               AND status != 'ARCHIVED'
               AND (
                 created_by_id = ${auth.userId!} OR 
-                is_public = true OR 
-                ${user?.groupId || ''} = ANY(access_groups)
+                status = 'PUBLISHED' OR 
+                ${user?.groupId || ''} = ANY(access_groups) OR
+                access_groups = '{}'
               )
             GROUP BY DATE_TRUNC('month', created_at)
             ORDER BY month DESC

@@ -186,7 +186,7 @@ export async function DELETE(
     const updatedDocument = await prisma.document.update({
       where: { id: documentId },
       data: {
-        status: 'PENDING_REVIEW', // Or whatever the default active status should be
+        status: 'IN_REVIEW', // Or whatever the default active status should be
         updatedById: session.user.id,
       },
       include: {

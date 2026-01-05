@@ -37,7 +37,7 @@ export function PendingApprovals() {
   async function fetchPendingDocuments() {
     try {
       setIsLoading(true)
-      const response = await fetch('/api/documents?status=PENDING_REVIEW,PENDING_APPROVAL&limit=5')
+      const response = await fetch('/api/documents?status=IN_REVIEW,PENDING_APPROVAL&limit=5')
       if (!response.ok) throw new Error('Failed to fetch pending documents')
       const data = await response.json()
       setDocuments(data.documents || [])
@@ -69,7 +69,7 @@ export function PendingApprovals() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'PENDING_REVIEW':
+      case 'IN_REVIEW':
         return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Pending Review</Badge>
       case 'PENDING_APPROVAL':
         return <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">Pending Approval</Badge>

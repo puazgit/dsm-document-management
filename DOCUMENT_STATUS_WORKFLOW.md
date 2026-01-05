@@ -4,7 +4,7 @@
 
 ### **Status Lifecycle:**
 ```
-DRAFT → PENDING_REVIEW → PENDING_APPROVAL → APPROVED → PUBLISHED
+DRAFT → IN_REVIEW → PENDING_APPROVAL → APPROVED → PUBLISHED
   ↓         ↓               ↓             ↓       ↓
 ARCHIVED  DRAFT          REJECTED      EXPIRED  ARCHIVED
   ↑                         ↓
@@ -15,19 +15,19 @@ DRAFT ←─────────────────── DRAFT
 
 ## 🔄 **Status Transitions & Role Permissions**
 
-### **1. DRAFT → PENDING_REVIEW** (Submit for Review)
+### **1. DRAFT → IN_REVIEW** (Submit for Review)
 - **Who Can**: Document Creator, Manager+, PPD, Administrator  
 - **Required Permission**: `documents.update`
 - **Description**: Submit document for management review
 - **Comment**: Optional
 
-### **2. PENDING_REVIEW → PENDING_APPROVAL** (Forward for Approval)
+### **2. IN_REVIEW → PENDING_APPROVAL** (Forward for Approval)
 - **Who Can**: Manager+, PPD, Administrator
 - **Required Permission**: `documents.update` 
 - **Description**: Review completed, forward for approval
 - **Comment**: Optional
 
-### **3. PENDING_REVIEW → DRAFT** (Return for Revision)
+### **3. IN_REVIEW → DRAFT** (Return for Revision)
 - **Who Can**: Manager+, PPD, Administrator
 - **Required Permission**: `documents.update`
 - **Description**: Send back for revision
@@ -139,7 +139,7 @@ DRAFT ←─────────────────── DRAFT
 
 ### **Comments System:**
 - Status change comments are stored as document comments
-- Required for: REJECTED transitions, PENDING_REVIEW → DRAFT
+- Required for: REJECTED transitions, IN_REVIEW → DRAFT
 - Optional for: Other transitions
 
 ### **Notifications:**

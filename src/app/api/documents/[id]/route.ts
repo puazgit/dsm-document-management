@@ -10,7 +10,7 @@ const DocumentUpdateSchema = z.object({
   title: z.string().min(1, 'Title is required').max(500, 'Title too long').optional(),
   description: z.string().optional(),
   documentTypeId: z.string().cuid('Invalid document type ID').optional(),
-  status: z.enum(['DRAFT', 'PENDING_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED', 'ARCHIVED', 'EXPIRED']).optional(),
+  status: z.enum(['DRAFT', 'IN_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED', 'ARCHIVED', 'EXPIRED']).optional(),
   accessGroups: z.array(z.string()).optional(),
   tags: z.array(z.string()).optional(),
   metadata: z.record(z.any()).optional(),

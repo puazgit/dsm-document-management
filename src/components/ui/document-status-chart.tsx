@@ -14,7 +14,7 @@ interface StatusData {
 
 const STATUS_COLORS = {
   DRAFT: "#94a3b8",
-  PENDING_REVIEW: "#fbbf24",
+  IN_REVIEW: "#fbbf24",
   PENDING_APPROVAL: "#f97316",
   APPROVED: "#10b981",
   PUBLISHED: "#3b82f6",

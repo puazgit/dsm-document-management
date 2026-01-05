@@ -135,14 +135,14 @@ export function TopDocuments({ type }: TopDocumentsProps) {
               >
                 <div className="flex items-center gap-2">
                   <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-                    index === 0 ? 'bg-blue-600 text-white' :
-                    index === 1 ? 'bg-blue-500 text-white' :
-                    index === 2 ? 'bg-blue-400 text-white' :
-                    'bg-gray-200 text-gray-600'
+                    index === 0 ? 'bg-blue-600 text-white dark:bg-blue-500' :
+                    index === 1 ? 'bg-blue-500 text-white dark:bg-blue-600' :
+                    index === 2 ? 'bg-blue-400 text-white dark:bg-blue-700' :
+                    'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
                   } font-bold text-sm`}>
                     {index + 1}
                   </div>
-                  <FileText className="h-5 w-5 text-blue-600" />
+                  <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
 
                 <div className="flex-1 min-w-0">
@@ -165,7 +165,7 @@ export function TopDocuments({ type }: TopDocumentsProps) {
 
                 <div className="flex items-center gap-1 text-right">
                   <div className="flex flex-col items-end">
-                    <div className="text-lg font-bold text-blue-600">
+                    <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
                       {(count || 0).toLocaleString()}
                     </div>
                     <div className="text-xs text-muted-foreground flex items-center gap-1">

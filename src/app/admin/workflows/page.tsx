@@ -29,7 +29,7 @@ interface WorkflowTransition {
 
 const DOCUMENT_STATUSES = [
   'DRAFT',
-  'PENDING_REVIEW',
+  'IN_REVIEW',
   'PENDING_APPROVAL',
   'APPROVED',
   'PUBLISHED',
@@ -157,7 +157,7 @@ function WorkflowsPage() {
   const resetForm = () => {
     setFormData({
       fromStatus: 'DRAFT',
-      toStatus: 'PENDING_REVIEW',
+      toStatus: 'IN_REVIEW',
       minLevel: 50,
       requiredPermission: 'documents.update',
       description: '',
@@ -170,7 +170,7 @@ function WorkflowsPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'DRAFT': return 'bg-gray-100 text-gray-800';
-      case 'PENDING_REVIEW': return 'bg-yellow-100 text-yellow-800';
+      case 'IN_REVIEW': return 'bg-yellow-100 text-yellow-800';
       case 'PENDING_APPROVAL': return 'bg-orange-100 text-orange-800';
       case 'APPROVED': return 'bg-green-100 text-green-800';
       case 'PUBLISHED': return 'bg-blue-100 text-blue-800';

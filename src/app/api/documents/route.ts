@@ -23,7 +23,7 @@ const DocumentQuerySchema = z.object({
   limit: z.string().transform(Number).default('10'),
   search: z.string().optional(),
   documentTypeId: z.string().optional(),
-  status: z.enum(['DRAFT', 'PENDING_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED', 'ARCHIVED', 'EXPIRED']).optional(),
+  status: z.enum(['DRAFT', 'IN_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED', 'ARCHIVED', 'EXPIRED']).optional(),
   sortBy: z.enum(['createdAt', 'updatedAt', 'title', 'downloadCount', 'viewCount']).default('updatedAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });

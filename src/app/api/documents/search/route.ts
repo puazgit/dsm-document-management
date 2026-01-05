@@ -10,7 +10,7 @@ import { serializeForResponse } from '../../../../lib/bigint-utils';
 const SearchSchema = z.object({
   q: z.string().optional(),
   documentTypeId: z.string().optional(),
-  status: z.enum(['DRAFT', 'PENDING_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED', 'ARCHIVED', 'EXPIRED']).optional(),
+  status: z.enum(['DRAFT', 'IN_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED', 'ARCHIVED', 'EXPIRED']).optional(),
   createdById: z.string().optional(),
   tags: z.string().optional(), // comma-separated tags
   dateFrom: z.string().datetime().optional(),
@@ -68,7 +68,7 @@ async function handleFullTextSearch(params: any) {
   if (userRole !== 'admin' && userRole !== 'administrator') {
     conditions.push(`(
       d.created_by_id = $${paramIndex++} OR 
-      d.is_public = true OR 
+      d.access_groups = '{}' OR 
       $${paramIndex++} = ANY(d.access_groups) OR
       d.status = 'PUBLISHED'
     )`);
@@ -190,7 +190,6 @@ async function handleFullTextSearch(params: any) {
       d.mime_type,
       d.version,
       d.status,
-      d.is_public,
       d.tags,
       d.metadata,
       d.document_type_id,

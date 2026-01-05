@@ -50,7 +50,7 @@ export async function POST(
     }
 
     // Check if document is in a state that can be approved/rejected
-    if (!['PENDING_APPROVAL', 'PENDING_REVIEW'].includes(document.status)) {
+    if (!['PENDING_APPROVAL', 'IN_REVIEW'].includes(document.status)) {
       return NextResponse.json({ 
         error: `Document cannot be ${action}ed in current status: ${document.status}` 
       }, { status: 400 });

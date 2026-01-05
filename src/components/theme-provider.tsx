@@ -10,6 +10,7 @@ interface ThemeProviderProps {
   defaultTheme?: string
   enableSystem?: boolean
   disableTransitionOnChange?: boolean
+  storageKey?: string
 }
 
 export function ThemeProvider({ 
@@ -17,7 +18,8 @@ export function ThemeProvider({
   attribute = "class",
   defaultTheme = "system",
   enableSystem = true,
-  disableTransitionOnChange = true,
+  disableTransitionOnChange = false,
+  storageKey = "dsmt-theme",
   ...props 
 }: ThemeProviderProps) {
   return (
@@ -26,6 +28,7 @@ export function ThemeProvider({
       defaultTheme={defaultTheme}
       enableSystem={enableSystem}
       disableTransitionOnChange={disableTransitionOnChange}
+      storageKey={storageKey}
       {...props}
     >
       {children}

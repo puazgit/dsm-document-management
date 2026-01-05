@@ -6,10 +6,10 @@ async function seedWorkflowTransitions() {
   console.log('🌱 Seeding workflow transitions...');
 
   const transitions = [
-    // 1. DRAFT -> PENDING_REVIEW
+    // 1. DRAFT -> IN_REVIEW
     {
       fromStatus: 'DRAFT',
-      toStatus: 'PENDING_REVIEW',
+      toStatus: 'IN_REVIEW',
       minLevel: 50,
       requiredPermission: 'documents.update',
       description: 'Submit document for review',
@@ -17,7 +17,7 @@ async function seedWorkflowTransitions() {
       isActive: true,
       sortOrder: 1
     },
-    // 2. PENDING_REVIEW -> PENDING_APPROVAL
+    // 2. IN_REVIEW -> PENDING_APPROVAL
     {
       fromStatus: 'PENDING_REVIEW',
       toStatus: 'PENDING_APPROVAL',
@@ -28,9 +28,9 @@ async function seedWorkflowTransitions() {
       isActive: true,
       sortOrder: 2
     },
-    // 3. PENDING_REVIEW -> DRAFT
+    // 3. IN_REVIEW -> DRAFT
     {
-      fromStatus: 'PENDING_REVIEW',
+      fromStatus: 'IN_REVIEW',
       toStatus: 'DRAFT',
       minLevel: 70,
       requiredPermission: 'documents.update',
@@ -94,9 +94,9 @@ async function seedWorkflowTransitions() {
       isActive: true,
       sortOrder: 8
     },
-    // 9. PENDING_REVIEW -> ARCHIVED
+    // 9. IN_REVIEW -> ARCHIVED
     {
-      fromStatus: 'PENDING_REVIEW',
+      fromStatus: 'IN_REVIEW',
       toStatus: 'ARCHIVED',
       minLevel: 100,
       requiredPermission: 'documents.delete',

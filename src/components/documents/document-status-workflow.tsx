@@ -88,7 +88,7 @@ export function DocumentStatusWorkflow({
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'DRAFT': return 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-      case 'PENDING_REVIEW': return 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+      case 'IN_REVIEW': return 'bg-amber-100 text-amber-700 hover:bg-amber-200'
       case 'PENDING_APPROVAL': return 'bg-orange-100 text-orange-700 hover:bg-orange-200'
       case 'APPROVED': return 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
       case 'PUBLISHED': return 'bg-blue-100 text-blue-700 hover:bg-blue-200'

@@ -74,8 +74,7 @@ export async function POST(
             role: {
               select: {
                 id: true,
-                name: true,
-                level: true
+                name: true
               }
             }
           }
@@ -83,15 +82,10 @@ export async function POST(
       }
     });
 
-    // Get user level from highest role
-    const userLevel = currentUser?.userRoles.reduce((maxLevel, ur) => {
-      return Math.max(maxLevel, ur.role.level || 0)
-    }, 0) || 0
-
     // Build capability user object for getUserCapabilities
     const capUser: CapabilityUser = {
       id: auth.userId!,
-      roles: currentUser?.userRoles.map(ur => ({ name: ur.role.name })) || []
+      roles: currentUser?.userRoles.map(ur => ({ id: ur.role.id, name: ur.role.name })) || []
     }
 
     // Get user capabilities from database
@@ -113,15 +107,13 @@ export async function POST(
       if (userCapabilities.includes('DOCUMENT_PUBLISH')) effectivePermissions.push('documents.publish')
     }
     
-    console.log('POST Status Change - User:', auth.userId, 'Level:', userLevel, 'Permissions:', effectivePermissions)
-
-    console.log('POST Status Change - User:', auth.userId, 'Level:', userLevel, 'Permissions:', effectivePermissions)
+    console.log('POST Status Change - User:', auth.userId, 'Capabilities:', userCapabilities, 'Permissions:', effectivePermissions)
 
     const currentStatus = document.status as DocumentStatus;
-    const isAllowed = await isTransitionAllowed(currentStatus, newStatus, userRole, effectivePermissions, userLevel);
+    const isAllowed = await isTransitionAllowed(currentStatus, newStatus, userRole, effectivePermissions);
 
     if (!isAllowed) {
-      const allowedTransitions = await getAllowedTransitions(currentStatus, userRole, effectivePermissions, userLevel);
+      const allowedTransitions = await getAllowedTransitions(currentStatus, userRole, effectivePermissions);
       return NextResponse.json({ 
         error: `Status transition from ${currentStatus} to ${newStatus} is not allowed for your role`,
         allowedTransitions: allowedTransitions.map(t => ({
@@ -346,8 +338,7 @@ export async function GET(
               select: {
                 id: true,
                 name: true,
-                displayName: true,
-                level: true
+                displayName: true
               }
             }
           }
@@ -357,7 +348,6 @@ export async function GET(
     
     const highestRole = currentUser?.userRoles?.[0]?.role;
     const userRole = highestRole?.name || session.user.role || '';
-    const userLevel = highestRole?.level || 0;
     
     // Get user capabilities from database
     const capUser: CapabilityUser = { 
@@ -392,7 +382,7 @@ export async function GET(
     }
 
     const currentStatus = document.status as DocumentStatus;
-    const allowedTransitions = await getAllowedTransitions(currentStatus, userRole, effectivePermissions, userLevel);
+    const allowedTransitions = await getAllowedTransitions(currentStatus, userRole, effectivePermissions);
 
     // Check if user can modify (document creator or has admin/edit capability)
     const canModify = document.createdById === session.user.id || 

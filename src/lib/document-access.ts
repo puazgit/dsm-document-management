@@ -119,7 +119,7 @@ function canAccessByStatus(user: User, document: Document, userPermissions?: str
 
   switch (document.status) {
     case 'DRAFT':
-    case 'PENDING_REVIEW':
+    case 'IN_REVIEW':
       // Editors+ can see drafts and pending review
       return !!(canEdit || canCreate || canView);
 
@@ -200,19 +200,6 @@ export function buildDocumentAccessWhere(user: User, userPermissions?: string[])
     ]
   });
 
-  // Add capability-based access for documents without group restrictions
-  const canEdit = userPermissions?.includes('DOCUMENT_EDIT') || 
-                  userPermissions?.includes('DOCUMENT_CREATE') ||
-                  userPermissions?.includes('ADMIN_ACCESS');
-  if (canEdit || userPermissions?.includes('DOCUMENT_VIEW')) {
-    accessConditions.push({
-      AND: [
-        { accessGroups: { isEmpty: true } },
-        ...getStatusConditionsForRole(role, userPermissions)
-      ]
-    });
-  }
-
   return { OR: accessConditions };
 }
 
@@ -232,7 +219,7 @@ function getStatusConditionsForRole(role: string, userPermissions?: string[]): a
   // Admin/Full access: All statuses
   if (hasFullAccess) {
     return [
-      { status: { in: ['DRAFT', 'PENDING_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED', 'ARCHIVED', 'EXPIRED'] } }
+      { status: { in: ['DRAFT', 'IN_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED', 'ARCHIVED', 'EXPIRED'] } }
     ];
   }
 
@@ -246,7 +233,7 @@ function getStatusConditionsForRole(role: string, userPermissions?: string[]): a
   // Editors/Creators: Draft through published, rejected
   if (canEdit || canCreate) {
     return [
-      { status: { in: ['DRAFT', 'PENDING_REVIEW', 'APPROVED', 'PUBLISHED', 'REJECTED'] } }
+      { status: { in: ['DRAFT', 'IN_REVIEW', 'APPROVED', 'PUBLISHED', 'REJECTED'] } }
     ];
   }
 

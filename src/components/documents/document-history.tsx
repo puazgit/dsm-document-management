@@ -90,14 +90,14 @@ export function DocumentHistory({ documentId, documentTitle, isOpen: externalIsO
       <Link 
         href={`/api/documents/${documentId}/version/${fileInfo.version}`}
         target="_blank"
-        className="flex items-center gap-2 bg-blue-50 px-2 py-1.5 rounded border hover:bg-blue-100 transition-colors"
+        className="flex items-center gap-2 bg-blue-50 px-2 py-1.5 rounded border hover:bg-blue-100 transition-colors dark:bg-blue-900/20 dark:border-blue-800 dark:hover:bg-blue-900/30"
       >
-        <FileText className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
+        <FileText className="h-3.5 w-3.5 text-blue-600 flex-shrink-0 dark:text-blue-400" />
         <div className="flex-1 min-w-0">
-          <div className="text-xs text-gray-600">{label}</div>
-          <div className="text-xs font-medium text-blue-700 truncate">{fileInfo.fileName}</div>
+          <div className="text-xs text-gray-600 dark:text-gray-400">{label}</div>
+          <div className="text-xs font-medium text-blue-700 truncate dark:text-blue-400">{fileInfo.fileName}</div>
         </div>
-        <ExternalLink className="flex-shrink-0 w-3 h-3 text-blue-500" />
+        <ExternalLink className="flex-shrink-0 w-3 h-3 text-blue-500 dark:text-blue-400" />
       </Link>
     );
   };
@@ -158,18 +158,18 @@ export function DocumentHistory({ documentId, documentTitle, isOpen: externalIsO
       case 'approved':
         return 'bg-green-100 text-green-800 border-green-200';
       case 'rejected':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800';
       case 'archived':
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
       case 'updated':
-        return 'bg-orange-100 text-orange-800 border-orange-200';
+        return 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800';
       case 'file_uploaded':
       case 'file_replaced':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
+        return 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800';
       case 'status_changed':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
     }
   };
 
@@ -192,13 +192,13 @@ export function DocumentHistory({ documentId, documentTitle, isOpen: externalIsO
     if (!status) return null;
     
     const statusColors: Record<string, string> = {
-      'DRAFT': 'bg-gray-100 text-gray-800',
-      'PENDING_REVIEW': 'bg-yellow-100 text-yellow-800',
-      'PENDING_APPROVAL': 'bg-orange-100 text-orange-800',
-      'APPROVED': 'bg-green-100 text-green-800',
-      'PUBLISHED': 'bg-blue-100 text-blue-800',
-      'REJECTED': 'bg-red-100 text-red-800',
-      'ARCHIVED': 'bg-gray-100 text-gray-600',
+      'DRAFT': 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
+      'IN_REVIEW': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+      'PENDING_APPROVAL': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+      'APPROVED': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+      'PUBLISHED': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+      'REJECTED': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+      'ARCHIVED': 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
     };
 
     return (
@@ -239,8 +239,8 @@ export function DocumentHistory({ documentId, documentTitle, isOpen: externalIsO
 
           {error && (
             <div className="py-8 text-center">
-              <div className="mb-2 text-red-600">Failed to load document history</div>
-              <div className="text-sm text-gray-500">{error}</div>
+              <div className="mb-2 text-red-600 dark:text-red-400">Failed to load document history</div>
+              <div className="text-sm text-muted-foreground">{error}</div>
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -254,9 +254,9 @@ export function DocumentHistory({ documentId, documentTitle, isOpen: externalIsO
 
           {!loading && !error && history.length === 0 && (
             <div className="py-8 text-center">
-              <History className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-              <div className="text-gray-600">No history available</div>
-              <div className="text-sm text-gray-500">Document activities will appear here</div>
+              <History className="w-12 h-12 mx-auto mb-2 text-gray-400 dark:text-gray-600" />
+              <div className="text-muted-foreground">No history available</div>
+              <div className="text-sm text-muted-foreground">Document activities will appear here</div>
             </div>
           )}
 

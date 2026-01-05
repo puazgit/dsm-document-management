@@ -10,7 +10,7 @@ import { prisma } from '@/lib/prisma';
 
 export enum DocumentStatus {
   DRAFT = 'DRAFT',
-  PENDING_REVIEW = 'PENDING_REVIEW', 
+  IN_REVIEW = 'IN_REVIEW', 
   PENDING_APPROVAL = 'PENDING_APPROVAL',
   APPROVED = 'APPROVED',
   PUBLISHED = 'PUBLISHED',
@@ -34,19 +34,19 @@ export interface StatusTransition {
  * Role Levels: admin=100, manager=70, editor=50, viewer=30, guest=10
  */
 export const DOCUMENT_STATUS_WORKFLOW: StatusTransition[] = [
-  // 1. DRAFT -> PENDING_REVIEW (Submit for review)
+  // 1. DRAFT -> IN_REVIEW (Submit for review)
   {
     from: DocumentStatus.DRAFT,
-    to: DocumentStatus.PENDING_REVIEW,
+    to: DocumentStatus.IN_REVIEW,
     minLevel: 50, // Editor+ can submit for review
     requiredPermissions: ['documents.update'],
     description: 'Submit document for review',
     allowedBy: ['Editor', 'Manager', 'Administrator']
   },
 
-  // 2. PENDING_REVIEW -> PENDING_APPROVAL (Review complete, send for approval)  
+  // 2. IN_REVIEW -> PENDING_APPROVAL (Review complete, send for approval)  
   {
-    from: DocumentStatus.PENDING_REVIEW,
+    from: DocumentStatus.IN_REVIEW,
     to: DocumentStatus.PENDING_APPROVAL,
     minLevel: 70, // Manager+ can forward for approval
     requiredPermissions: ['documents.update'],
@@ -54,9 +54,9 @@ export const DOCUMENT_STATUS_WORKFLOW: StatusTransition[] = [
     allowedBy: ['Manager', 'Administrator']
   },
 
-  // 3. PENDING_REVIEW -> DRAFT (Send back for revision)
+  // 3. IN_REVIEW -> DRAFT (Send back for revision)
   {
-    from: DocumentStatus.PENDING_REVIEW,
+    from: DocumentStatus.IN_REVIEW,
     to: DocumentStatus.DRAFT,
     minLevel: 70, // Manager+ can send back for revision
     requiredPermissions: ['documents.update'],
@@ -114,7 +114,7 @@ export const DOCUMENT_STATUS_WORKFLOW: StatusTransition[] = [
     allowedBy: ['Administrator']
   },
   {
-    from: DocumentStatus.PENDING_REVIEW,
+    from: DocumentStatus.IN_REVIEW,
     to: DocumentStatus.ARCHIVED,
     minLevel: 100,
     requiredPermissions: ['documents.delete'],
@@ -253,34 +253,14 @@ export async function getAllowedTransitions(
   return allTransitions.filter(transition => {
     if (transition.from !== currentStatus) return false
     
-    // Check permission first
+    // Check permission first - this is the primary authorization check
     const hasRequiredPermission = transition.requiredPermissions.some(permission => 
       userPermissions.includes(permission) || userPermissions.includes('*')
     )
     
-    if (!hasRequiredPermission) return false
-    
-    // Check if user has comprehensive document permissions (bypass level check)
-    const hasFullDocumentAccess = userPermissions.includes('*') || 
-      (userPermissions.includes('documents.update') && 
-       userPermissions.includes('documents.approve') && 
-       userPermissions.includes('documents.delete') &&
-       userPermissions.includes('documents.read') &&
-       userPermissions.includes('documents.create'));
-    
-    // If user has full document access, bypass level check
-    if (hasFullDocumentAccess) {
-      return true
-    }
-    
-    // If userLevel is provided, use it for level-based check
-    if (userLevel !== undefined) {
-      return userLevel >= transition.minLevel
-    }
-    
-    // Note: Removed hardcoded admin check - use capabilities instead
-    
-    return false
+    // If user has required permission, allow the transition
+    // The permission check is sufficient for capability-based RBAC
+    return hasRequiredPermission
   })
 }
 
@@ -302,34 +282,14 @@ export async function isTransitionAllowed(
   const transition = allTransitions.find(t => t.from === from && t.to === to)
   if (!transition) return false
   
-  // Check permission
+  // Check permission - this is the primary authorization check
   const hasRequiredPermission = transition.requiredPermissions.some(permission => 
     userPermissions.includes(permission) || userPermissions.includes('*')
   )
   
-  if (!hasRequiredPermission) return false
-  
-  // Check if user has comprehensive document permissions (bypass level check)
-  const hasFullDocumentAccess = userPermissions.includes('*') || 
-    (userPermissions.includes('documents.update') && 
-     userPermissions.includes('documents.approve') && 
-     userPermissions.includes('documents.delete') &&
-     userPermissions.includes('documents.read') &&
-     userPermissions.includes('documents.create'));
-  
-  // If user has full document access, bypass level check
-  if (hasFullDocumentAccess) {
-    return true
-  }
-  
-  // If userLevel is provided, use it for level-based check
-  if (userLevel !== undefined) {
-    return userLevel >= transition.minLevel
-  }
-  
-  // Note: Removed hardcoded admin check - use capabilities instead
-  
-  return false
+  // If user has required permission, allow the transition
+  // The permission check is sufficient for capability-based RBAC
+  return hasRequiredPermission
 }
 
 /**
@@ -337,7 +297,7 @@ export async function isTransitionAllowed(
  */
 export const WORKFLOW_DESCRIPTIONS = {
   [DocumentStatus.DRAFT]: 'Document is being created/edited. Ready for review submission.',
-  [DocumentStatus.PENDING_REVIEW]: 'Document submitted for review by manager or PPD.',
+  [DocumentStatus.IN_REVIEW]: 'Document is currently being reviewed by manager or PPD.',
   [DocumentStatus.PENDING_APPROVAL]: 'Document reviewed and awaiting approval from authorized personnel.',
   [DocumentStatus.APPROVED]: 'Document approved and ready for publication.',
   [DocumentStatus.PUBLISHED]: 'Document is published and accessible to users.',

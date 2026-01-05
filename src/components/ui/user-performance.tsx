@@ -43,13 +43,13 @@ export function UserPerformanceWidget() {
   const getMedalIcon = (index: number) => {
     switch (index) {
       case 0:
-        return <Trophy className="h-5 w-5 text-yellow-500" />
+        return <Trophy className="h-5 w-5 text-yellow-500 dark:text-yellow-400" />
       case 1:
-        return <Award className="h-5 w-5 text-gray-400" />
+        return <Award className="h-5 w-5 text-gray-400 dark:text-gray-500" />
       case 2:
-        return <Star className="h-5 w-5 text-orange-600" />
+        return <Star className="h-5 w-5 text-orange-600 dark:text-orange-400" />
       default:
-        return <TrendingUp className="h-5 w-5 text-blue-500" />
+        return <TrendingUp className="h-5 w-5 text-blue-500 dark:text-blue-400" />
     }
   }
 
@@ -123,10 +123,10 @@ export function UserPerformanceWidget() {
             <div
               key={user.id}
               className={`flex items-center gap-4 p-3 rounded-lg transition-colors ${
-                index === 0 ? 'bg-yellow-50 border border-yellow-200' :
-                index === 1 ? 'bg-gray-50 border border-gray-200' :
-                index === 2 ? 'bg-orange-50 border border-orange-200' :
-                'hover:bg-accent/5'
+                index === 0 ? 'bg-yellow-50 border border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800' :
+                index === 1 ? 'bg-gray-50 border border-gray-200 dark:bg-gray-800 dark:border-gray-700' :
+                index === 2 ? 'bg-orange-50 border border-orange-200 dark:bg-orange-900/20 dark:border-orange-800' :
+                'hover:bg-accent/5 dark:hover:bg-accent/10'
               }`}
             >
               <div className="flex items-center gap-3">

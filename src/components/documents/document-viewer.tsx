@@ -146,14 +146,14 @@ export function DocumentViewer({ document, open, onClose, onRefresh }: DocumentV
   };
 
   const statusColors = {
-    DRAFT: 'bg-gray-100 text-gray-800',
-    PENDING_REVIEW: 'bg-yellow-100 text-yellow-800',
-    PENDING_APPROVAL: 'bg-orange-100 text-orange-800',
-    APPROVED: 'bg-green-100 text-green-800',
-    PUBLISHED: 'bg-blue-100 text-blue-800',
-    REJECTED: 'bg-red-100 text-red-800',
-    ARCHIVED: 'bg-gray-100 text-gray-600',
-    EXPIRED: 'bg-red-100 text-red-600',
+    DRAFT: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
+    IN_REVIEW: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+    PENDING_APPROVAL: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+    APPROVED: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    PUBLISHED: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    REJECTED: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    ARCHIVED: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+    EXPIRED: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
   };
 
   if (!document) return null;

@@ -84,12 +84,12 @@ const ActionMenuItem = ({
 const PDFViewerWrapper = dynamic(
   () => import('./pdf-viewer-wrapper').then(mod => ({ default: mod.PDFViewerWrapper })).catch(err => {
     console.warn('Failed to load PDFViewerWrapper:', err);
-    return { default: () => <div className="p-4 text-center text-red-600">Failed to load PDF viewer</div> };
+    return { default: () => <div className="p-4 text-center text-red-600 dark:text-red-400">Failed to load PDF viewer</div> };
   }),
   { 
     ssr: false, 
-    loading: () => <div className="flex items-center justify-center bg-gray-200 rounded animate-pulse h-96">
-      <span className="text-gray-600">Loading PDF viewer...</span>
+    loading: () => <div className="flex items-center justify-center bg-gray-200 dark:bg-gray-800 rounded animate-pulse h-96">
+      <span className="text-gray-600 dark:text-gray-400">Loading PDF viewer...</span>
     </div> 
   }
 );

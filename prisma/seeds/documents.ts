@@ -135,7 +135,7 @@ export async function seedDocuments() {
       fileType: 'pdf',
       mimeType: 'application/pdf',
       version: '1.3',
-      status: DocumentStatus.UNDER_REVIEW,
+      status: DocumentStatus.IN_REVIEW,
       accessGroups: tikGroups,
       downloadCount: 23,
       viewCount: 89,
@@ -453,7 +453,7 @@ export async function seedDocuments() {
         documentId: doc1.id,
         action: 'STATUS_CHANGE',
         statusFrom: DocumentStatus.DRAFT,
-        statusTo: DocumentStatus.UNDER_REVIEW,
+        statusTo: DocumentStatus.IN_REVIEW,
         changedById: adminUser.id,
         changeReason: 'Submitted for review',
         createdAt: new Date('2024-01-11T14:00:00Z')
@@ -477,7 +477,7 @@ export async function seedDocuments() {
       data: {
         documentId: doc1.id,
         action: 'APPROVE',
-        statusFrom: DocumentStatus.UNDER_REVIEW,
+        statusFrom: DocumentStatus.IN_REVIEW,
         statusTo: DocumentStatus.APPROVED,
         changedById: adminUser.id,
         changeReason: 'Document meets all quality standards',
@@ -515,7 +515,7 @@ export async function seedDocuments() {
         documentId: doc2.id,
         action: 'STATUS_CHANGE',
         statusFrom: DocumentStatus.DRAFT,
-        statusTo: DocumentStatus.UNDER_REVIEW,
+        statusTo: DocumentStatus.IN_REVIEW,
         changedById: tikUser?.id || adminUser.id,
         changeReason: 'Ready for technical review',
         createdAt: new Date('2024-01-25T15:00:00Z')
@@ -525,7 +525,7 @@ export async function seedDocuments() {
       data: {
         documentId: doc2.id,
         action: 'APPROVE',
-        statusFrom: DocumentStatus.UNDER_REVIEW,
+        statusFrom: DocumentStatus.IN_REVIEW,
         statusTo: DocumentStatus.APPROVED,
         changedById: ppdUser?.id || adminUser.id,
         changeReason: 'Technical review passed',
@@ -573,7 +573,7 @@ export async function seedDocuments() {
         documentId: doc3.id,
         action: 'STATUS_CHANGE',
         statusFrom: DocumentStatus.DRAFT,
-        statusTo: DocumentStatus.UNDER_REVIEW,
+        statusTo: DocumentStatus.IN_REVIEW,
         changedById: editorUser?.id || adminUser.id,
         changeReason: 'Submitted for approval',
         metadata: { reviewers: ['ppd@dsm.com', 'kadiv@dsm.com'] },

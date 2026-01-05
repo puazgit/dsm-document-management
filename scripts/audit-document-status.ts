@@ -34,13 +34,13 @@ async function checkDocumentStatus() {
     // Query dengan logika yang sama seperti API
     const [draft, pending, approved, archived] = await Promise.all([
       prisma.document.count({ where: { status: 'DRAFT' } }),
-      prisma.document.count({ where: { status: { in: ['PENDING_REVIEW', 'PENDING_APPROVAL'] } } }),
+      prisma.document.count({ where: { status: { in: ['IN_REVIEW', 'PENDING_APPROVAL'] } } }),
       prisma.document.count({ where: { status: { in: ['APPROVED', 'PUBLISHED'] } } }),
       prisma.document.count({ where: { status: 'ARCHIVED' } }),
     ])
     
     console.log(`Draft Documents      : ${draft}`)
-    console.log(`Pending Documents    : ${pending} (PENDING_REVIEW + PENDING_APPROVAL)`)
+    console.log(`Pending Documents    : ${pending} (IN_REVIEW + PENDING_APPROVAL)`)
     console.log(`Approved Documents   : ${approved} (APPROVED + PUBLISHED)`)
     console.log(`Archived Documents   : ${archived}`)
     console.log(`${'TOTAL'.padEnd(20)} : ${draft + pending + approved + archived}`)
@@ -56,13 +56,13 @@ async function checkDocumentStatus() {
     console.log('\n🔍 Breakdown Detail:')
     console.log('─────────────────────────────')
     const detailedCounts = await Promise.all([
-      prisma.document.count({ where: { status: 'PENDING_REVIEW' } }),
+      prisma.document.count({ where: { status: 'IN_REVIEW' } }),
       prisma.document.count({ where: { status: 'PENDING_APPROVAL' } }),
       prisma.document.count({ where: { status: 'APPROVED' } }),
       prisma.document.count({ where: { status: 'PUBLISHED' } }),
       prisma.document.count({ where: { status: 'REJECTED' } }),
     ])
-    console.log(`  PENDING_REVIEW     : ${detailedCounts[0]}`)
+    console.log(`  IN_REVIEW          : ${detailedCounts[0]}`)
     console.log(`  PENDING_APPROVAL   : ${detailedCounts[1]}`)
     console.log(`  APPROVED           : ${detailedCounts[2]}`)
     console.log(`  PUBLISHED          : ${detailedCounts[3]}`)
@@ -80,7 +80,7 @@ async function checkDocumentStatus() {
     }
     
     // Check if any status is missing
-    const apiStatuses = new Set(['DRAFT', 'PENDING_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'ARCHIVED'])
+    const apiStatuses = new Set(['DRAFT', 'IN_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'ARCHIVED'])
     const dbStatuses = new Set(statusCounts.map(s => s.status))
     const missingStatuses = [...dbStatuses].filter(s => !apiStatuses.has(s))
     
