@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -31,6 +33,8 @@ export function ChangePasswordForm({ userId }: ChangePasswordFormProps) {
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const { toast } = useToast()
+  const router = useRouter()
+  const { update } = useSession()
 
   const {
     register,
@@ -66,6 +70,13 @@ export function ChangePasswordForm({ userId }: ChangePasswordFormProps) {
       })
 
       reset()
+
+      // Update session to reflect mustChangePassword = false
+      await update()
+      
+      // Redirect to dashboard after successful password change
+      router.push('/dashboard')
+      router.refresh()
     } catch (error) {
       console.error('Error changing password:', error)
       toast({

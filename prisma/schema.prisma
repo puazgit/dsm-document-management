@@ -24,6 +24,13 @@ model User {
   lastLoginAt        DateTime?          @map("last_login_at")
   phone              String?            @db.VarChar(20)
   position           String?            @db.VarChar(100)
+  // External Authentication Fields (SIKAWAN)
+  isExternal         Boolean            @default(false) @map("is_external")
+  externalId         String?            @unique @map("external_id") @db.VarChar(50)
+  externalSource     String?            @map("external_source") @db.VarChar(50)
+  lastSyncAt         DateTime?          @map("last_sync_at")
+  mustChangePassword Boolean            @default(false) @map("must_change_password")
+  metadata           Json?
   auditLogs          AuditLog[]
   comments           Comment[]
   headOfDivisions    Divisi[]           @relation("DivisiHead")
@@ -98,16 +105,17 @@ model Permission {
 }
 
 model UserRole {
-  id             String    @id @default(cuid())
-  userId         String    @map("user_id")
-  roleId         String    @map("role_id")
-  assignedBy     String    @map("assigned_by")
-  assignedAt     DateTime  @default(now()) @map("assigned_at")
-  expiresAt      DateTime? @map("expires_at")
-  isActive       Boolean   @default(true) @map("is_active")
-  assignedByUser User      @relation("UserRoleAssignedBy", fields: [assignedBy], references: [id])
-  role           Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                 String    @id @default(cuid())
+  userId             String    @map("user_id")
+  roleId             String    @map("role_id")
+  assignedBy         String    @map("assigned_by")
+  assignedAt         DateTime  @default(now()) @map("assigned_at")
+  expiresAt          DateTime? @map("expires_at")
+  isActive           Boolean   @default(true) @map("is_active")
+  isManuallyAssigned Boolean   @default(false) @map("is_manually_assigned")
+  assignedByUser     User      @relation("UserRoleAssignedBy", fields: [assignedBy], references: [id])
+  role               Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, roleId])
   @@index([userId])

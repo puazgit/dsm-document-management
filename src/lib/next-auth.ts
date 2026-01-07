@@ -6,19 +6,28 @@ import { verifyPassword } from "./auth"
 import { auditHelpers } from "./audit"
 import { getUserWithPermissions } from "./permissions"
 import { isAdmin as checkIsAdmin, type CapabilityUser } from "./capabilities"
+import { sikawanService } from "./sikawan-api"
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
+    // Internal Login (Email/Username)
     CredentialsProvider({
-      name: "credentials",
+      id: "credentials",
+      name: "Internal Login",
       credentials: {
         emailOrUsername: { label: "Email or Username", type: "text" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
+        loginType: { label: "Login Type", type: "hidden" }
       },
       async authorize(credentials) {
         if (!credentials?.emailOrUsername || !credentials?.password) {
           return null
+        }
+
+        // Check if this is SIKAWAN login
+        if (credentials.loginType === 'sikawan') {
+          return null; // Handle by sikawan provider
         }
 
         try {
@@ -40,6 +49,8 @@ export const authOptions: NextAuthOptions = {
               groupId: true,
               divisiId: true,
               isActive: true,
+              isExternal: true,
+              mustChangePassword: true,
               group: true,
               divisi: true,
               userRoles: {
@@ -111,9 +122,77 @@ export const authOptions: NextAuthOptions = {
             groupId: user.groupId || "",
             divisiId: user.divisiId || "",
             isActive: user.isActive,
+            isExternal: user.isExternal || false,
+            mustChangePassword: user.mustChangePassword || false,
           } as any
         } catch (error) {
           console.error("Auth error:", error)
+          return null
+        }
+      }
+    }),
+    
+    // SIKAWAN Login (NIP)
+    CredentialsProvider({
+      id: "sikawan",
+      name: "SIKAWAN Login",
+      credentials: {
+        nip: { label: "NIP", type: "text" },
+        password: { label: "Password", type: "password" }
+      },
+      async authorize(credentials) {
+        if (!credentials?.nip || !credentials?.password) {
+          return null
+        }
+
+        try {
+          // Authenticate via SIKAWAN service
+          const sessionUser = await sikawanService.authenticateUser(
+            credentials.nip,
+            credentials.password
+          )
+
+          if (!sessionUser) {
+            // Log failed login attempt
+            await auditHelpers.loginFailed(
+              null,
+              credentials.nip,
+              'Invalid NIP or password (SIKAWAN)'
+            )
+            return null
+          }
+
+          // Log successful login
+          await auditHelpers.loginSuccess(
+            sessionUser.id,
+            sessionUser.email
+          )
+
+          // Get primary role
+          const primaryRole = sessionUser.roles[0] || 'viewer';
+          
+          return {
+            id: sessionUser.id,
+            email: sessionUser.email,
+            name: sessionUser.name,
+            role: primaryRole,
+            roleDisplayName: primaryRole.charAt(0).toUpperCase() + primaryRole.slice(1),
+            groupId: "",
+            divisiId: "",
+            isActive: true,
+            isExternal: true,
+            mustChangePassword: sessionUser.mustChangePassword,
+          } as any
+        } catch (error) {
+          console.error("SIKAWAN auth error:", error)
+          
+          // Log failed login attempt
+          await auditHelpers.loginFailed(
+            null,
+            credentials.nip,
+            `SIKAWAN auth error: ${error instanceof Error ? error.message : 'Unknown error'}`
+          )
+          
           return null
         }
       }
@@ -133,6 +212,8 @@ export const authOptions: NextAuthOptions = {
         token.groupId = (user as any).groupId
         token.divisiId = (user as any).divisiId
         token.isActive = (user as any).isActive
+        token.isExternal = (user as any).isExternal || false
+        token.mustChangePassword = (user as any).mustChangePassword || false
         // Don't set capabilitiesLoadedAt yet - let it load below
       }
       
@@ -173,6 +254,9 @@ export const authOptions: NextAuthOptions = {
             token.role = primaryRole
             token.roleDisplayName = primaryRoleDisplayName
             
+            // Update mustChangePassword flag (important for password changes)
+            token.mustChangePassword = userWithCapabilities.mustChangePassword || false
+            
             // Load capabilities (removed permissions)
             const capabilities = userWithCapabilities.userRoles.flatMap(userRole =>
               userRole.role.capabilityAssignments.map(ca => ca.capability.name)
@@ -197,6 +281,8 @@ export const authOptions: NextAuthOptions = {
         session.user.groupId = token.groupId
         session.user.divisiId = token.divisiId
         session.user.isActive = token.isActive
+        session.user.isExternal = token.isExternal as boolean || false
+        session.user.mustChangePassword = token.mustChangePassword as boolean || false
         // REMOVED: session.user.permissions (migrated to capabilities)
         session.user.capabilities = token.capabilities as string[]
       }

@@ -28,7 +28,7 @@ const ChartSkeleton = () => (
 )
 
 function DashboardPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
 
   // Security: Disable right-click context menu
   const handleContextMenu = (e: React.MouseEvent) => {

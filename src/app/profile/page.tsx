@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
+import { useSearchParams } from 'next/navigation'
 import { withAuth } from '@/components/auth/with-auth'
 import { DashboardLayout } from '@/components/ui/dashboard-layout'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -15,7 +16,16 @@ import { User, Shield, Camera, Lock } from 'lucide-react'
 
 function ProfilePage() {
   const { data: session, status } = useSession()
+  const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState('profile')
+
+  // Check URL parameter to auto-switch to password tab
+  useEffect(() => {
+    const shouldChangePassword = searchParams.get('changePassword')
+    if (shouldChangePassword === 'true') {
+      setActiveTab('password')
+    }
+  }, [searchParams])
 
   if (status === 'loading') {
     return (

@@ -12,6 +12,8 @@ declare module "next-auth" {
       groupId: string
       divisiId: string
       isActive: boolean
+      isExternal?: boolean
+      mustChangePassword?: boolean
       // REMOVED: permissions - migrated to capabilities
       capabilities?: string[]
     }
@@ -26,6 +28,8 @@ declare module "next-auth" {
     groupId: string
     divisiId: string
     isActive: boolean
+    isExternal?: boolean
+    mustChangePassword?: boolean
     // REMOVED: permissions - migrated to capabilities
     capabilities?: string[]
   }
@@ -38,6 +42,8 @@ declare module "next-auth/jwt" {
     groupId: string
     divisiId: string
     isActive: boolean
+    isExternal?: boolean
+    mustChangePassword?: boolean
     // REMOVED: permissions - migrated to capabilities
     capabilities?: string[]
     capabilitiesLoadedAt?: number // Renamed from permissionsLoadedAt
