@@ -401,7 +401,7 @@ export function DocumentUpload({ open, onClose, onSuccess, documentTypes }: Docu
                     {groups.map(group => (
                       <label
                         key={group.id}
-                        className="flex items-start space-x-2 cursor-pointer hover:bg-gray-50 p-1.5 rounded text-xs"
+                        className="flex items-start space-x-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 p-1.5 rounded text-xs"
                       >
                         <input
                           type="checkbox"

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/next-auth';
 import { prisma } from '@/lib/prisma';
-import { canManageRoles, type CapabilityUser } from '@/lib/capabilities';
+import { hasCapability, type CapabilityUser } from '@/lib/capabilities';
 import { clearWorkflowCache } from '@/config/document-workflow';
 import { z } from 'zod';
 
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     }
 
     const capUser: CapabilityUser = { id: session.user.id, email: session.user.email || '', roles: [] };
-    if (!(await canManageRoles(capUser))) {
+    if (!(await hasCapability(capUser, 'WORKFLOW_MANAGE'))) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     }
 
     const capUser: CapabilityUser = { id: session.user.id, email: session.user.email || '', roles: [] };
-    if (!(await canManageRoles(capUser))) {
+    if (!(await hasCapability(capUser, 'WORKFLOW_MANAGE'))) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
@@ -100,7 +100,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const capUser: CapabilityUser = { id: session.user.id, email: session.user.email || '', roles: [] };
-    if (!(await canManageRoles(capUser))) {
+    if (!(await hasCapability(capUser, 'WORKFLOW_MANAGE'))) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
@@ -135,7 +135,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const capUser: CapabilityUser = { id: session.user.id, email: session.user.email || '', roles: [] };
-    if (!(await canManageRoles(capUser))) {
+    if (!(await hasCapability(capUser, 'WORKFLOW_MANAGE'))) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 

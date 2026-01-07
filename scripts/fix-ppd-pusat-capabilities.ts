@@ -47,19 +47,10 @@ async function fixPpdPusatCapabilities() {
 
     console.log('📋 Current state:');
     console.log(`   Role: ${ppdPusatRole.name}`);
-    console.log(`   Current Level: ${ppdPusatRole.level}`);
     console.log(`   Current Capabilities: ${ppdPusatRole.capabilityAssignments.length}`);
 
-    // Update role level to 100
-    console.log('\n📝 Step 1: Updating role level to 100...');
-    await prisma.role.update({
-      where: { id: ppdPusatRole.id },
-      data: { level: 100 }
-    });
-    console.log('   ✅ Level updated to 100');
-
     // Get all capabilities
-    console.log('\n📝 Step 2: Fetching all capabilities...');
+    console.log('\n📝 Step 1: Fetching all capabilities...');
     const allCapabilities = await prisma.roleCapability.findMany({
       where: {
         name: {
@@ -86,7 +77,7 @@ async function fixPpdPusatCapabilities() {
     }
 
     // Assign capabilities
-    console.log('\n📝 Step 3: Assigning capabilities...');
+    console.log('\n📝 Step 2: Assigning capabilities...');
     let assigned = 0;
     let skipped = 0;
 
@@ -119,7 +110,7 @@ async function fixPpdPusatCapabilities() {
     console.log(`   Total: ${assigned + skipped}`);
 
     // Verify the result
-    console.log('\n🔍 Step 4: Verifying...');
+    console.log('\n🔍 Step 3: Verifying...');
     const updatedRole = await prisma.role.findUnique({
       where: { name: 'ppd.pusat' },
       include: {
@@ -132,7 +123,6 @@ async function fixPpdPusatCapabilities() {
     });
 
     if (updatedRole) {
-      console.log(`   ✅ Role level: ${updatedRole.level}`);
       console.log(`   ✅ Total capabilities: ${updatedRole.capabilityAssignments.length}`);
       
       // Check if all expected capabilities are assigned

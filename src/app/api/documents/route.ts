@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authOptions } from '../../../lib/next-auth';
 import { prisma } from '../../../lib/prisma';
 import { requireCapability } from '@/lib/rbac-helpers';
+import { UnifiedAccessControl } from '@/lib/unified-access-control';
 import { z } from 'zod';
 import { serializeForResponse } from '../../../lib/bigint-utils';
 import { trackDocumentCreated } from '../../../lib/document-history';
@@ -80,9 +81,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Build access control where clause - no permissions needed for basic document access
-    // The capability check above already ensures user has DOCUMENT_VIEW
-    const accessWhere = buildDocumentAccessWhere(currentUser, []);
+    // Get user capabilities for proper access control
+    const userCapabilities = await UnifiedAccessControl.getUserCapabilities(auth.userId!);
+    
+    // Build access control where clause with user capabilities
+    const accessWhere = buildDocumentAccessWhere(currentUser, userCapabilities);
     
     // Merge access control with other filters
     if (Object.keys(accessWhere).length > 0) {

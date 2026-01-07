@@ -159,20 +159,29 @@ export function buildDocumentAccessWhere(user: User, userPermissions?: string[])
   const role = user.role || '';
   const userGroupName = user.group?.name;
   
-  // Admin sees everything
+  // Check capability-based full access first (NEW)
+  if (userPermissions) {
+    const hasFullAccess = userPermissions.includes('ADMIN_ACCESS') || 
+                          userPermissions.includes('DOCUMENT_FULL_ACCESS');
+    if (hasFullAccess) {
+      return {}; // No restrictions - can see all documents
+    }
+  }
+  
+  // Legacy: Admin sees everything (hardcoded role check)
   if (role === 'admin' || role === 'administrator' || userGroupName === 'administrator') {
     return {};
   }
 
-  // Users with full document permissions see everything
+  // Legacy: Users with old full document permissions see everything
   if (userPermissions) {
-    const hasFullDocumentAccess = userPermissions.includes('*') || 
+    const hasOldFullDocumentAccess = userPermissions.includes('*') || 
       (userPermissions.includes('documents.update') && 
        userPermissions.includes('documents.approve') && 
        userPermissions.includes('documents.read') &&
        userPermissions.includes('documents.create'));
     
-    if (hasFullDocumentAccess) {
+    if (hasOldFullDocumentAccess) {
       return {};
     }
   }

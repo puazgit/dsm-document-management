@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { signIn, getSession } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "../../../components/ui/button"
@@ -8,6 +8,7 @@ import { Input } from "../../../components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card"
 import { LoadingButton } from "../../../components/ui/loading"
 import { useToast } from "../../../hooks/use-toast"
+import { Moon, Sun } from "lucide-react"
 
 // Simple inline Label component
 const Label = ({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) => (
@@ -21,10 +22,36 @@ export default function LoginPage() {
   const [emailOrUsername, setEmailOrUsername] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isDark, setIsDark] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
+
+  useEffect(() => {
+    // Check for saved theme preference (sync with main app)
+    const savedTheme = localStorage.getItem('dsmt-theme')
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    const shouldBeDark = savedTheme === 'dark' || (savedTheme === 'system' && prefersDark) || (!savedTheme && prefersDark)
+    
+    setIsDark(shouldBeDark)
+    if (shouldBeDark) {
+      document.documentElement.classList.add('dark')
+    }
+  }, [])
+
+  const toggleTheme = () => {
+    const newIsDark = !isDark
+    setIsDark(newIsDark)
+    
+    if (newIsDark) {
+      document.documentElement.classList.add('dark')
+      localStorage.setItem('dsmt-theme', 'dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+      localStorage.setItem('dsmt-theme', 'light')
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -71,13 +98,27 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen px-4 py-12 bg-gray-50 sm:px-6 lg:px-8">
+    <div className="flex items-center justify-center min-h-screen px-4 py-12 bg-gray-50 dark:bg-gray-900 sm:px-6 lg:px-8">
+      {/* Theme Toggle Button */}
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={toggleTheme}
+        className="fixed top-4 right-4 rounded-full"
+      >
+        {isDark ? (
+          <Sun className="h-5 w-5" />
+        ) : (
+          <Moon className="h-5 w-5" />
+        )}
+      </Button>
+
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">
+          <h2 className="mt-6 text-3xl font-bold text-gray-900 dark:text-gray-100">
             Sign in to DSMT
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             Dokumen Sistem Manajemen Terpadu
           </p>
         </div>
@@ -129,10 +170,10 @@ export default function LoginPage() {
             </form>
 
             <div className="mt-6">
-              <div className="text-sm text-center text-gray-600">
+              <div className="text-sm text-center text-gray-600 dark:text-gray-400">
                 <p>Demo Credentials (use email or username):</p>
-                <div className="p-3 mt-2 bg-gray-100 rounded-md">
-                  <p className="font-mono text-xs">
+                <div className="p-3 mt-2 bg-gray-100 dark:bg-gray-800 rounded-md">
+                  <p className="font-mono text-xs dark:text-gray-300">
                     <strong>Admin:</strong> admin@dsm.com or username / admin123<br />
                     <strong>PPD:</strong> ppd@dsm.com or username / ppd123<br />
                     <strong>Manager:</strong> manager@dsm.com or username / manager123<br />

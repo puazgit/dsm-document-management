@@ -69,8 +69,26 @@ function getRoleDisplay(role: string): string {
     viewer: '👁️ Viewer'
   }
   
-  // Return mapped role or generic user label
-  return roleIcons[normalizedRole] || '👤 User'
+  // Check for exact match first
+  if (roleIcons[normalizedRole]) {
+    return roleIcons[normalizedRole]
+  }
+  
+  // Check if role contains any of the keywords
+  if (normalizedRole.includes('admin')) return '🔧 Admin'
+  if (normalizedRole.includes('ppd')) return '📋 PPD'
+  if (normalizedRole.includes('kadiv')) return '👔 Kadiv'
+  if (normalizedRole.includes('gm') || normalizedRole.includes('general manager')) return '🏢 GM'
+  if (normalizedRole.includes('manager')) return '📊 Manager'
+  if (normalizedRole.includes('dirut') || normalizedRole.includes('direktur')) return '🎯 Dirut'
+  if (normalizedRole.includes('dewas') || normalizedRole.includes('dewan')) return '👥 Dewas'
+  if (normalizedRole.includes('komite') || normalizedRole.includes('audit')) return '🔍 Komite'
+  if (normalizedRole.includes('staff')) return '👤 Staff'
+  if (normalizedRole.includes('guest')) return '👁️ Guest'
+  if (normalizedRole.includes('viewer') || normalizedRole.includes('view')) return '👁️ Viewer'
+  
+  // Return generic user label if no match
+  return '👤 User'
 }
 
 const SIDEBAR_OPEN_ITEMS_KEY = 'sidebar-open-items'
@@ -333,7 +351,7 @@ export function AppSidebarUnified() {
                     <span className="font-semibold truncate">{session.user.name}</span>
                     <span className="text-xs truncate">{session.user.email}</span>
                     <span className="truncate text-[10px] text-muted-foreground font-medium">
-                      {getRoleDisplay((session.user as any).role || 'guest')}
+                      {(session.user as any).roleDisplayName || getRoleDisplay((session.user as any).role || 'guest')}
                     </span>
                   </div>
                 </SidebarMenuButton>

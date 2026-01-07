@@ -94,15 +94,15 @@ export function DocumentStatusWorkflow({
   // Get status color
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'DRAFT': return 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-      case 'IN_REVIEW': return 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-      case 'PENDING_APPROVAL': return 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-      case 'APPROVED': return 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-      case 'PUBLISHED': return 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-      case 'REJECTED': return 'bg-red-100 text-red-700 hover:bg-red-200'
-      case 'ARCHIVED': return 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-      case 'EXPIRED': return 'bg-violet-100 text-violet-700 hover:bg-violet-200'
-      default: return 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+      case 'DRAFT': return 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+      case 'IN_REVIEW': return 'bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50'
+      case 'PENDING_APPROVAL': return 'bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:hover:bg-orange-900/50'
+      case 'APPROVED': return 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50'
+      case 'PUBLISHED': return 'bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50'
+      case 'REJECTED': return 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50'
+      case 'ARCHIVED': return 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
+      case 'EXPIRED': return 'bg-violet-100 text-violet-700 hover:bg-violet-200 dark:bg-violet-900/30 dark:text-violet-400 dark:hover:bg-violet-900/50'
+      default: return 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
     }
   }
 
@@ -263,10 +263,10 @@ export function DocumentStatusWorkflow({
             </button>
             {dropdownOpen && (
               <div 
-                className="absolute right-0 z-50 w-64 mt-2 bg-white border rounded-md shadow-lg"
+                className="absolute right-0 z-50 w-64 mt-2 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-md shadow-lg"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="px-3 py-2 text-xs font-semibold border-b">Change Status</div>
+                <div className="px-3 py-2 text-xs font-semibold border-b dark:border-gray-700 dark:text-gray-200">Change Status</div>
                 <div className="py-1">
                   {allowedTransitions.length > 0 ? (
                     allowedTransitions.map((transition) => (
@@ -276,14 +276,14 @@ export function DocumentStatusWorkflow({
                           openTransitionDialog(transition)
                           setDropdownOpen(false)
                         }}
-                        className="flex flex-col w-full gap-1 px-3 py-2 text-sm text-left hover:bg-gray-100"
+                        className="flex flex-col w-full gap-1 px-3 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
                       >
-                        <div className="font-medium">{capitalizeStatus(transition.to)}</div>
-                        <div className="text-xs text-gray-500">{transition.description}</div>
+                        <div className="font-medium dark:text-gray-200">{capitalizeStatus(transition.to)}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">{transition.description}</div>
                       </button>
                     ))
                   ) : (
-                    <div className="px-3 py-2 text-sm text-gray-500">No actions available</div>
+                    <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">No actions available</div>
                   )}
                 </div>
               </div>

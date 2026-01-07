@@ -8,6 +8,7 @@ declare module "next-auth" {
       email: string
       name: string
       role: string
+      roleDisplayName?: string
       groupId: string
       divisiId: string
       isActive: boolean
@@ -21,6 +22,7 @@ declare module "next-auth" {
     email: string
     name: string
     role: string
+    roleDisplayName?: string
     groupId: string
     divisiId: string
     isActive: boolean
@@ -32,6 +34,7 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     role: string
+    roleDisplayName?: string
     groupId: string
     divisiId: string
     isActive: boolean

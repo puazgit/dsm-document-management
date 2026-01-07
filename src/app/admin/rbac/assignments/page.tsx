@@ -92,6 +92,14 @@ function RoleCapabilitiesPage() {
     description: '',
     category: 'system',
   })
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+  const [pendingToggle, setPendingToggle] = useState<{
+    roleId: string
+    capabilityId: string
+    currentlyHas: boolean
+    roleName: string
+    capabilityName: string
+  } | null>(null)
 
   useEffect(() => {
     fetchData()
@@ -136,9 +144,18 @@ function RoleCapabilitiesPage() {
     )
   }
 
-  const toggleCapability = async (roleId: string, capabilityId: string, currentlyHas: boolean) => {
+  const handleConfirmToggle = (roleId: string, capabilityId: string, currentlyHas: boolean, roleName: string, capabilityName: string) => {
+    setPendingToggle({ roleId, capabilityId, currentlyHas, roleName, capabilityName })
+    setConfirmDialogOpen(true)
+  }
+
+  const executeToggle = async () => {
+    if (!pendingToggle) return
+    
+    const { roleId, capabilityId, currentlyHas } = pendingToggle
     const savingKey = `${roleId}-${capabilityId}`
     setSaving(savingKey)
+    setConfirmDialogOpen(false)
     
     try {
       const response = await fetch('/api/admin/role-capabilities', {
@@ -158,6 +175,10 @@ function RoleCapabilitiesPage() {
             ? 'Capability removed from role'
             : 'Capability assigned to role',
         })
+        
+        // Clear workflow cache to reflect changes immediately
+        await fetch('/api/admin/clear-workflow-cache', { method: 'POST' })
+        
         fetchData()
       } else {
         const data = await response.json()
@@ -175,6 +196,7 @@ function RoleCapabilitiesPage() {
       })
     } finally {
       setSaving(null)
+      setPendingToggle(null)
     }
   }
 
@@ -554,7 +576,7 @@ function RoleCapabilitiesPage() {
                                         size="sm"
                                         className="h-8 w-8 p-0"
                                         onClick={() =>
-                                          toggleCapability(role.id, capability.id, has)
+                                          handleConfirmToggle(role.id, capability.id, has, role.name, capability.name)
                                         }
                                       >
                                         {has ? (
@@ -703,6 +725,61 @@ function RoleCapabilitiesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmation Dialog for Toggle Capability */}
+      <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Konfirmasi Perubahan</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              {pendingToggle && (
+                <>
+                  <p>
+                    Apakah Anda yakin akan {pendingToggle.currentlyHas ? 'menghapus' : 'menambahkan'} capability ini?
+                  </p>
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-3">
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Role:</span>
+                        <span className="font-semibold">{pendingToggle.roleName}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Capability:</span>
+                        <span className="font-mono font-semibold">{pendingToggle.capabilityName}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Action:</span>
+                        <span className={`font-semibold ${pendingToggle.currentlyHas ? 'text-red-600' : 'text-green-600'}`}>
+                          {pendingToggle.currentlyHas ? 'Remove' : 'Add'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  {pendingToggle.currentlyHas && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                      <div className="flex gap-2">
+                        <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                        <div className="text-sm text-yellow-800">
+                          <p className="font-semibold">Perhatian:</p>
+                          <p className="mt-1">User dengan role ini akan kehilangan akses terkait capability ini. Pastikan untuk logout dan login kembali untuk melihat perubahan.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingToggle(null)}>
+              Batal
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={executeToggle}>
+              Ya, Lanjutkan
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Capability Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

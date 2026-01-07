@@ -130,7 +130,7 @@ export function TopDocuments({ type }: TopDocumentsProps) {
               <div
                 key={doc.id}
                 className={`flex items-center gap-3 p-3 rounded-lg border transition-colors hover:bg-accent/5 ${
-                  index === 0 ? 'bg-blue-50 border-blue-200' : ''
+                  index === 0 ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : 'dark:border-gray-700'
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -148,7 +148,7 @@ export function TopDocuments({ type }: TopDocumentsProps) {
                 <div className="flex-1 min-w-0">
                   <Link
                     href={`/documents/${doc.id}`}
-                    className="font-medium text-sm hover:text-blue-600 truncate block"
+                    className="font-medium text-sm hover:text-blue-600 dark:hover:text-blue-400 truncate block"
                   >
                     {doc.title}
                   </Link>
@@ -179,10 +179,10 @@ export function TopDocuments({ type }: TopDocumentsProps) {
           })}
         </div>
 
-        <div className="mt-4 pt-4 border-t">
+        <div className="mt-4 pt-4 border-t dark:border-gray-700">
           <Link
             href="/documents"
-            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
           >
             View all documents →
           </Link>

@@ -1,11 +1,12 @@
 /**
  * Document Status Workflow Configuration
  * 
- * Defines the document lifecycle and status transitions based on roles and permissions
- * Now queries database for workflow transitions with in-memory caching
+ * Defines the document lifecycle and status transitions based on capabilities
+ * Queries database for workflow transitions with in-memory caching
+ * Now fully capability-based - no more permission mapping needed
  */
 
-import { hasCapability, type CapabilityUser } from '@/lib/capabilities';
+import { hasCapability, getUserCapabilities, type CapabilityUser } from '@/lib/capabilities';
 import { prisma } from '@/lib/prisma';
 
 export enum DocumentStatus {
@@ -22,24 +23,24 @@ export enum DocumentStatus {
 export interface StatusTransition {
   from: DocumentStatus
   to: DocumentStatus
-  minLevel: number // Minimum role level required
-  requiredPermissions: string[]
+  minLevel: number
+  requiredCapabilities: string[] // Changed from requiredPermissions
   description: string
   allowedBy: string[]
 }
 
 /**
- * Document Status Workflow Rules
- * Uses level-based access control instead of hardcoded role names
- * Role Levels: admin=100, manager=70, editor=50, viewer=30, guest=10
+ * DEPRECATED: Legacy hardcoded workflow rules
+ * Kept for fallback only if database query fails
+ * System now uses database-driven capability-based transitions
  */
 export const DOCUMENT_STATUS_WORKFLOW: StatusTransition[] = [
   // 1. DRAFT -> IN_REVIEW (Submit for review)
   {
     from: DocumentStatus.DRAFT,
     to: DocumentStatus.IN_REVIEW,
-    minLevel: 50, // Editor+ can submit for review
-    requiredPermissions: ['documents.update'],
+    minLevel: 50,
+    requiredCapabilities: ['DOCUMENT_EDIT'],
     description: 'Submit document for review',
     allowedBy: ['Editor', 'Manager', 'Administrator']
   },
@@ -48,8 +49,8 @@ export const DOCUMENT_STATUS_WORKFLOW: StatusTransition[] = [
   {
     from: DocumentStatus.IN_REVIEW,
     to: DocumentStatus.PENDING_APPROVAL,
-    minLevel: 70, // Manager+ can forward for approval
-    requiredPermissions: ['documents.update'],
+    minLevel: 70,
+    requiredCapabilities: ['DOCUMENT_EDIT'],
     description: 'Review completed, forward for approval',
     allowedBy: ['Manager', 'Administrator']
   },
@@ -58,8 +59,8 @@ export const DOCUMENT_STATUS_WORKFLOW: StatusTransition[] = [
   {
     from: DocumentStatus.IN_REVIEW,
     to: DocumentStatus.DRAFT,
-    minLevel: 70, // Manager+ can send back for revision
-    requiredPermissions: ['documents.update'],
+    minLevel: 70,
+    requiredCapabilities: ['DOCUMENT_EDIT'],
     description: 'Send back for revision',
     allowedBy: ['Manager', 'Administrator']
   },
@@ -68,8 +69,8 @@ export const DOCUMENT_STATUS_WORKFLOW: StatusTransition[] = [
   {
     from: DocumentStatus.PENDING_APPROVAL,
     to: DocumentStatus.APPROVED,
-    minLevel: 70, // Manager+ can approve
-    requiredPermissions: ['documents.approve'],
+    minLevel: 70,
+    requiredCapabilities: ['DOCUMENT_APPROVE'],
     description: 'Approve document',
     allowedBy: ['Manager', 'Administrator']
   },
@@ -78,8 +79,8 @@ export const DOCUMENT_STATUS_WORKFLOW: StatusTransition[] = [
   {
     from: DocumentStatus.PENDING_APPROVAL,
     to: DocumentStatus.REJECTED,
-    minLevel: 70, // Manager+ can reject
-    requiredPermissions: ['documents.approve'],
+    minLevel: 70,
+    requiredCapabilities: ['DOCUMENT_APPROVE'],
     description: 'Reject document',
     allowedBy: ['Manager', 'Administrator']
   },
@@ -88,8 +89,8 @@ export const DOCUMENT_STATUS_WORKFLOW: StatusTransition[] = [
   {
     from: DocumentStatus.APPROVED,
     to: DocumentStatus.PUBLISHED,
-    minLevel: 100, // Only Administrator can publish
-    requiredPermissions: ['documents.update'],
+    minLevel: 100,
+    requiredCapabilities: ['DOCUMENT_PUBLISH'],
     description: 'Publish approved document',
     allowedBy: ['Administrator']
   },
@@ -98,8 +99,8 @@ export const DOCUMENT_STATUS_WORKFLOW: StatusTransition[] = [
   {
     from: DocumentStatus.REJECTED,
     to: DocumentStatus.DRAFT,
-    minLevel: 50, // Editor+ can revise rejected document
-    requiredPermissions: ['documents.update'],
+    minLevel: 50,
+    requiredCapabilities: ['DOCUMENT_EDIT'],
     description: 'Return to draft for revision after rejection',
     allowedBy: ['Editor', 'Manager', 'Administrator']
   },
@@ -108,8 +109,8 @@ export const DOCUMENT_STATUS_WORKFLOW: StatusTransition[] = [
   {
     from: DocumentStatus.DRAFT,
     to: DocumentStatus.ARCHIVED,
-    minLevel: 100, // Only Administrator can archive
-    requiredPermissions: ['documents.delete'],
+    minLevel: 100,
+    requiredCapabilities: ['DOCUMENT_DELETE'],
     description: 'Archive document',
     allowedBy: ['Administrator']
   },
@@ -117,7 +118,7 @@ export const DOCUMENT_STATUS_WORKFLOW: StatusTransition[] = [
     from: DocumentStatus.IN_REVIEW,
     to: DocumentStatus.ARCHIVED,
     minLevel: 100,
-    requiredPermissions: ['documents.delete'],
+    requiredCapabilities: ['DOCUMENT_DELETE'],
     description: 'Archive document',
     allowedBy: ['Administrator']
   },
@@ -125,7 +126,7 @@ export const DOCUMENT_STATUS_WORKFLOW: StatusTransition[] = [
     from: DocumentStatus.PENDING_APPROVAL,
     to: DocumentStatus.ARCHIVED,
     minLevel: 100,
-    requiredPermissions: ['documents.delete'],
+    requiredCapabilities: ['DOCUMENT_DELETE'],
     description: 'Archive document',
     allowedBy: ['Administrator']
   },
@@ -133,7 +134,7 @@ export const DOCUMENT_STATUS_WORKFLOW: StatusTransition[] = [
     from: DocumentStatus.APPROVED,
     to: DocumentStatus.ARCHIVED,
     minLevel: 100,
-    requiredPermissions: ['documents.delete'],
+    requiredCapabilities: ['DOCUMENT_DELETE'],
     description: 'Archive document',
     allowedBy: ['Administrator']
   },
@@ -141,7 +142,7 @@ export const DOCUMENT_STATUS_WORKFLOW: StatusTransition[] = [
     from: DocumentStatus.PUBLISHED,
     to: DocumentStatus.ARCHIVED,
     minLevel: 100,
-    requiredPermissions: ['documents.delete'],
+    requiredCapabilities: ['DOCUMENT_DELETE'],
     description: 'Archive document',
     allowedBy: ['Administrator']
   },
@@ -149,7 +150,7 @@ export const DOCUMENT_STATUS_WORKFLOW: StatusTransition[] = [
     from: DocumentStatus.REJECTED,
     to: DocumentStatus.ARCHIVED,
     minLevel: 100,
-    requiredPermissions: ['documents.delete'],
+    requiredCapabilities: ['DOCUMENT_DELETE'],
     description: 'Archive document',
     allowedBy: ['Administrator']
   },
@@ -158,8 +159,8 @@ export const DOCUMENT_STATUS_WORKFLOW: StatusTransition[] = [
   {
     from: DocumentStatus.PUBLISHED,
     to: DocumentStatus.EXPIRED,
-    minLevel: 100, // Only Administrator can manually expire
-    requiredPermissions: ['documents.update'],
+    minLevel: 100,
+    requiredCapabilities: ['DOCUMENT_EDIT'],
     description: 'Mark document as expired',
     allowedBy: ['System', 'Administrator']
   },
@@ -168,8 +169,8 @@ export const DOCUMENT_STATUS_WORKFLOW: StatusTransition[] = [
   {
     from: DocumentStatus.ARCHIVED,
     to: DocumentStatus.DRAFT,
-    minLevel: 100, // Only Administrator can unarchive
-    requiredPermissions: ['documents.update'],
+    minLevel: 100,
+    requiredCapabilities: ['DOCUMENT_EDIT'],
     description: 'Unarchive document to draft',
     allowedBy: ['Administrator']
   }
@@ -185,7 +186,7 @@ interface WorkflowTransitionCache {
 }
 
 let workflowCache: WorkflowTransitionCache | null = null;
-const WORKFLOW_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+const WORKFLOW_CACHE_TTL = 1 * 60 * 1000; // 1 minute - faster updates for capability changes
 
 /**
  * Get workflow transitions from database with caching
@@ -205,11 +206,12 @@ async function getWorkflowTransitionsFromDB(): Promise<StatusTransition[]> {
     });
 
     // Transform database records to StatusTransition format
+    // Now using capabilities directly instead of old permissions
     const transitions: StatusTransition[] = dbTransitions.map(t => ({
       from: t.fromStatus as DocumentStatus,
       to: t.toStatus as DocumentStatus,
       minLevel: t.minLevel,
-      requiredPermissions: t.requiredPermission ? [t.requiredPermission] : [],
+      requiredCapabilities: t.requiredPermission ? [t.requiredPermission] : [],
       description: t.description || '',
       allowedBy: t.allowedByLabel ? t.allowedByLabel.split(',').map(s => s.trim()) : []
     }));
@@ -238,14 +240,15 @@ export function clearWorkflowCache(): void {
 
 /**
  * Get allowed transitions for a document from its current status
- * Now queries database for workflow transitions with caching
- * Users with sufficient document permissions can bypass level check
+ * Now fully capability-based - checks user capabilities directly
+ * 
+ * @param currentStatus Current document status
+ * @param userCapabilities Array of user's capability names
+ * @returns Array of allowed transitions
  */
 export async function getAllowedTransitions(
   currentStatus: DocumentStatus,
-  userRole: string,
-  userPermissions: string[],
-  userLevel?: number // Optional: pass user's role level from database
+  userCapabilities: string[]
 ): Promise<StatusTransition[]> {
   // Get transitions from database (with caching)
   const allTransitions = await getWorkflowTransitionsFromDB();
@@ -253,28 +256,30 @@ export async function getAllowedTransitions(
   return allTransitions.filter(transition => {
     if (transition.from !== currentStatus) return false
     
-    // Check permission first - this is the primary authorization check
-    const hasRequiredPermission = transition.requiredPermissions.some(permission => 
-      userPermissions.includes(permission) || userPermissions.includes('*')
+    // Check if user has any of the required capabilities
+    const hasRequiredCapability = transition.requiredCapabilities.some(capability => 
+      userCapabilities.includes(capability) || 
+      userCapabilities.includes('ADMIN_ACCESS') || 
+      userCapabilities.includes('DOCUMENT_MANAGE')
     )
     
-    // If user has required permission, allow the transition
-    // The permission check is sufficient for capability-based RBAC
-    return hasRequiredPermission
+    return hasRequiredCapability
   })
 }
 
 /**
  * Check if a status transition is allowed
- * Now queries database for workflow transitions with caching
- * Users with sufficient document permissions can bypass level check
+ * Now fully capability-based - checks user capabilities directly
+ * 
+ * @param from Source status
+ * @param to Target status
+ * @param userCapabilities Array of user's capability names
+ * @returns Whether transition is allowed
  */
 export async function isTransitionAllowed(
   from: DocumentStatus,
   to: DocumentStatus,
-  userRole: string,
-  userPermissions: string[],
-  userLevel?: number // Optional: pass user's role level from database
+  userCapabilities: string[]
 ): Promise<boolean> {
   // Get transitions from database (with caching)
   const allTransitions = await getWorkflowTransitionsFromDB();
@@ -282,14 +287,14 @@ export async function isTransitionAllowed(
   const transition = allTransitions.find(t => t.from === from && t.to === to)
   if (!transition) return false
   
-  // Check permission - this is the primary authorization check
-  const hasRequiredPermission = transition.requiredPermissions.some(permission => 
-    userPermissions.includes(permission) || userPermissions.includes('*')
+  // Check if user has any of the required capabilities
+  const hasRequiredCapability = transition.requiredCapabilities.some(capability => 
+    userCapabilities.includes(capability) || 
+    userCapabilities.includes('ADMIN_ACCESS') || 
+    userCapabilities.includes('DOCUMENT_MANAGE')
   )
   
-  // If user has required permission, allow the transition
-  // The permission check is sufficient for capability-based RBAC
-  return hasRequiredPermission
+  return hasRequiredCapability
 }
 
 /**

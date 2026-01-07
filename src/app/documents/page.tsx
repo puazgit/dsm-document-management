@@ -16,14 +16,14 @@ import { withAuth } from '../../components/auth/with-auth';
 import { FileText, Clock, User, Download } from 'lucide-react';
 
 const statusColors = {
-  DRAFT: 'bg-gray-100 text-gray-800 hover:bg-gray-200',
-  IN_REVIEW: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200',
-  PENDING_APPROVAL: 'bg-orange-100 text-orange-800 hover:bg-orange-200',
-  APPROVED: 'bg-green-100 text-green-800 hover:bg-green-200',
-  PUBLISHED: 'bg-blue-100 text-blue-800 hover:bg-blue-200',
-  REJECTED: 'bg-red-100 text-red-800 hover:bg-red-200',
-  ARCHIVED: 'bg-gray-100 text-gray-600 hover:bg-gray-200',
-  EXPIRED: 'bg-red-100 text-red-600 hover:bg-red-200',
+  DRAFT: 'bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700',
+  IN_REVIEW: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:hover:bg-yellow-900/50',
+  PENDING_APPROVAL: 'bg-orange-100 text-orange-800 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:hover:bg-orange-900/50',
+  APPROVED: 'bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50',
+  PUBLISHED: 'bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50',
+  REJECTED: 'bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50',
+  ARCHIVED: 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700',
+  EXPIRED: 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50',
 };
 
 function DocumentsPage() {
@@ -126,8 +126,8 @@ function DocumentsPage() {
   if (status === 'loading') {
     return (
       <div className="space-y-6 animate-pulse">
-        <div className="w-1/4 h-8 bg-gray-200 rounded"></div>
-        <div className="h-64 bg-gray-200 rounded"></div>
+        <div className="w-1/4 h-8 bg-gray-200 dark:bg-gray-700 rounded"></div>
+        <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded"></div>
       </div>
     );
   }

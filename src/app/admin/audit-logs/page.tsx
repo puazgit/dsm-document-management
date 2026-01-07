@@ -552,7 +552,7 @@ function AuditLogsPage() {
               <div className="hidden lg:block overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="border-b">
+                    <tr className="border-b dark:border-gray-700">
                       <th className="text-left p-2">Waktu</th>
                       <th className="text-left p-2">Aktor</th>
                       <th className="text-left p-2">Aksi</th>
@@ -564,7 +564,7 @@ function AuditLogsPage() {
                   </thead>
                   <tbody>
                     {logs.map((log) => (
-                      <tr key={log.id} className="border-b hover:bg-gray-50">
+                      <tr key={log.id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
                         <td className="p-2 text-sm">
                           {format(parseISO(log.createdAt), 'dd/MM/yyyy HH:mm:ss', { locale: id })}
                         </td>
@@ -687,7 +687,7 @@ function AuditLogsPage() {
                 {selectedLog.actor && (
                   <div>
                     <label className="text-sm font-medium text-gray-500">Aktor</label>
-                    <div className="bg-gray-50 p-3 rounded-md text-sm">
+                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-md text-sm">
                       <div><strong>ID:</strong> {selectedLog.actor.id}</div>
                       <div><strong>Email:</strong> {selectedLog.actor.email}</div>
                       <div><strong>Nama:</strong> {`${selectedLog.actor.firstName || ''} ${selectedLog.actor.lastName || ''}`.trim() || '-'}</div>
@@ -697,14 +697,14 @@ function AuditLogsPage() {
 
                 <div>
                   <label className="text-sm font-medium text-gray-500">User Agent</label>
-                  <div className="bg-gray-50 p-3 rounded-md text-sm break-all">
+                  <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-md text-sm break-all">
                     {selectedLog.userAgent || '-'}
                   </div>
                 </div>
 
                 <div>
                   <label className="text-sm font-medium text-gray-500">Metadata</label>
-                  <div className="bg-gray-50 p-3 rounded-md text-sm">
+                  <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-md text-sm">
                     <pre className="whitespace-pre-wrap">
                       {JSON.stringify(selectedLog.metadata, null, 2)}
                     </pre>
@@ -891,7 +891,7 @@ function AuditLogsPage() {
                   {/* Desktop Table View */}
                   <div className="hidden lg:block overflow-x-auto">
                     <table className="w-full">
-                      <thead className="border-b">
+                      <thead className="border-b dark:border-gray-700">
                         <tr className="text-left text-sm text-gray-500">
                           <th className="pb-3 font-medium">Waktu</th>
                           <th className="pb-3 font-medium">Aksi</th>
@@ -902,7 +902,7 @@ function AuditLogsPage() {
                       </thead>
                       <tbody className="divide-y">
                         {documentActivities.map((activity) => (
-                          <tr key={activity.id} className="text-sm hover:bg-gray-50">
+                          <tr key={activity.id} className="text-sm hover:bg-gray-50 dark:hover:bg-gray-800">
                             <td className="py-3">
                               <div className="text-gray-900">
                                 {format(parseISO(activity.createdAt), 'dd/MM/yyyy', { locale: id })}

@@ -157,7 +157,7 @@ export function NotificationsWidget() {
                 className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
                   notification.isRead
                     ? 'bg-background'
-                    : 'bg-blue-50 border-blue-200'
+                    : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
                 }`}
               >
                 <div className={`p-2 rounded-full ${notification.isRead ? 'bg-gray-100 dark:bg-gray-800' : 'bg-white dark:bg-gray-700'}`}>

@@ -28,7 +28,8 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const auth = await requireCapability(request, 'DOCUMENT_EDIT');
+    // Basic auth check - only require DOCUMENT_VIEW, specific permission checked later based on transition
+    const auth = await requireCapability(request, 'DOCUMENT_VIEW');
     if (!auth.authorized || !auth.userId) {
       return auth.error || NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -91,29 +92,13 @@ export async function POST(
     // Get user capabilities from database
     const userCapabilities = await getUserCapabilities(capUser)
     
-    // Map capabilities to permissions for workflow checking
-    const effectivePermissions: string[] = []
-    
-    // If user has ADMIN_ACCESS, grant all permissions
-    if (userCapabilities.includes('ADMIN_ACCESS')) {
-      effectivePermissions.push('*', 'documents.create', 'documents.read', 'documents.update', 'documents.delete', 'documents.approve', 'documents.publish')
-    } else {
-      // Map specific capabilities to permissions
-      if (userCapabilities.includes('DOCUMENT_VIEW')) effectivePermissions.push('documents.read')
-      if (userCapabilities.includes('DOCUMENT_CREATE')) effectivePermissions.push('documents.create')
-      if (userCapabilities.includes('DOCUMENT_EDIT')) effectivePermissions.push('documents.update')
-      if (userCapabilities.includes('DOCUMENT_DELETE')) effectivePermissions.push('documents.delete')
-      if (userCapabilities.includes('DOCUMENT_APPROVE')) effectivePermissions.push('documents.approve')
-      if (userCapabilities.includes('DOCUMENT_PUBLISH')) effectivePermissions.push('documents.publish')
-    }
-    
-    console.log('POST Status Change - User:', auth.userId, 'Capabilities:', userCapabilities, 'Permissions:', effectivePermissions)
+    console.log('POST Status Change - User:', auth.userId, 'Capabilities:', userCapabilities)
 
     const currentStatus = document.status as DocumentStatus;
-    const isAllowed = await isTransitionAllowed(currentStatus, newStatus, userRole, effectivePermissions);
+    const isAllowed = await isTransitionAllowed(currentStatus, newStatus, userCapabilities);
 
     if (!isAllowed) {
-      const allowedTransitions = await getAllowedTransitions(currentStatus, userRole, effectivePermissions);
+      const allowedTransitions = await getAllowedTransitions(currentStatus, userCapabilities);
       return NextResponse.json({ 
         error: `Status transition from ${currentStatus} to ${newStatus} is not allowed for your role`,
         allowedTransitions: allowedTransitions.map(t => ({
@@ -375,14 +360,21 @@ export async function GET(
       if (userCapabilities.includes('DOCUMENT_APPROVE')) effectivePermissions.push('documents.approve');
       if (userCapabilities.includes('DOCUMENT_PUBLISH')) effectivePermissions.push('documents.publish');
       
-      // Full access capabilities grant all permissions
-      if (userCapabilities.includes('DOCUMENT_FULL_ACCESS') || userCapabilities.includes('DOCUMENT_MANAGE')) {
+      // DOCUMENT_FULL_ACCESS only grants access to VIEW all documents, not approve/publish
+      // It's for bypassing access group restrictions, not for granting approval rights
+      if (userCapabilities.includes('DOCUMENT_FULL_ACCESS')) {
+        // Grant read/edit/create/delete but NOT approve or publish
+        effectivePermissions.push('documents.create', 'documents.read', 'documents.update', 'documents.delete');
+      }
+      
+      // DOCUMENT_MANAGE grants full control including approve and publish
+      if (userCapabilities.includes('DOCUMENT_MANAGE')) {
         effectivePermissions.push('documents.create', 'documents.read', 'documents.update', 'documents.delete', 'documents.approve', 'documents.publish');
       }
     }
 
     const currentStatus = document.status as DocumentStatus;
-    const allowedTransitions = await getAllowedTransitions(currentStatus, userRole, effectivePermissions);
+    const allowedTransitions = await getAllowedTransitions(currentStatus, userCapabilities);
 
     // Check if user can modify (document creator or has admin/edit capability)
     const canModify = document.createdById === session.user.id || 
@@ -405,7 +397,7 @@ export async function GET(
         role: userRole,
         roleName: highestRole?.name,
         roleDisplayName: highestRole?.displayName,
-        permissions: effectivePermissions,
+        capabilities: userCapabilities,
         canModify
       }
     }));

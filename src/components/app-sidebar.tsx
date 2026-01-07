@@ -51,8 +51,11 @@ import { getRoleConfig } from "../config/roles"
 
 // Helper function to get role display with icon
 function getRoleDisplay(role: string): string {
-  const roleConfig = getRoleConfig(role)
-  const displayName = roleConfig?.description?.split(' ')[0] || role
+  if (!role || typeof role !== 'string') {
+    return '👤 User'
+  }
+  
+  const normalizedRole = role.toLowerCase().trim()
   
   const roleIcons: Record<string, string> = {
     admin: '🔧 Admin',
@@ -70,7 +73,29 @@ function getRoleDisplay(role: string): string {
     viewer: '👁️ Viewer'
   }
   
-  return roleIcons[role] || `👤 ${displayName}`
+  // Check for exact match first
+  if (roleIcons[normalizedRole]) {
+    return roleIcons[normalizedRole]
+  }
+  
+  // Check if role contains any of the keywords
+  if (normalizedRole.includes('admin')) return '🔧 Admin'
+  if (normalizedRole.includes('ppd')) return '📋 PPD'
+  if (normalizedRole.includes('kadiv')) return '👔 Kadiv'
+  if (normalizedRole.includes('gm') || normalizedRole.includes('general manager')) return '🏢 GM'
+  if (normalizedRole.includes('manager')) return '📊 Manager'
+  if (normalizedRole.includes('dirut') || normalizedRole.includes('direktur')) return '🎯 Dirut'
+  if (normalizedRole.includes('dewas') || normalizedRole.includes('dewan')) return '👥 Dewas'
+  if (normalizedRole.includes('komite') || normalizedRole.includes('audit')) return '🔍 Komite'
+  if (normalizedRole.includes('staff')) return '👤 Staff'
+  if (normalizedRole.includes('guest')) return '👁️ Guest'
+  if (normalizedRole.includes('viewer') || normalizedRole.includes('view')) return '👁️ Viewer'
+  
+  // Fallback to role config
+  const roleConfig = getRoleConfig(role)
+  const displayName = roleConfig?.description?.split(' ')[0] || role
+  
+  return `👤 ${displayName}`
 }
 
 const SIDEBAR_OPEN_ITEMS_KEY = 'sidebar-open-items'
@@ -338,7 +363,7 @@ export function AppSidebar() {
                     <span className="font-semibold truncate">{session.user.name}</span>
                     <span className="text-xs truncate">{session.user.email}</span>
                     <span className="truncate text-[10px] text-muted-foreground font-medium">
-                      {getRoleDisplay((session.user as any).role || 'guest')}
+                      {(session.user as any).roleDisplayName || getRoleDisplay((session.user as any).role || 'guest')}
                     </span>
                   </div>
                 </SidebarMenuButton>

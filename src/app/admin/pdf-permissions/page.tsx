@@ -226,15 +226,15 @@ function PDFPermissionsPage() {
   }
 
   return (
-    <div className="min-h-screen py-8 bg-gray-50">
+    <div className="min-h-screen py-8 bg-gray-50 dark:bg-gray-900">
       <div className="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <FileText className="w-8 h-8 text-red-600" />
+            <FileText className="w-8 h-8 text-red-600 dark:text-red-400" />
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">PDF Permissions Management</h1>
-              <p className="text-gray-600">Configure PDF access control for different user roles</p>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">PDF Permissions Management</h1>
+              <p className="text-gray-600 dark:text-gray-400">Configure PDF access control for different user roles</p>
             </div>
           </div>
         </div>
@@ -279,7 +279,7 @@ function PDFPermissionsPage() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b">
+                  <tr className="border-b dark:border-gray-700">
                     <th className="px-4 py-3 font-medium text-left">Role</th>
                     {pdfActions.map((action) => {
                       const IconComponent = action.icon;
@@ -301,14 +301,14 @@ function PDFPermissionsPage() {
                     if (!role) return null;
 
                     return (
-                      <tr key={rolePerms.roleId} className="border-b hover:bg-gray-50">
+                      <tr key={rolePerms.roleId} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
                         <td className="px-4 py-4">
                           <div className="flex items-center gap-3">
                             <Badge variant="outline" className={`
                               ${role.name === 'admin' ? 'bg-red-50 text-red-700 border-red-200' : ''}
                               ${role.name === 'manager' ? 'bg-purple-50 text-purple-700 border-purple-200' : ''}
-                              ${role.name === 'editor' ? 'bg-blue-50 text-blue-700 border-blue-200' : ''}
-                              ${role.name === 'viewer' ? 'bg-gray-50 text-gray-700 border-gray-200' : ''}
+                              ${role.name === 'editor' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800' : ''}
+                              ${role.name === 'viewer' ? 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600' : ''}
                             `}>
                               {rolePerms.roleDisplayName}
                             </Badge>

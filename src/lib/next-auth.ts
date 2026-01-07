@@ -100,12 +100,14 @@ export const authOptions: NextAuthOptions = {
 
           // Get primary role from userRoles
           const primaryRole = user.userRoles?.[0]?.role?.name || user.group?.name || 'user';
+          const primaryRoleDisplayName = user.userRoles?.[0]?.role?.displayName || user.group?.displayName || 'User';
           
           return {
             id: user.id,
             email: user.email,
             name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username,
             role: primaryRole,
+            roleDisplayName: primaryRoleDisplayName,
             groupId: user.groupId || "",
             divisiId: user.divisiId || "",
             isActive: user.isActive,
@@ -127,6 +129,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.sub = user.id
         token.role = (user as any).role
+        token.roleDisplayName = (user as any).roleDisplayName
         token.groupId = (user as any).groupId
         token.divisiId = (user as any).divisiId
         token.isActive = (user as any).isActive
@@ -166,7 +169,9 @@ export const authOptions: NextAuthOptions = {
           if (userWithCapabilities) {
             // Update role in case it changed
             const primaryRole = userWithCapabilities.userRoles?.[0]?.role?.name || token.role
+            const primaryRoleDisplayName = userWithCapabilities.userRoles?.[0]?.role?.displayName || token.roleDisplayName
             token.role = primaryRole
+            token.roleDisplayName = primaryRoleDisplayName
             
             // Load capabilities (removed permissions)
             const capabilities = userWithCapabilities.userRoles.flatMap(userRole =>
@@ -188,6 +193,7 @@ export const authOptions: NextAuthOptions = {
       if (token && session.user) {
         session.user.id = token.sub!
         session.user.role = token.role
+        session.user.roleDisplayName = token.roleDisplayName
         session.user.groupId = token.groupId
         session.user.divisiId = token.divisiId
         session.user.isActive = token.isActive

@@ -669,7 +669,7 @@ function UsersManagementPage() {
                         <div className="space-y-1">
                           <div className="text-xs text-muted-foreground">Group</div>
                           {user.group ? (
-                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800 text-xs">
                               {user.group.displayName || user.group.name}
                             </Badge>
                           ) : (
@@ -843,7 +843,7 @@ function UsersManagementPage() {
                           </TableCell>
                           <TableCell>
                             {user.group ? (
-                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800">
                                 {user.group.displayName || user.group.name}
                               </Badge>
                             ) : (

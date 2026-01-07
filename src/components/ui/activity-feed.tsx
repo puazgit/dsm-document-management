@@ -153,7 +153,7 @@ export function ActivityFeed() {
                       {activity.documentId ? (
                         <Link 
                           href={`/documents/${activity.documentId}`}
-                          className="hover:underline text-blue-600"
+                          className="hover:underline text-blue-600 dark:text-blue-400"
                         >
                           {activity.description}
                         </Link>
@@ -169,10 +169,10 @@ export function ActivityFeed() {
               ))}
             </div>
             
-            <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
               <Link 
                 href="/documents" 
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
               >
                 View all activity
               </Link>

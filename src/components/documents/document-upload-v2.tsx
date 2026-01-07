@@ -378,11 +378,11 @@ export function DocumentUploadV2({ open, onClose, onSuccess, documentTypes }: Do
                 className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all ${
                   isDragActive 
                     ? 'border-primary bg-primary/5 scale-[1.02]' 
-                    : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                    : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-800'
                 } ${uploading ? 'pointer-events-none opacity-50' : ''}`}
               >
                 <input {...getInputProps()} />
-                <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400 dark:text-gray-500" />
                 <div className="text-base font-medium mb-2">
                   {isDragActive ? 'Drop your file here' : 'Click to upload or drag and drop'}
                 </div>
@@ -573,7 +573,7 @@ export function DocumentUploadV2({ open, onClose, onSuccess, documentTypes }: Do
                     {groups.map(group => (
                       <label
                         key={group.id}
-                        className="flex items-start gap-3 p-2 rounded-md hover:bg-gray-50 cursor-pointer transition-colors"
+                        className="flex items-start gap-3 p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
                       >
                         <input
                           type="checkbox"

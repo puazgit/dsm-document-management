@@ -70,7 +70,7 @@ const roles = [
     value: 'viewer', 
     label: 'Viewer',
     description: 'Basic view only access',
-    color: 'bg-gray-100 text-gray-800 border-gray-300'
+    color: 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600'
   },
   { 
     value: 'guest', 
@@ -107,14 +107,14 @@ export default function PDFSecurityDemoPage() {
   const currentRole = roles.find(role => role.value === selectedRole);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
             PDF Security & Role-Based Access Control Demo
           </h1>
-          <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+          <p className="text-lg text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
             Experience advanced PDF viewing with comprehensive security measures and role-based permissions.
             This demo showcases client-side PDF viewers with download restrictions and security monitoring.
           </p>

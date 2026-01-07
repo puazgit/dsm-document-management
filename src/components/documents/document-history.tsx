@@ -269,10 +269,10 @@ export function DocumentHistory({ documentId, documentTitle, isOpen: externalIsO
                   return (
                     <div key={entry.id} className="relative">
                       {index < history.length - 1 && (
-                        <div className="absolute left-4 top-10 w-0.5 h-full bg-gray-200"></div>
+                        <div className="absolute left-4 top-10 w-0.5 h-full bg-gray-200 dark:bg-gray-700"></div>
                       )}
                       
-                      <div className="flex items-start gap-3 p-3 transition-colors rounded-lg hover:bg-gray-50">
+                      <div className="flex items-start gap-3 p-3 transition-colors rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
                         <div className={`flex items-center justify-center w-8 h-8 rounded-full border ${getActionColor(entry.action)} flex-shrink-0`}>
                           {getActionIcon(entry.action)}
                         </div>
@@ -280,7 +280,7 @@ export function DocumentHistory({ documentId, documentTitle, isOpen: externalIsO
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-sm font-medium text-gray-900">
+                              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">>
                                 {entry.changeReason || `Document ${entry.action}`}
                               </span>
                               {entry.statusFrom && entry.statusTo && (

@@ -73,7 +73,7 @@ function AdminDashboard() {
         </Link>
 
         <Link href="/admin/rbac/assignments">
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-blue-50 border-blue-200">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Capabilities</CardTitle>
               <Shield className="h-4 w-4 text-blue-600" />
