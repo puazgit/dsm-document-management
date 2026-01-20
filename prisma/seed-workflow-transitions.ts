@@ -160,7 +160,18 @@ async function seedWorkflowTransitions() {
       isActive: true,
       sortOrder: 14
     },
-    // 15. ARCHIVED -> DRAFT
+    // 15. PUBLISHED -> IN_REVIEW (Start major revision)
+    {
+      fromStatus: 'PUBLISHED',
+      toStatus: 'IN_REVIEW',
+      minLevel: 90,
+      requiredPermission: 'DOCUMENT_PUBLISH,DOCUMENT_EDIT',
+      description: 'Start document revision (new version)',
+      allowedByLabel: 'PPD, Administrator',
+      isActive: true,
+      sortOrder: 15
+    },
+    // 16. ARCHIVED -> DRAFT
     {
       fromStatus: 'ARCHIVED',
       toStatus: 'DRAFT',
@@ -169,7 +180,7 @@ async function seedWorkflowTransitions() {
       description: 'Unarchive document',
       allowedByLabel: 'Administrator',
       isActive: true,
-      sortOrder: 15
+      sortOrder: 16
     },
   ];
 

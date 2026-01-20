@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { hasRoleAccess, normalizeRoleName } from '@/config/roles'
-import { UnifiedAccessControl } from '@/lib/unified-access-control'
 
 /**
  * Protected routes mapped to their required roles/groups
@@ -93,30 +92,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Check resource-based access control for document routes
-  // Using UnifiedAccessControl for capability-based permissions
-  if (pathname.startsWith('/documents/') && token.sub) {
-    try {
-      const canAccess = await UnifiedAccessControl.canAccessRoute(token.sub as string, pathname)
-      
-      if (!canAccess) {
-        console.warn(
-          `[Middleware] Unauthorized access to document route`,
-          {
-            userId: token.sub,
-            pathname,
-            timestamp: new Date().toISOString()
-          }
-        )
-        
-        const unauthorizedUrl = new URL('/unauthorized', request.url)
-        return NextResponse.redirect(unauthorizedUrl)
-      }
-    } catch (error) {
-      console.error('[Middleware] Error checking document access:', error)
-      // Fall through to legacy role-based check on error
-    }
-  }
+  // Note: Document-level access control is handled in API routes
+  // Middleware only enforces basic authentication and route-based role checks
+  // This is because Prisma cannot run in Edge Runtime (middleware context)
 
   // Check role-based access for protected routes (legacy)
   for (const [route, requiredRoles] of Object.entries(protectedRoutes)) {

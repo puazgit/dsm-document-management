@@ -1,0 +1,6 @@
+title,description,documentTypeId,accessGroups,tags,metadata_department,metadata_documentNumber,metadata_priority,metadata_effectiveDate,metadata_reviewDate,expiresAt
+"SOP Keuangan 2024","Standard Operating Procedure untuk departemen keuangan tahun 2024","PASTE_DOCUMENT_TYPE_ID_HERE","administrator,keuangan","SOP,Keuangan,2024","Finance","SOP-FIN-001-2024","high","2024-01-01","2025-01-01","2025-12-31T23:59:59Z"
+"Panduan IT Security 2024","Panduan keamanan sistem informasi untuk seluruh karyawan","PASTE_DOCUMENT_TYPE_ID_HERE","administrator,tik","Security,IT,Panduan","IT","PAN-IT-002-2024","high","2024-01-01","2025-01-01",""
+"Kebijakan Work From Home","Kebijakan pengaturan kerja remote dan hybrid working","PASTE_DOCUMENT_TYPE_ID_HERE","administrator,hrd","Kebijakan,WFH,Remote,HR","Human Resources","KEB-HR-003-2024","medium","2024-01-01","2025-01-01","2026-12-31T23:59:59Z"
+"Prosedur Audit Internal","Prosedur pelaksanaan audit internal tahunan","PASTE_DOCUMENT_TYPE_ID_HERE","administrator,audit","Audit,Prosedur,Internal","Audit","PRO-AUD-004-2024","high","2024-01-01","2025-01-01",""
+"Instruksi Kerja Maintenance Server","Instruksi kerja untuk maintenance rutin server","PASTE_DOCUMENT_TYPE_ID_HERE","administrator,tik","Instruksi,Maintenance,Server,IT","IT","IK-TIK-005-2024","medium","2024-01-01","2025-01-01",""

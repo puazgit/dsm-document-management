@@ -1,10 +1,20 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from '../ui/command';
+import { FolderTree } from 'lucide-react';
+import { Spinner } from '../ui/loading';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Textarea } from '../ui/textarea';
@@ -13,6 +23,7 @@ import { Progress } from '../ui/progress';
 import { toast } from '../../hooks/use-toast';
 import { X, Upload, FileText, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Alert, AlertDescription } from '../ui/alert';
+// ParentDocumentSelector removed for cleanup
 
 // Types
 interface DocumentType {
@@ -42,6 +53,7 @@ interface UploadFormData {
   description: string;
   documentTypeId: string;
   tags: string;
+  parentDocumentId: string | null;
 }
 
 interface ValidationErrors {
@@ -83,12 +95,39 @@ export function DocumentUploadV2({ open, onClose, onSuccess, documentTypes }: Do
     description: '',
     documentTypeId: '',
     tags: '',
+    parentDocumentId: null,
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [errors, setErrors] = useState<ValidationErrors>({});
+  // Parent document combobox state
+  const [parentDocs, setParentDocs] = useState<any[]>([]);
+  const [parentResults, setParentResults] = useState<any[]>([]);
+  const [parentQuery, setParentQuery] = useState('');
+  const [parentLoading, setParentLoading] = useState(false);
+  const parentDebounce = useRef<NodeJS.Timeout | null>(null);
+  const [parentOpen, setParentOpen] = useState(false);
+  const parentContainerRef = useRef<HTMLDivElement | null>(null);
+  const [highlightIndex, setHighlightIndex] = useState<number>(-1);
+
+  // Flatten a document tree into a flat list for client-side search
+  const flattenDocuments = (docs: any[], depth = 0): any[] => {
+    const out: any[] = [];
+    for (const d of docs) {
+      out.push({
+        id: String(d.id),
+        title: d.title || d.name || d.displayName || d.subject || '',
+        depth,
+        raw: d,
+      });
+      if (Array.isArray(d.children) && d.children.length > 0) {
+        out.push(...flattenDocuments(d.children, depth + 1));
+      }
+    }
+    return out;
+  };
 
   // Fetch groups when dialog opens
   useEffect(() => {
@@ -100,6 +139,96 @@ export function DocumentUploadV2({ open, onClose, onSuccess, documentTypes }: Do
       }
     }
   }, [open]);
+
+  // Fetch parent documents tree on mount/open
+  useEffect(() => {
+    if (!open) return;
+    let mounted = true;
+    const fetchTree = async () => {
+      try {
+        setParentLoading(true);
+        const res = await fetch('/api/documents/tree?includeChildren=true');
+        if (!res.ok) return;
+        const data = await res.json();
+        const flattened = flattenDocuments(data.documents || []);
+        if (mounted) {
+          setParentDocs(flattened);
+          setParentResults(flattened);
+        }
+      } catch (e) {
+        console.error('Failed to fetch parent docs', e);
+      } finally {
+        setParentLoading(false);
+      }
+    };
+    fetchTree();
+    return () => { mounted = false; if (parentDebounce.current) clearTimeout(parentDebounce.current); };
+  }, [open]);
+
+  // Debounced/conditional parent search (client filter for short queries, server search for >=3 chars)
+  useEffect(() => {
+    if (parentDebounce.current) {
+      clearTimeout(parentDebounce.current);
+    }
+
+    const q = parentQuery?.trim();
+    if (!q) {
+      setParentResults(parentDocs);
+      return;
+    }
+
+    // For very short queries (< 3 chars), use simple client filter
+    // For 3+ char queries, always use server search for better accuracy
+    if (q.length < 3) {
+      const qq = q.toLowerCase();
+      const filtered = parentDocs.filter(d => (d.title || '').toLowerCase().includes(qq) || d.id.includes(qq));
+      setParentResults(filtered);
+      return;
+    }
+
+    setParentLoading(true);
+    parentDebounce.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/documents/search?q=${encodeURIComponent(q)}`);
+        if (!res.ok) {
+          setParentResults([]);
+          return;
+        }
+        const body = await res.json();
+        const docs = (body.documents || []).map((dd: any) => ({ id: String(dd.id), title: dd.title || dd.name || '', raw: dd }));
+        setParentResults(docs);
+      } catch (err) {
+        console.error('Parent server search failed', err, { q });
+        setParentResults([]);
+      } finally {
+        setParentLoading(false);
+      }
+    }, 400);
+
+    return () => { if (parentDebounce.current) clearTimeout(parentDebounce.current); };
+  }, [parentQuery, parentDocs]);
+
+  // Reset highlight when results change
+  useEffect(() => {
+    if (parentResults.length > 0) {
+      setHighlightIndex(0);
+    } else {
+      setHighlightIndex(-1);
+    }
+  }, [parentResults]);
+
+  // Click-away to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!parentContainerRef.current) return;
+      if (!parentOpen) return;
+      if (e.target instanceof Node && !parentContainerRef.current.contains(e.target)) {
+        setParentOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [parentOpen]);
 
   // Fetch available groups
   const fetchGroups = async () => {
@@ -206,6 +335,9 @@ export function DocumentUploadV2({ open, onClose, onSuccess, documentTypes }: Do
       uploadFormData.append('description', formData.description.trim());
       uploadFormData.append('documentTypeId', formData.documentTypeId);
       uploadFormData.append('accessGroups', JSON.stringify(selectedGroups));
+      if (formData.parentDocumentId) {
+        uploadFormData.append('parentDocumentId', formData.parentDocumentId);
+      }
       
       // Parse and clean tags
       const tags = formData.tags
@@ -315,6 +447,14 @@ export function DocumentUploadV2({ open, onClose, onSuccess, documentTypes }: Do
     setErrors(prev => ({ ...prev, file: undefined }));
   };
 
+  // Select a parent document from results
+  const selectParent = (doc: any) => {
+    setFormData(prev => ({ ...prev, parentDocumentId: String(doc.id) }));
+    setParentQuery(doc.title || String(doc.id));
+    setParentResults([doc]);
+    setParentOpen(false);
+  };
+
   // Reset form
   const resetForm = () => {
     setFormData({
@@ -322,12 +462,16 @@ export function DocumentUploadV2({ open, onClose, onSuccess, documentTypes }: Do
       description: '',
       documentTypeId: '',
       tags: '',
+      parentDocumentId: null,
     });
     setSelectedFile(null);
     setSelectedGroups([]);
     setUploadProgress(0);
     setUploadStatus('idle');
     setErrors({});
+    setParentQuery('');
+    setParentResults([]);
+    setParentOpen(false);
   };
 
   // Handle dialog close
@@ -359,7 +503,7 @@ export function DocumentUploadV2({ open, onClose, onSuccess, documentTypes }: Do
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>Upload Document</DialogTitle>
           <DialogDescription>
@@ -367,7 +511,8 @@ export function DocumentUploadV2({ open, onClose, onSuccess, documentTypes }: Do
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="max-h-[calc(90vh-140px)] overflow-y-auto px-1">
+        <form id="upload-form" onSubmit={handleSubmit} className="space-y-6">
           {/* File Upload Section */}
           <div className="space-y-2">
             <Label>File *</Label>
@@ -383,25 +528,25 @@ export function DocumentUploadV2({ open, onClose, onSuccess, documentTypes }: Do
               >
                 <input {...getInputProps()} />
                 <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400 dark:text-gray-500" />
-                <div className="text-base font-medium mb-2">
+                <div className="mb-2 text-base font-medium">
                   {isDragActive ? 'Drop your file here' : 'Click to upload or drag and drop'}
                 </div>
                 <div className="text-sm text-muted-foreground">
                   PDF, Word, Excel, PowerPoint, Images, Text files
                 </div>
-                <div className="text-xs text-muted-foreground mt-1">
+                <div className="mt-1 text-xs text-muted-foreground">
                   Maximum file size: 50MB
                 </div>
               </div>
             ) : (
-              <div className="border rounded-lg p-4 bg-green-50 border-green-200">
+              <div className="p-4 border border-green-200 rounded-lg bg-green-50">
                 <div className="flex items-start gap-3">
                   <FileText className={`w-10 h-10 flex-shrink-0 ${getFileTypeColor(selectedFile.type)}`} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{selectedFile.name}</div>
-                        <div className="text-xs text-muted-foreground mt-1">
+                        <div className="text-sm font-medium truncate">{selectedFile.name}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">
                           {formatFileSize(selectedFile.size)} • {(selectedFile.type.split('/')[1] || 'file').toUpperCase()}
                         </div>
                       </div>
@@ -411,7 +556,7 @@ export function DocumentUploadV2({ open, onClose, onSuccess, documentTypes }: Do
                           variant="ghost"
                           size="sm"
                           onClick={removeFile}
-                          className="h-8 w-8 p-0 hover:bg-red-100"
+                          className="w-8 h-8 p-0 hover:bg-red-100"
                         >
                           <X className="w-4 h-4" />
                         </Button>
@@ -424,7 +569,7 @@ export function DocumentUploadV2({ open, onClose, onSuccess, documentTypes }: Do
 
             {errors.file && (
               <Alert variant="destructive" className="py-2">
-                <AlertCircle className="h-4 w-4" />
+                <AlertCircle className="w-4 h-4" />
                 <AlertDescription className="text-sm">{errors.file}</AlertDescription>
               </Alert>
             )}
@@ -443,8 +588,8 @@ export function DocumentUploadV2({ open, onClose, onSuccess, documentTypes }: Do
 
           {/* Success Message */}
           {uploadStatus === 'success' && (
-            <Alert className="bg-green-50 border-green-200">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <Alert className="border-green-200 bg-green-50">
+              <CheckCircle2 className="w-4 h-4 text-green-600" />
               <AlertDescription className="text-sm text-green-800">
                 Document uploaded successfully!
               </AlertDescription>
@@ -456,7 +601,7 @@ export function DocumentUploadV2({ open, onClose, onSuccess, documentTypes }: Do
             {/* Title */}
             <div className="space-y-2">
               <Label htmlFor="title">
-                Title * {errors.title && <span className="text-red-500 text-xs ml-1">({errors.title})</span>}
+                Title * {errors.title && <span className="ml-1 text-xs text-red-500">({errors.title})</span>}
               </Label>
               <Input
                 id="title"
@@ -474,7 +619,7 @@ export function DocumentUploadV2({ open, onClose, onSuccess, documentTypes }: Do
             {/* Document Type */}
             <div className="space-y-2">
               <Label htmlFor="documentType">
-                Document Type * {errors.documentTypeId && <span className="text-red-500 text-xs ml-1">({errors.documentTypeId})</span>}
+                Document Type * {errors.documentTypeId && <span className="ml-1 text-xs text-red-500">({errors.documentTypeId})</span>}
               </Label>
               <Select
                 value={formData.documentTypeId}
@@ -514,6 +659,81 @@ export function DocumentUploadV2({ open, onClose, onSuccess, documentTypes }: Do
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="parentDocumentId">Parent Document (Optional)</Label>
+              <div ref={parentContainerRef} className="relative">
+                <Command>
+                  <CommandInput
+                    role="combobox"
+                    aria-haspopup="listbox"
+                    aria-autocomplete="list"
+                    aria-expanded={parentOpen}
+                    aria-controls="parent-results-list"
+                    aria-activedescendant={
+                      parentOpen && highlightIndex >= 0 && parentResults[highlightIndex]
+                        ? `parent-results-option-${parentResults[highlightIndex].id}`
+                        : undefined
+                    }
+                    value={parentQuery}
+                    onValueChange={(v) => { setParentQuery(v); setParentOpen(true); }}
+                    onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                      if (!parentOpen) return;
+                      const len = parentResults.length;
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setHighlightIndex(prev => (prev + 1 + len) % len);
+                      } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setHighlightIndex(prev => (prev - 1 + len) % len);
+                      } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (highlightIndex >= 0 && highlightIndex < parentResults.length) {
+                          selectParent(parentResults[highlightIndex]);
+                        }
+                      } else if (e.key === 'Escape') {
+                        setParentOpen(false);
+                      }
+                    }}
+                    placeholder="Search parent document by title or ID"
+                    className="w-full"
+                    aria-label="Parent document"
+                  />
+                  {parentResults.length === 0 && (
+                    <CommandList>
+                      <CommandEmpty>No parent documents found.</CommandEmpty>
+                    </CommandList>
+                  )}
+                </Command>
+                {parentResults.length > 0 && parentOpen && (
+                  <div className="absolute z-20 w-full mt-1 border rounded-md shadow-sm top-full bg-popover">
+                    <div id="parent-results-list" role="listbox" className="overflow-y-auto max-h-60">
+                      {parentResults.map((doc, idx) => (
+                        <div key={doc.id} className="px-0">
+                          <button
+                            id={`parent-results-option-${doc.id}`}
+                            role="option"
+                            aria-selected={highlightIndex === idx}
+                            type="button"
+                            onClick={() => selectParent(doc)}
+                            className={`w-full text-left px-3 py-2 hover:bg-accent/10 flex flex-col ${highlightIndex === idx ? 'bg-accent/20' : ''}`}
+                          >
+                            <span className="text-sm font-medium truncate">{doc.title || doc.id}</span>
+                            <span className="text-xs text-muted-foreground">{doc.id}</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {parentLoading && (
+                  <div className="absolute right-2 top-2">
+                    <Spinner className="w-4 h-4" />
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">Select parent document or leave empty to upload at root level.</p>
+            </div>
+
             {/* Tags */}
             <div className="space-y-2">
               <Label htmlFor="tags">Tags</Label>
@@ -532,7 +752,7 @@ export function DocumentUploadV2({ open, onClose, onSuccess, documentTypes }: Do
             {/* Access Groups */}
             <div className="space-y-2">
               <Label>Access Groups</Label>
-              <p className="text-xs text-muted-foreground mb-2">
+              <p className="mb-2 text-xs text-muted-foreground">
                 Select groups that can access this document. Leave empty for default access.
               </p>
 
@@ -559,13 +779,13 @@ export function DocumentUploadV2({ open, onClose, onSuccess, documentTypes }: Do
               )}
 
               {/* Groups List */}
-              <div className="border rounded-lg p-3 max-h-48 overflow-y-auto">
+              <div className="p-3 overflow-y-auto border rounded-lg max-h-48">
                 {loadingGroups ? (
-                  <div className="text-sm text-muted-foreground text-center py-4">
+                  <div className="py-4 text-sm text-center text-muted-foreground">
                     Loading groups...
                   </div>
                 ) : groups.length === 0 ? (
-                  <div className="text-sm text-muted-foreground text-center py-4">
+                  <div className="py-4 text-sm text-center text-muted-foreground">
                     No groups available
                   </div>
                 ) : (
@@ -573,7 +793,7 @@ export function DocumentUploadV2({ open, onClose, onSuccess, documentTypes }: Do
                     {groups.map(group => (
                       <label
                         key={group.id}
-                        className="flex items-start gap-3 p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                        className="flex items-start gap-3 p-2 transition-colors rounded-md cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
                       >
                         <input
                           type="checkbox"
@@ -597,31 +817,33 @@ export function DocumentUploadV2({ open, onClose, onSuccess, documentTypes }: Do
               </div>
             </div>
           </div>
-
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              disabled={uploading}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={uploading || !selectedFile || uploadStatus === 'success'}
-            >
-              {uploading ? (
-                <>Uploading... {uploadProgress}%</>
-              ) : uploadStatus === 'success' ? (
-                'Uploaded'
-              ) : (
-                'Upload Document'
-              )}
-            </Button>
-          </div>
         </form>
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-end gap-3 pt-4 border-t">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleClose}
+            disabled={uploading}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="upload-form"
+            disabled={uploading || !selectedFile || uploadStatus === 'success'}
+          >
+            {uploading ? (
+              <>Uploading... {uploadProgress}%</>
+            ) : uploadStatus === 'success' ? (
+              'Uploaded'
+            ) : (
+              'Upload Document'
+            )}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

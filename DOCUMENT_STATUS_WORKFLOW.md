@@ -5,10 +5,11 @@
 ### **Status Lifecycle:**
 ```
 DRAFT → IN_REVIEW → PENDING_APPROVAL → APPROVED → PUBLISHED
-  ↓         ↓               ↓             ↓       ↓
-ARCHIVED  DRAFT          REJECTED      EXPIRED  ARCHIVED
-  ↑                         ↓
-DRAFT ←─────────────────── DRAFT
+  ↓         ↓               ↓             ↓       ↓      ↓
+ARCHIVED  DRAFT          REJECTED      EXPIRED  ARCHIVED |
+  ↑                         ↓                             |
+DRAFT ←─────────────────── DRAFT     IN_REVIEW ←────────┘
+                                      (Revision v2.0)
 ```
 
 ---
@@ -72,11 +73,55 @@ DRAFT ←─────────────────── DRAFT
 - **Comment**: Optional
 - **Can be automatic**: Based on expiration date
 
-### **10. ARCHIVED → DRAFT** (Unarchive Document)
+### **10. PUBLISHED → IN_REVIEW** (Start Document Revision) ⭐ NEW
+- **Who Can**: PPD, Administrator
+- **Required Permission**: `documents.update` + `documents.publish`
+- **Description**: Start major revision of published document (creates new version)
+- **Comment**: Optional (reason for revision)
+- **Auto Actions**: 
+  - Increments version number (e.g., 1.0 → 2.0)
+  - Saves current version to document history
+  - Creates DocumentVersion record
+  - Maintains audit trail
+- **Use Case**: Substantive changes, policy updates, major corrections
+
+### **11. ARCHIVED → DRAFT** (Unarchive Document)
 - **Who Can**: PPD, Administrator
 - **Required Permission**: `documents.update`
 - **Description**: Restore archived document to draft
 - **Comment**: Optional
+
+
+---
+
+## 📝 **Document Revision Process**
+
+### **When to Use PUBLISHED → IN_REVIEW (Major Revision):**
+- ✅ Policy changes or procedural updates
+- ✅ Major corrections or substantive changes
+- ✅ Structural reorganization of content
+- ✅ Changes that require re-approval process
+
+### **Revision Workflow:**
+1. **Initiate Revision**: PPD/Admin changes PUBLISHED → IN_REVIEW
+2. **Auto Actions**:
+   - Current published version saved to DocumentVersion table
+   - Version incremented (1.0 → 2.0, 2.0 → 3.0, etc.)
+   - Document enters revision workflow
+3. **Follow Normal Workflow**: IN_REVIEW → PENDING_APPROVAL → APPROVED → PUBLISHED
+4. **History Preserved**: All previous versions accessible in document history
+
+### **Version Numbering:**
+- **Major Version** (x.0): Substantive changes via PUBLISHED → IN_REVIEW workflow
+  - Examples: 1.0 → 2.0 → 3.0
+- **Minor Version** (x.y): Minor updates (future feature for direct edits)
+  - Examples: 1.0 → 1.1 → 1.2
+
+### **Benefits:**
+- ✅ Complete audit trail of all document changes
+- ✅ Previous versions remain accessible
+- ✅ Maintains quality control through approval workflow
+- ✅ Clear version history for compliance
 
 ---
 

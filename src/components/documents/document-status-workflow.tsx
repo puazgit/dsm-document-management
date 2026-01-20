@@ -62,11 +62,13 @@ export function DocumentStatusWorkflow({
   const [uploadProgress, setUploadProgress] = useState(0)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = React.useRef<HTMLDivElement>(null)
+  const buttonRef = React.useRef<HTMLButtonElement>(null)
 
   // Close dropdown when clicking outside
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
+          buttonRef.current && !buttonRef.current.contains(e.target as Node)) {
         setDropdownOpen(false)
       }
     }
@@ -247,8 +249,9 @@ export function DocumentStatusWorkflow({
       <div className="flex items-center gap-2">
         {/* Status Actions Dropdown - Only show if user has session */}
         {session?.user ? (
-          <div className="relative status-dropdown-container" ref={dropdownRef}>
-            <button 
+          <div className="relative">
+            <button
+              ref={buttonRef} 
               className={`${getStatusColor(document.status)} border-0 text-xs font-medium hover:opacity-80 transition-opacity h-auto px-2 py-1 rounded-full inline-flex items-center justify-center`}
               style={{ cursor: 'pointer' }}
               onClick={(e) => {
@@ -263,11 +266,12 @@ export function DocumentStatusWorkflow({
             </button>
             {dropdownOpen && (
               <div 
+                ref={dropdownRef}
                 className="absolute right-0 z-50 w-64 mt-2 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-md shadow-lg"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="px-3 py-2 text-xs font-semibold border-b dark:border-gray-700 dark:text-gray-200">Change Status</div>
-                <div className="py-1">
+                <div className="py-1 max-h-64 overflow-y-auto">
                   {allowedTransitions.length > 0 ? (
                     allowedTransitions.map((transition) => (
                       <button

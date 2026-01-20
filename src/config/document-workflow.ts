@@ -165,7 +165,17 @@ export const DOCUMENT_STATUS_WORKFLOW: StatusTransition[] = [
     allowedBy: ['System', 'Administrator']
   },
 
-  // 10. ARCHIVED -> Previous status (Unarchive)
+  // 10. PUBLISHED -> IN_REVIEW (Start major revision)
+  {
+    from: DocumentStatus.PUBLISHED,
+    to: DocumentStatus.IN_REVIEW,
+    minLevel: 90,
+    requiredCapabilities: ['DOCUMENT_PUBLISH', 'DOCUMENT_EDIT'],
+    description: 'Start document revision (new version)',
+    allowedBy: ['PPD', 'Administrator']
+  },
+
+  // 11. ARCHIVED -> Previous status (Unarchive)
   {
     from: DocumentStatus.ARCHIVED,
     to: DocumentStatus.DRAFT,

@@ -115,6 +115,49 @@ export async function POST(
       updatedAt: new Date(),
     };
 
+    // Handle versioning for PUBLISHED -> IN_REVIEW (document revision)
+    if (currentStatus === DocumentStatus.PUBLISHED && newStatus === DocumentStatus.IN_REVIEW) {
+      // Parse current version and increment major version
+      const currentVersion = document.version || '1.0';
+      const versionParts = currentVersion.split('.');
+      const majorVersion = parseInt(versionParts[0]) || 1;
+      const newVersion = `${majorVersion + 1}.0`;
+      
+      console.log(`📝 Starting document revision: ${currentVersion} → ${newVersion}`);
+      
+      // Save current published version to DocumentVersion before revision
+      try {
+        await prisma.documentVersion.create({
+          data: {
+            documentId: document.id,
+            version: currentVersion,
+            fileName: document.fileName,
+            filePath: document.filePath,
+            fileSize: document.fileSize,
+            changes: comment || reason || `Revision started - new version ${newVersion}`,
+            createdById: auth.userId!,
+            status: DocumentStatus.PUBLISHED, // Save as PUBLISHED since it was the published version
+            metadata: {
+              previousStatus: currentStatus,
+              revisionReason: comment || reason || 'Document revision',
+              originalPublishedAt: document.publishedAt,
+              savedAt: new Date().toISOString()
+            }
+          }
+        });
+        
+        console.log(`✅ Saved version ${currentVersion} to history`);
+      } catch (versionError) {
+        console.error('Error saving document version:', versionError);
+        // Continue with status change even if version save fails
+      }
+      
+      // Update version number for the new revision
+      updateData.version = newVersion;
+      
+      console.log(`✅ Document will be updated to version ${newVersion} with status IN_REVIEW`);
+    }
+
     // Set specific timestamps based on status
     if (newStatus === DocumentStatus.APPROVED) {
       updateData.approvedById = auth.userId;

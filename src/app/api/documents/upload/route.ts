@@ -7,6 +7,7 @@ import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { serializeForResponse } from '../../../../lib/bigint-utils';
 import { processPdfExtraction } from '@/lib/jobs/pdf-extraction-job';
+import { buildHierarchyPath, calculateHierarchyLevel } from '@/lib/document-hierarchy';
 
 // Allowed file types and their MIME types
 const ALLOWED_FILE_TYPES = {
@@ -83,6 +84,7 @@ export async function POST(request: NextRequest) {
     const accessGroups = formData.get('accessGroups') ? JSON.parse(formData.get('accessGroups') as string) : [];
     const tags = formData.get('tags') ? JSON.parse(formData.get('tags') as string) : [];
     const metadata = formData.get('metadata') ? JSON.parse(formData.get('metadata') as string) : {};
+    const parentDocumentId = formData.get('parentDocumentId') as string | null;
 
     console.log('[UPLOAD] Parsed data:', { 
       title, 
@@ -91,6 +93,7 @@ export async function POST(request: NextRequest) {
       accessGroups, 
       tags, 
       metadata,
+      parentDocumentId,
       fileSize: file.size 
     });
 
@@ -236,6 +239,31 @@ export async function POST(request: NextRequest) {
       }
 
     } else {
+      // Prepare hierarchy data if parent is specified
+      let hierarchyLevel = 0;
+      let hierarchyPath = '';
+      let parentDoc = null;
+
+      if (parentDocumentId) {
+        // Fetch parent document to validate and get hierarchy info
+        parentDoc = await prisma.document.findUnique({
+          where: { id: parentDocumentId },
+          select: {
+            id: true,
+            hierarchyLevel: true,
+            hierarchyPath: true,
+          },
+        });
+
+        if (!parentDoc) {
+          return NextResponse.json({ 
+            error: 'Parent document not found' 
+          }, { status: 400 });
+        }
+
+        hierarchyLevel = calculateHierarchyLevel(parentDoc.hierarchyLevel);
+      }
+
       // Create new document
       document = await prisma.document.create({
         data: {
@@ -251,6 +279,9 @@ export async function POST(request: NextRequest) {
           accessGroups,
           tags,
           metadata,
+          parentDocumentId: parentDocumentId || null,
+          hierarchyLevel,
+          hierarchyPath: '', // Will be updated after document is created
         },
         include: {
           documentType: {
@@ -278,6 +309,16 @@ export async function POST(request: NextRequest) {
           },
         },
       });
+
+      // Update hierarchy path now that we have the document ID
+      if (parentDocumentId && parentDoc) {
+        hierarchyPath = buildHierarchyPath(parentDoc.hierarchyPath, document.id);
+        await prisma.document.update({
+          where: { id: document.id },
+          data: { hierarchyPath },
+        });
+        document.hierarchyPath = hierarchyPath;
+      }
 
       // Log document creation activity
       await prisma.documentActivity.create({

@@ -296,19 +296,32 @@ model Document {
   extractedText    String?            @map("extracted_text") @db.Text
   extractedAt      DateTime?          @map("extracted_at")
   extractionStatus String?            @default("pending") @map("extraction_status") @db.VarChar(20)
+  // Document hierarchy fields
+  parentDocumentId String?            @map("parent_document_id")
+  hierarchyLevel   Int                @default(0) @map("hierarchy_level")
+  hierarchyPath    String?            @map("hierarchy_path") @db.VarChar(500)
+  sortOrder        Int                @default(0) @map("sort_order")
+  // Foreign keys
   documentTypeId   String             @map("document_type_id")
   createdById      String             @map("created_by_id")
   updatedById      String?            @map("updated_by_id")
   approvedById     String?            @map("approved_by_id")
   approvedAt       DateTime?          @map("approved_at")
-  comments       Comment[]
-  activities     DocumentActivity[]
-  history        DocumentHistory[]
-  versions       DocumentVersion[]
-  approvedBy     User?              @relation("DocumentApprovedBy", fields: [approvedById], references: [id])
-  createdBy      User               @relation("DocumentCreatedBy", fields: [createdById], references: [id])
-  documentType   DocumentType       @relation(fields: [documentTypeId], references: [id])
-  updatedBy      User?              @relation("DocumentUpdatedBy", fields: [updatedById], references: [id])
+  // Relations
+  comments           Comment[]
+  activities         DocumentActivity[]
+  history            DocumentHistory[]
+  versions           DocumentVersion[]
+  approvedBy         User?              @relation("DocumentApprovedBy", fields: [approvedById], references: [id])
+  createdBy          User               @relation("DocumentCreatedBy", fields: [createdById], references: [id])
+  documentType       DocumentType       @relation(fields: [documentTypeId], references: [id])
+  updatedBy          User?              @relation("DocumentUpdatedBy", fields: [updatedById], references: [id])
+  // Document hierarchy relations
+  parentDocument     Document?          @relation("DocumentHierarchy", fields: [parentDocumentId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  childDocuments     Document[]         @relation("DocumentHierarchy")
+  // Document relations (advanced relationships)
+  parentRelations    DocumentRelation[] @relation("DocumentParent")
+  childRelations     DocumentRelation[] @relation("DocumentChild")
 
   @@index([documentTypeId])
   @@index([createdById])
@@ -320,6 +333,10 @@ model Document {
   @@index([createdById, status])
   @@index([documentTypeId, status])
   @@index([status, documentTypeId, createdAt(sort: Desc)])
+  @@index([parentDocumentId])
+  @@index([hierarchyLevel])
+  @@index([hierarchyPath])
+  @@index([sortOrder])
   @@map("documents")
 }
 
@@ -540,6 +557,37 @@ enum NotificationType {
   USER_MENTIONED
 
   @@map("notification_type")
+}
+
+// Document Relations - For advanced document relationships
+// Allows documents to have multiple types of relationships beyond simple parent-child
+model DocumentRelation {
+  id           String                 @id @default(cuid())
+  parentId     String                 @map("parent_id")
+  childId      String                 @map("child_id")
+  relationType DocumentRelationType   @default(PARENT_CHILD) @map("relation_type")
+  sortOrder    Int                    @default(0) @map("sort_order")
+  metadata     Json?
+  createdAt    DateTime               @default(now()) @map("created_at")
+  
+  parent       Document               @relation("DocumentParent", fields: [parentId], references: [id], onDelete: Cascade)
+  child        Document               @relation("DocumentChild", fields: [childId], references: [id], onDelete: Cascade)
+  
+  @@unique([parentId, childId])
+  @@index([parentId])
+  @@index([childId])
+  @@index([relationType])
+  @@map("document_relations")
+}
+
+enum DocumentRelationType {
+  PARENT_CHILD   // Standard hierarchical relationship
+  REFERENCE      // Document references another (e.g., "See also Document X")
+  SUPERSEDES     // This document replaces/supersedes another
+  RELATED        // General related document
+  ATTACHMENT     // Document is an attachment to another
+  
+  @@map("document_relation_type")
 }
 
 enum ActivityAction {

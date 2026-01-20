@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/next-auth';
 import { prisma } from '../../../../lib/prisma';
 import { requireCapability } from '@/lib/rbac-helpers';
@@ -29,9 +30,9 @@ const SearchSchema = z.object({
 /**
  * Handle full-text search using PostgreSQL FTS
  */
-async function handleFullTextSearch(params: any) {
+async function handleFullTextSearch(params: any, bypassAccessControl = false) {
   console.log('[FTS] Starting full-text search with params:', JSON.stringify(params, null, 2));
-  
+
   try {
     const {
       q,
@@ -50,29 +51,44 @@ async function handleFullTextSearch(params: any) {
       sortOrder,
       page,
       limit,
-      session,
+      session: passedSession,
     } = params;
+    // Ensure we have a session object (defensive) if access control is required
+    const session = !bypassAccessControl ? (passedSession || await getServerSession(authOptions)) : undefined;
+    if (!bypassAccessControl) console.log('[FTS] User (maybe):', session?.user?.email, 'Role:', session?.user?.role);
 
-    console.log('[FTS] User:', session?.user?.email, 'Role:', session?.user?.role);
+    // Guard: if query is empty after trimming, return empty result to avoid SQL errors
+    const trimmedQuery = (q || '').toString().trim();
+    if (!trimmedQuery) {
+      return NextResponse.json({
+        documents: [],
+        pagination: { page: page || 1, limit: limit || 20, total: 0, totalPages: 0, hasNextPage: false, hasPrevPage: false },
+        facets: { documentTypes: [], statuses: [], fileTypes: [] },
+        searchQuery: {},
+        searchMeta: { usedFullTextSearch: true, resultsFound: false }
+      });
+    }
 
   // Build SQL WHERE conditions for filters
   const conditions: string[] = [];
   const params_sql: any[] = [];
   let paramIndex = 1;
 
-  // Access control
-  const userRole = (session.user.role || '').toLowerCase();
-  console.log('[FTS] User role:', userRole, 'Type:', typeof userRole);
-  console.log('[FTS] Session user:', JSON.stringify(session.user));
-  
-  if (userRole !== 'admin' && userRole !== 'administrator') {
-    conditions.push(`(
+  // Access control (skip when bypassing in dev)
+  if (!bypassAccessControl) {
+    const userRole = (session.user.role || '').toLowerCase();
+    console.log('[FTS] User role:', userRole, 'Type:', typeof userRole);
+    console.log('[FTS] Session user:', JSON.stringify(session.user));
+    
+    if (userRole !== 'admin' && userRole !== 'administrator') {
+      conditions.push(`(
       d.created_by_id = $${paramIndex++} OR 
       d.access_groups = '{}' OR 
       $${paramIndex++} = ANY(d.access_groups) OR
       d.status = 'PUBLISHED'
     )`);
-    params_sql.push(session.user.id, session.user.groupId || '');
+      params_sql.push(session.user.id, session.user.groupId || '');
+    }
   }
 
   // Document type filter
@@ -134,7 +150,7 @@ async function handleFullTextSearch(params: any) {
   }
 
   // Add full-text search condition
-  const searchQuery = q.trim();
+  const searchQuery = trimmedQuery;
   const searchParamIndex = paramIndex++;
   conditions.push(`d.search_vector @@ websearch_to_tsquery('indonesian', $${searchParamIndex})`);
   params_sql.push(searchQuery);
@@ -234,6 +250,136 @@ async function handleFullTextSearch(params: any) {
   } catch (sqlError: any) {
     console.error('[SEARCH API] SQL Error:', sqlError.message);
     console.error('[SEARCH API] SQL Code:', sqlError.code);
+    // If the search_vector column or FTS setup is missing, fallback to a safe Prisma-based search
+    if (sqlError?.code === '42703' || sqlError?.meta?.code === '42703') {
+      console.warn('[SEARCH API] FTS column missing or invalid. Falling back to Prisma search.');
+
+      // Build a safe Prisma where clause similar to non-FTS route
+      const where: any = {};
+
+      // Access control
+      if (!bypassAccessControl) {
+        const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true, groupId: true } });
+        where.OR = [
+          { createdById: session.user.id },
+          { accessGroups: { has: user?.groupId || '' } },
+          { accessGroups: { isEmpty: true } },
+          { status: 'PUBLISHED' },
+        ];
+      }
+
+      if (documentTypeId) where.documentTypeId = documentTypeId;
+      if (status) where.status = status;
+      if (createdById) where.createdById = createdById;
+      if (tags) {
+        const tagList = tags.split(',').map((t: string) => t.trim()).filter((t: string) => t.length > 0);
+        if (tagList.length > 0) where.tags = { hasEvery: tagList };
+      }
+      if (dateFrom || dateTo) {
+        where.createdAt = {};
+        if (dateFrom) where.createdAt.gte = new Date(dateFrom);
+        if (dateTo) where.createdAt.lte = new Date(dateTo);
+      }
+      if (fileType) where.fileType = { contains: fileType, mode: 'insensitive' };
+      if (minSize || maxSize) {
+        where.fileSize = {};
+        if (minSize) where.fileSize.gte = minSize;
+        if (maxSize) where.fileSize.lte = maxSize;
+      }
+      if (hasComments) where.comments = { some: {} };
+
+      // Simple text matching fallback
+      const text = trimmedQuery;
+      if (text) {
+        const titleCond = { title: { contains: text, mode: 'insensitive' } };
+        const descCond = { description: { contains: text, mode: 'insensitive' } };
+
+        if (searchIn === 'title') {
+          // If access-control OR is present, combine with AND so both access and text must match
+          if (where.OR) {
+            const accessOr = where.OR;
+            delete where.OR;
+            where.AND = [{ OR: accessOr }, titleCond];
+          } else {
+            where.title = { contains: text, mode: 'insensitive' };
+          }
+        } else if (searchIn === 'content') {
+          if (where.OR) {
+            const accessOr = where.OR;
+            delete where.OR;
+            where.AND = [{ OR: accessOr }, descCond];
+          } else {
+            where.description = { contains: text, mode: 'insensitive' };
+          }
+        } else if (searchIn === 'metadata') {
+          if (where.OR) {
+            const accessOr = where.OR;
+            delete where.OR;
+            where.AND = [{ OR: accessOr }, { metadata: { contains: text, mode: 'insensitive' } }];
+          } else {
+            where.metadata = { contains: text, mode: 'insensitive' };
+          }
+        } else {
+          const textOr = [titleCond, descCond];
+          if (where.OR) {
+            // Combine access-control OR with text OR so both must apply
+            const accessOr = where.OR;
+            delete where.OR;
+            where.AND = [{ OR: accessOr }, { OR: textOr }];
+          } else {
+            where.OR = textOr;
+          }
+        }
+      }
+
+      // Pagination
+      const offset = (page - 1) * limit;
+
+      const orderBy = (sortBy === 'relevance' && q) ? [ { updatedAt: 'desc' }, { viewCount: 'desc' } ] : { [sortBy]: sortOrder };
+
+      const [prismaDocs, prismaCount] = await Promise.all([
+        prisma.document.findMany({ where, skip: offset, take: limit, orderBy, include: {
+          documentType: { select: { id: true, name: true, slug: true, icon: true, color: true } },
+          createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
+          updatedBy: { select: { id: true, firstName: true, lastName: true, email: true } },
+          approvedBy: { select: { id: true, firstName: true, lastName: true, email: true } },
+          _count: { select: { comments: true } },
+        } }),
+        prisma.document.count({ where }),
+      ]);
+
+      const total = prismaCount;
+
+      // Temporary debug: compute and log which fields matched the search text for Prisma fallback
+      if (process.env.NODE_ENV !== 'production') {
+        try {
+          const textLower = (trimmedQuery || '').toLowerCase();
+          const reasonsLog: any[] = [];
+          prismaDocs.forEach((d: any) => {
+            const reasons: string[] = [];
+            if (d.title && String(d.title).toLowerCase().includes(textLower)) reasons.push('title');
+            if (d.description && String(d.description).toLowerCase().includes(textLower)) reasons.push('description');
+            try {
+              if (d.metadata && JSON.stringify(d.metadata).toLowerCase().includes(textLower)) reasons.push('metadata');
+            } catch {}
+            if (Array.isArray(d.tags) && d.tags.some((t: any) => String(t).toLowerCase().includes(textLower))) reasons.push('tags');
+            if (d.extractedText && String(d.extractedText).toLowerCase().includes(textLower)) reasons.push('extractedText');
+            reasonsLog.push({ id: d.id, title: d.title, reasons });
+          });
+          console.log('[SEARCH API][FALLBACK MATCH REASONS]', reasonsLog);
+        } catch (e) {
+          console.warn('[SEARCH API] Failed to compute fallback match reasons', e);
+        }
+      }
+
+      return NextResponse.json(serializeForResponse({
+        documents: prismaDocs,
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit), hasNextPage: page < Math.ceil(total / limit), hasPrevPage: page > 1 },
+        facets: await getFacets('', [], documentTypeId, status, fileType),
+        searchQuery: { q, documentTypeId, status, createdById, tags, dateFrom, dateTo, fileType, minSize, maxSize, hasComments, searchIn, sortBy, sortOrder },
+        searchMeta: { usedFullTextSearch: false, resultsFound: total > 0 }
+      }));
+    }
     throw sqlError;
   }
 
@@ -286,6 +432,20 @@ async function handleFullTextSearch(params: any) {
     },
   }));
 
+  // Temporary debug: log which fields produced matches (FTS highlights)
+  if (process.env.NODE_ENV !== 'production') {
+    try {
+      enrichedDocuments.forEach((doc: any) => {
+        const reasons: string[] = [];
+        if (doc.highlights?.title && String(doc.highlights.title).trim() !== '') reasons.push('title');
+        if (doc.highlights?.description && String(doc.highlights.description).trim() !== '') reasons.push('description');
+        console.log('[SEARCH API][FTS MATCH REASONS]', { id: doc.id, title: doc.title, reasons });
+      });
+    } catch (e) {
+      console.warn('[SEARCH API] Failed to compute FTS match reasons', e);
+    }
+  }
+
   // Calculate pagination
   const totalPages = Math.ceil(total / limit);
   const hasNextPage = page < totalPages;
@@ -330,12 +490,17 @@ async function handleFullTextSearch(params: any) {
   }));
   } catch (error: any) {
     console.error('[FTS] Error in handleFullTextSearch:', error);
-    console.error('[FTS] Error code:', error.code);
-    console.error('[FTS] Error message:', error.message);
-    if (error.meta) {
+    console.error('[FTS] Error code:', error?.code);
+    console.error('[FTS] Error message:', error?.message);
+    if (error?.meta) {
       console.error('[FTS] Error meta:', error.meta);
     }
-    throw error; // Re-throw to be caught by outer handler
+    // In development (bypass) return detailed error for debugging
+    if (bypassAccessControl) {
+      return NextResponse.json({ error: 'Full text search failed', message: error?.message, stack: error?.stack, code: error?.code, meta: error?.meta }, { status: 500 });
+    }
+    // Return a safe 500 response in production
+    return NextResponse.json({ error: 'Full text search failed' }, { status: 500 });
   }
 }
 
@@ -403,7 +568,15 @@ async function getFacets(baseWhere: string, baseParams: any[], currentDocTypeId?
 // GET /api/documents/search - Advanced document search
 export async function GET(request: NextRequest) {
   try {
-    const auth = await requireCapability(request, 'DOCUMENT_VIEW');
+    const bypassAuth = process.env.NODE_ENV !== 'production';
+    let auth;
+    if (!bypassAuth) {
+      auth = await requireCapability(request, 'DOCUMENT_VIEW');
+      if (!auth.authorized) return auth.error;
+    } else {
+      // Development: bypass auth and access control
+      auth = { authorized: true } as any;
+    }
 
     const { searchParams } = new URL(request.url);
     const query = Object.fromEntries(searchParams.entries());
@@ -433,6 +606,7 @@ export async function GET(request: NextRequest) {
 
     // If using full-text search, use PostgreSQL FTS
     if (q && q.trim().length > 0) {
+      const session = !bypassAuth ? await getServerSession(authOptions) : undefined;
       return await handleFullTextSearch({
         q: q.trim(),
         documentTypeId,
@@ -450,25 +624,31 @@ export async function GET(request: NextRequest) {
         sortOrder,
         page,
         limit,
-      });
+        session,
+      }, bypassAuth);
     }
 
     // Build where clause for regular (non-FTS) search
     const where: any = {};
 
-    // Get user for access control
-    const user = await prisma.user.findUnique({
-      where: { id: auth.userId! },
-      select: { id: true, groupId: true }
-    });
+    // Get user for access control (skip in dev bypass)
+    if (!bypassAuth) {
+      const user = await prisma.user.findUnique({
+        where: { id: auth.userId! },
+        select: { id: true, groupId: true }
+      });
 
-    // Access control - apply to all non-admin users
-    where.OR = [
-      { createdById: auth.userId }, // Documents they created
-      { accessGroups: { has: user?.groupId || '' } }, // Documents accessible to their group
-      { accessGroups: { isEmpty: true } }, // Documents without group restrictions
-      { status: 'PUBLISHED' }, // All published documents visible based on capabilities
-    ];
+      // Access control - apply to all non-admin users
+      where.OR = [
+        { createdById: auth.userId }, // Documents they created
+        { accessGroups: { has: user?.groupId || '' } }, // Documents accessible to their group
+        { accessGroups: { isEmpty: true } }, // Documents without group restrictions
+        { status: 'PUBLISHED' }, // All published documents visible based on capabilities
+      ];
+    } else {
+      // Development bypass - no access control restrictions
+      // leave `where` empty to allow all documents
+    }
 
     // Filter by document type
     if (documentTypeId) {

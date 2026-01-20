@@ -11,9 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { toast } from '../../hooks/use-toast';
 import { DocumentUploadV2 } from '../../components/documents/document-upload-v2';
 import { DocumentsList } from '../../components/documents/documents-list';
+import { DocumentTree } from '../../components/documents/document-tree';
+import { TreeViewToggle } from '../../components/documents/tree-view-toggle';
+import { DocumentCSVImport } from '../../components/documents/document-csv-import';
 import { CapabilityGuard } from '../../hooks/use-capabilities';
 import { withAuth } from '../../components/auth/with-auth';
-import { FileText, Clock, User, Download } from 'lucide-react';
+import { FileText, Clock, User, Download, Upload } from 'lucide-react';
 
 const statusColors = {
   DRAFT: 'bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700',
@@ -31,9 +34,11 @@ function DocumentsPage() {
   
   // Document states
   const [documents, setDocuments] = useState<any[]>([]);
+  const [treeDocuments, setTreeDocuments] = useState<any[]>([]);
   const [documentTypes, setDocumentTypes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'tree'>('list');
   
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,6 +49,7 @@ function DocumentsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [showCSVImportDialog, setShowCSVImportDialog] = useState(false);
 
   // Fetch document types
   useEffect(() => {
@@ -109,6 +115,48 @@ function DocumentsPage() {
     fetchDocuments();
   }, [fetchDocuments]);
 
+  // Fetch tree documents for tree view
+  const fetchTreeDocuments = useCallback(async () => {
+    if (!session || viewMode !== 'tree') return;
+
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        includeChildren: 'true',
+      });
+
+      if (selectedType && selectedType !== 'all') params.append('documentTypeId', selectedType);
+      if (selectedStatus && selectedStatus !== 'all') params.append('status', selectedStatus);
+
+      const response = await fetch(`/api/documents/tree?${params}`);
+      if (response.ok) {
+        const data = await response.json();
+        setTreeDocuments(data.documents || []);
+      } else {
+        toast({
+          title: 'Error',
+          description: 'Failed to fetch document tree',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching tree documents:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch document tree',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [session, viewMode, selectedType, selectedStatus]);
+
+  useEffect(() => {
+    if (viewMode === 'tree') {
+      fetchTreeDocuments();
+    }
+  }, [viewMode, fetchTreeDocuments]);
+
   const handleSearch = () => {
     setCurrentPage(1);
     fetchDocuments();
@@ -121,6 +169,10 @@ function DocumentsPage() {
       title: 'Success',
       description: 'Document uploaded successfully',
     });
+  };
+
+  const handleCSVImportSuccess = () => {
+    fetchDocuments();
   };
 
   if (status === 'loading') {
@@ -146,18 +198,31 @@ function DocumentsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Upload Button */}
-      <div className="flex justify-end">
-        <CapabilityGuard capability="DOCUMENT_CREATE">
-          <Button 
-            onClick={() => setShowUploadDialog(true)}
-            size="default"
-            className="w-full sm:w-auto"
-          >
-            <FileText className="w-4 h-4 mr-2" />
-            Upload Document
-          </Button>
-        </CapabilityGuard>
+      {/* Header with Upload Button and View Toggle */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <h1 className="text-2xl font-bold">Documents</h1>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <TreeViewToggle value={viewMode} onChange={setViewMode} />
+          <CapabilityGuard capability="DOCUMENT_CREATE">
+            <Button 
+              onClick={() => setShowCSVImportDialog(true)}
+              variant="outline"
+              size="default"
+              className="w-full sm:w-auto"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Import CSV
+            </Button>
+            <Button 
+              onClick={() => setShowUploadDialog(true)}
+              size="default"
+              className="w-full sm:w-auto"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Upload Document
+            </Button>
+          </CapabilityGuard>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -308,18 +373,43 @@ function DocumentsPage() {
         </CardContent>
       </Card>
 
-      {/* Documents List */}
-      <DocumentsList 
-        documents={documents}
-        loading={loading}
-        documentTypes={documentTypes}
-        statusColors={statusColors}
-        onRefresh={fetchDocuments}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={setCurrentPage}
-        userSession={session}
-      />
+      {/* Documents List or Tree View */}
+      {viewMode === 'list' ? (
+        <DocumentsList 
+          documents={documents}
+          loading={loading}
+          documentTypes={documentTypes}
+          statusColors={statusColors}
+          onRefresh={fetchDocuments}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          userSession={session}
+        />
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Document Hierarchy</CardTitle>
+            <CardDescription>Tree view of documents organized by parent-child relationships</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="w-8 h-8 mx-auto mb-4 border-4 rounded-full border-t-transparent border-primary animate-spin" />
+                  <p className="text-sm text-muted-foreground">Loading document tree...</p>
+                </div>
+              </div>
+            ) : treeDocuments.length > 0 ? (
+              <DocumentTree documents={treeDocuments} />
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">No documents found</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Upload Dialog */}
       <DocumentUploadV2
@@ -327,6 +417,13 @@ function DocumentsPage() {
         onClose={() => setShowUploadDialog(false)}
         onSuccess={handleUploadSuccess}
         documentTypes={documentTypes}
+      />
+
+      {/* CSV Import Dialog */}
+      <DocumentCSVImport
+        open={showCSVImportDialog}
+        onClose={() => setShowCSVImportDialog(false)}
+        onSuccess={handleCSVImportSuccess}
       />
     </div>
   );
