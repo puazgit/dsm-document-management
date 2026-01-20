@@ -52,15 +52,16 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const where: any = {};
+    const searchConditions: any[] = [];
 
     // Search functionality
     if (search) {
-      where.OR = [
+      searchConditions.push(
         { title: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
         { fileName: { contains: search, mode: 'insensitive' } },
-        { tags: { has: search } },
-      ];
+        { tags: { has: search } }
+      );
     }
 
     // Filter by document type
@@ -87,14 +88,23 @@ export async function GET(request: NextRequest) {
     // Build access control where clause with user capabilities
     const accessWhere = buildDocumentAccessWhere(currentUser, userCapabilities);
     
-    // Merge access control with other filters
+    // Merge access control with other filters and search
+    const finalWhere: any = { ...where };
+    
+    // Combine AND conditions
+    const andConditions: any[] = [];
+    
     if (Object.keys(accessWhere).length > 0) {
-      if (where.OR || where.AND) {
-        where.AND = where.AND || [];
-        where.AND.push(accessWhere);
-      } else {
-        Object.assign(where, accessWhere);
-      }
+      andConditions.push(accessWhere);
+    }
+    
+    // Add search as OR condition within AND
+    if (searchConditions.length > 0) {
+      andConditions.push({ OR: searchConditions });
+    }
+    
+    if (andConditions.length > 0) {
+      finalWhere.AND = andConditions;
     }
 
     // Calculate pagination
@@ -103,7 +113,7 @@ export async function GET(request: NextRequest) {
     // Execute query
     const [documents, total] = await Promise.all([
       prisma.document.findMany({
-        where,
+        where: finalWhere,
         skip,
         take: limit,
         orderBy: { [sortBy]: sortOrder },
@@ -149,7 +159,7 @@ export async function GET(request: NextRequest) {
           },
         },
       }),
-      prisma.document.count({ where }),
+      prisma.document.count({ where: finalWhere }),
     ]);
 
     // Calculate pagination metadata

@@ -112,8 +112,17 @@ function DocumentsPage() {
   }, [session, currentPage, sortBy, sortOrder, searchQuery, selectedType, selectedStatus]);
 
   useEffect(() => {
-    fetchDocuments();
-  }, [fetchDocuments]);
+    if (viewMode === 'list') {
+      fetchDocuments();
+    }
+  }, [fetchDocuments, viewMode]);
+
+  // Auto-fetch when filters change
+  useEffect(() => {
+    if (viewMode === 'list') {
+      setCurrentPage(1); // Reset to first page when filters change
+    }
+  }, [selectedType, selectedStatus, sortBy, sortOrder, viewMode]);
 
   // Fetch tree documents for tree view
   const fetchTreeDocuments = useCallback(async () => {
@@ -159,8 +168,24 @@ function DocumentsPage() {
 
   const handleSearch = () => {
     setCurrentPage(1);
-    fetchDocuments();
+    // fetchDocuments will be called automatically by useEffect
   };
+
+  // Debounced search - auto search after user stops typing
+  useEffect(() => {
+    if (searchQuery === '') {
+      // If search is cleared, fetch immediately
+      return;
+    }
+    
+    const debounceTimer = setTimeout(() => {
+      if (searchQuery.length > 0) {
+        setCurrentPage(1);
+      }
+    }, 500); // Wait 500ms after user stops typing
+
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery]);
 
   const handleUploadSuccess = (document: any) => {
     setShowUploadDialog(false);
