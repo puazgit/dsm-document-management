@@ -510,7 +510,7 @@ export function DocumentsList({
                     </div>
                     <div className="flex-1 min-w-0">
                       {canPerformAction('view', document, userSession, roleVisibility) ? (
-                        <h3 className="font-semibold leading-tight">
+                        <h3 className="font-semibold leading-tight break-words">
                           <button
                             onClick={() => {
                               if (isPDFFile(document)) {
@@ -519,13 +519,13 @@ export function DocumentsList({
                                 handleViewDocument(document);
                               }
                             }}
-                            className="text-left transition-colors hover:text-blue-600 hover:underline"
+                            className="text-left transition-colors hover:text-blue-600 hover:underline break-words"
                           >
                             {document.title}
                           </button>
                         </h3>
                       ) : (
-                        <h3 className="font-semibold leading-tight text-muted-foreground">{document.title}</h3>
+                        <h3 className="font-semibold leading-tight break-words text-muted-foreground">{document.title}</h3>
                       )}
                       {document.description && (
                         <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
@@ -685,7 +685,7 @@ export function DocumentsList({
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-start gap-2">
                             {canPerformAction('view', document, userSession, roleVisibility) ? (
                               <button
                                 onClick={() => {
@@ -695,12 +695,12 @@ export function DocumentsList({
                                     handleViewDocument(document);
                                   }
                                 }}
-                                className="font-medium truncate transition-colors hover:text-blue-600 hover:underline text-left"
+                                className="font-medium break-words transition-colors hover:text-blue-600 hover:underline text-left"
                               >
                                 {document.title}
                               </button>
                             ) : (
-                              <p className="font-medium truncate text-muted-foreground">{document.title}</p>
+                              <p className="font-medium break-words text-muted-foreground">{document.title}</p>
                             )}
                             {isPDFFile(document) && (
                               <Badge variant="secondary" className="h-5 text-xs shrink-0">
