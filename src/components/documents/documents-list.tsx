@@ -133,6 +133,7 @@ export function DocumentsList({
     accessGroups: [] as string[],
     expiresAt: ''
   });
+  const [newFile, setNewFile] = useState<File | null>(null);
 
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedDocumentForHistory, setSelectedDocumentForHistory] = useState<any>(null);
@@ -304,6 +305,7 @@ export function DocumentsList({
 
     setActionLoading('edit');
     try {
+      // First update metadata
       const response = await fetch(`/api/documents/${editingDocument.id}`, {
         method: 'PUT',
         headers: {
@@ -319,18 +321,36 @@ export function DocumentsList({
         }),
       });
 
-      if (response.ok) {
-        toast({
-          title: 'Success',
-          description: 'Document updated successfully',
-        });
-        setShowEditModal(false);
-        setEditingDocument(null);
-        onRefresh();
-      } else {
+      if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || 'Update failed');
       }
+
+      // If new file is provided, upload it
+      if (newFile) {
+        const formData = new FormData();
+        formData.append('file', newFile);
+        formData.append('documentId', editingDocument.id);
+
+        const uploadResponse = await fetch('/api/documents/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+          const error = await uploadResponse.json();
+          throw new Error(error.error || 'File upload failed');
+        }
+      }
+
+      toast({
+        title: 'Success',
+        description: newFile ? 'Document and file updated successfully' : 'Document updated successfully',
+      });
+      setShowEditModal(false);
+      setEditingDocument(null);
+      setNewFile(null);
+      onRefresh();
     } catch (error: any) {
       console.error('Update error:', error);
       toast({
@@ -346,6 +366,7 @@ export function DocumentsList({
   const handleEditCancel = () => {
     setShowEditModal(false);
     setEditingDocument(null);
+    setNewFile(null);
     setEditFormData({ 
       title: '', 
       description: '', 
@@ -998,18 +1019,43 @@ export function DocumentsList({
               <div className="p-4 rounded-lg bg-muted">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="font-medium">Filename:</span> {editingDocument?.fileName}
+                    <span className="font-medium">Filename:</span> {editingDocument?.fileName || 'No file uploaded'}
                   </div>
                   <div>
                     <span className="font-medium">Size:</span> {formatFileSize(editingDocument?.fileSize)}
                   </div>
                   <div>
-                    <span className="font-medium">Type:</span> {editingDocument?.mimeType}
+                    <span className="font-medium">Type:</span> {editingDocument?.mimeType || '-'}
                   </div>
                   <div>
-                    <span className="font-medium">Version:</span> {editingDocument?.version}
+                    <span className="font-medium">Version:</span> {editingDocument?.version || '1.0'}
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Upload New File */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium text-foreground">Upload New File (Optional)</h4>
+              <div className="space-y-2">
+                <Label htmlFor="edit-file">Replace File</Label>
+                <Input
+                  id="edit-file"
+                  type="file"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                  onChange={(e) => setNewFile(e.target.files?.[0] || null)}
+                  className="cursor-pointer"
+                />
+                {newFile && (
+                  <p className="text-xs text-muted-foreground">
+                    Selected: {newFile.name} ({formatFileSize(newFile.size)})
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  {editingDocument?.fileName 
+                    ? 'Upload a new file to replace the current one' 
+                    : 'Upload a file for this document'}
+                </p>
               </div>
             </div>
           </div>
