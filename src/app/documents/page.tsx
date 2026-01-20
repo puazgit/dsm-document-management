@@ -276,102 +276,104 @@ function DocumentsPage() {
         </div>
       )}
 
-      {/* Search and Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Search & Filter</CardTitle>
-          <CardDescription>Find documents by title, type, or status</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Search documents..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="flex-1"
-              />
-              <Button onClick={handleSearch}>Search</Button>
-            </div>
+      {/* Search and Filters - Only show in list view */}
+      {viewMode === 'list' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Search & Filter</CardTitle>
+            <CardDescription>Find documents by title, type, or status</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Search documents..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  className="flex-1"
+                />
+                <Button onClick={handleSearch}>Search</Button>
+              </div>
 
-            {/* Quick Status Filters */}
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Quick Status Filter</Label>
-              <div className="flex flex-wrap gap-2">
-                <Badge
-                  variant={selectedStatus === 'all' ? 'default' : 'outline'}
-                  className="cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={() => setSelectedStatus('all')}
-                >
-                  All Status
-                </Badge>
-                {Object.keys(statusColors).map((status) => (
+              {/* Quick Status Filters */}
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Quick Status Filter</Label>
+                <div className="flex flex-wrap gap-2">
                   <Badge
-                    key={status}
-                    variant={selectedStatus === status ? 'default' : 'outline'}
+                    variant={selectedStatus === 'all' ? 'default' : 'outline'}
                     className="cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => setSelectedStatus(status)}
+                    onClick={() => setSelectedStatus('all')}
                   >
-                    {status.replace('_', ' ')}
+                    All Status
                   </Badge>
-                ))}
+                  {Object.keys(statusColors).map((status) => (
+                    <Badge
+                      key={status}
+                      variant={selectedStatus === status ? 'default' : 'outline'}
+                      className="cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => setSelectedStatus(status)}
+                    >
+                      {status.replace('_', ' ')}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <Select value={selectedType} onValueChange={setSelectedType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Document Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    {documentTypes.map((type) => (
+                      <SelectItem key={type.id} value={type.id}>
+                        {type.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    {Object.keys(statusColors).map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {status.replace('_', ' ')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sort By" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="createdAt">Created Date</SelectItem>
+                    <SelectItem value="updatedAt">Updated Date</SelectItem>
+                    <SelectItem value="title">Title</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={sortOrder} onValueChange={setSortOrder}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="desc">Descending</SelectItem>
+                    <SelectItem value="asc">Ascending</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Select value={selectedType} onValueChange={setSelectedType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Document Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  {documentTypes.map((type) => (
-                    <SelectItem key={type.id} value={type.id}>
-                      {type.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  {Object.keys(statusColors).map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {status.replace('_', ' ')}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sort By" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="createdAt">Created Date</SelectItem>
-                  <SelectItem value="updatedAt">Updated Date</SelectItem>
-                  <SelectItem value="title">Title</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={sortOrder} onValueChange={setSortOrder}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="desc">Descending</SelectItem>
-                  <SelectItem value="asc">Ascending</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Documents List or Tree View */}
       {viewMode === 'list' ? (
