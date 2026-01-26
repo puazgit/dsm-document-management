@@ -84,11 +84,30 @@ export async function GET(request: NextRequest) {
       take: 5,
     })
 
-    return NextResponse.json({
-      suggestions: suggestions.map((s) => ({
+    console.log('[SUGGESTIONS API] Raw DB results:', suggestions);
+    console.log('[SUGGESTIONS API] Sample frequency type:', typeof suggestions[0]?.frequency);
+
+    // Convert BigInt to Number for JSON serialization
+    const mappedSuggestions = suggestions.map((s) => {
+      const freq = s.frequency;
+      let frequencyNum = 0;
+      
+      if (typeof freq === 'bigint') {
+        frequencyNum = Number(freq);
+      } else if (typeof freq === 'number') {
+        frequencyNum = freq;
+      }
+      
+      console.log(`[SUGGESTIONS API] Mapping: "${s.suggestion}" freq=${freq} (${typeof freq}) -> ${frequencyNum}`);
+      
+      return {
         text: s.suggestion || '',
-        frequency: typeof s.frequency === 'number' ? s.frequency : 0,
-      })),
+        frequency: frequencyNum,
+      };
+    });
+
+    return NextResponse.json({
+      suggestions: mappedSuggestions,
       recentDocuments: recentDocuments.map((doc) => ({
         id: doc.id,
         title: doc.title,

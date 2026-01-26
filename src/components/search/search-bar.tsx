@@ -60,12 +60,15 @@ export function SearchBar({
         
         if (response.ok) {
           const data = await response.json();
+          console.log('[SEARCH BAR] Raw suggestions data:', data.suggestions);
+          
           // Ensure suggestions is an array with valid data
           const validSuggestions = (data.suggestions || []).map((s: any) => ({
             text: s.text || '',
             frequency: typeof s.frequency === 'number' ? s.frequency : undefined
           })).filter((s: any) => s.text);
           
+          console.log('[SEARCH BAR] Mapped suggestions:', validSuggestions);
           setSuggestions(validSuggestions);
         } else {
           setSuggestions([]);
