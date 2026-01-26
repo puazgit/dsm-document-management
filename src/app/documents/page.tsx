@@ -48,6 +48,7 @@ function DocumentsPage() {
   const [sortOrder, setSortOrder] = useState('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalDocuments, setTotalDocuments] = useState(0);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [showCSVImportDialog, setShowCSVImportDialog] = useState(false);
 
@@ -92,6 +93,7 @@ function DocumentsPage() {
         const data = await response.json();
         setDocuments(data.documents);
         setTotalPages(data.pagination.totalPages);
+        setTotalDocuments(data.pagination.total);
       } else {
         toast({
           title: 'Error',
@@ -410,6 +412,7 @@ function DocumentsPage() {
           onRefresh={fetchDocuments}
           currentPage={currentPage}
           totalPages={totalPages}
+          totalDocuments={totalDocuments}
           onPageChange={setCurrentPage}
           userSession={session}
         />

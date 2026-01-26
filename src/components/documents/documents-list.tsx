@@ -114,6 +114,7 @@ export function DocumentsList({
   onRefresh,
   currentPage,
   totalPages,
+  totalDocuments,
   onPageChange,
   userSession,
 }: DocumentsListProps) {
@@ -490,6 +491,11 @@ export function DocumentsList({
                 {documents.length} document{documents.length !== 1 ? 's' : ''} found
               </CardDescription>
             </div>
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">
+                Total: {totalDocuments} document{totalDocuments !== 1 ? 's' : ''}
+              </p>
+            </div>
           </div>
         </CardHeader>
         
@@ -833,6 +839,14 @@ export function DocumentsList({
           <Button
             variant="outline"
             size="sm"
+            onClick={() => onPageChange(1)}
+            disabled={currentPage <= 1}
+          >
+            First
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage <= 1}
           >
@@ -845,6 +859,14 @@ export function DocumentsList({
             disabled={currentPage >= totalPages}
           >
             Next
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(totalPages)}
+            disabled={currentPage >= totalPages}
+          >
+            Last
           </Button>
         </div>
       </div>
