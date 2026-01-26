@@ -28,11 +28,11 @@ export async function GET(request: NextRequest) {
 
     // Get suggestions using the PostgreSQL function
     // Try-catch in case the function doesn't exist yet
-    let suggestions: Array<{ suggestion: string; rank: number }> = []
+    let suggestions: Array<{ suggestion: string; frequency: number }> = []
     
     try {
       suggestions = await prisma.$queryRaw<
-        Array<{ suggestion: string; rank: number }>
+        Array<{ suggestion: string; frequency: number }>
       >`
         SELECT * FROM get_search_suggestions(${q.toLowerCase()}::text, ${limit}::int)
       `
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       suggestions: suggestions.map((s) => ({
         text: s.suggestion || '',
-        frequency: typeof s.rank === 'number' ? s.rank : 0,
+        frequency: typeof s.frequency === 'number' ? s.frequency : 0,
       })),
       recentDocuments: recentDocuments.map((doc) => ({
         id: doc.id,
