@@ -238,27 +238,52 @@ export function SearchPage({ initialQuery = "" }: SearchPageProps) {
 
   // Helper function untuk map SearchDocument ke format yang dibutuhkan SearchResults component
   const mapSearchDocuments = (documents: SearchDocument[]) => {
-    return documents.map(doc => ({
-      id: doc.id,
-      title: doc.title,
-      description: doc.description,
-      fileName: doc.file_name,
-      filePath: doc.file_path,
-      fileType: doc.file_type,
-      status: doc.status,
-      viewCount: doc.view_count,
-      downloadCount: doc.download_count,
-      createdAt: doc.created_at.toString(),
-      highlight: doc.title_highlight || doc.highlights?.title,
-      rank: doc.search_rank,
-      documentType: doc.documentType ? {
-        name: doc.documentType.name
-      } : undefined,
-      createdBy: doc.createdBy ? {
-        name: `${doc.createdBy.firstName} ${doc.createdBy.lastName}`
-      } : undefined,
-      tags: doc.tags
-    }));
+    if (!Array.isArray(documents)) {
+      console.warn('[SEARCH PAGE] mapSearchDocuments received non-array:', documents);
+      return [];
+    }
+    
+    return documents.map(doc => {
+      try {
+        return {
+          id: doc.id || '',
+          title: doc.title || 'Untitled',
+          description: doc.description || '',
+          fileName: doc.file_name || '',
+          filePath: doc.file_path || '',
+          fileType: doc.file_type || '',
+          status: doc.status || 'DRAFT',
+          viewCount: doc.view_count || 0,
+          downloadCount: doc.download_count || 0,
+          createdAt: typeof doc.created_at === 'string' ? doc.created_at : new Date(doc.created_at).toISOString(),
+          highlight: doc.title_highlight || doc.description_highlight || doc.highlights?.title || doc.highlights?.description || '',
+          rank: doc.search_rank,
+          documentType: doc.documentType ? {
+            name: doc.documentType.name
+          } : undefined,
+          createdBy: doc.createdBy ? {
+            name: `${doc.createdBy.firstName || ''} ${doc.createdBy.lastName || ''}`.trim()
+          } : undefined,
+          tags: Array.isArray(doc.tags) ? doc.tags : []
+        };
+      } catch (err) {
+        console.error('[SEARCH PAGE] Error mapping document:', doc.id, err);
+        return {
+          id: doc.id || 'unknown',
+          title: doc.title || 'Error loading document',
+          description: '',
+          fileName: '',
+          filePath: '',
+          fileType: '',
+          status: 'DRAFT',
+          viewCount: 0,
+          downloadCount: 0,
+          createdAt: new Date().toISOString(),
+          highlight: '',
+          tags: []
+        };
+      }
+    }).filter(Boolean);
   };
 
   // Helper function untuk map facets ke format yang dibutuhkan SearchFilters
@@ -268,17 +293,17 @@ export function SearchPage({ initialQuery = "" }: SearchPageProps) {
     return {
       documentTypes: searchFacets.documentTypes?.map(f => ({
         id: f.documentTypeId || '',
-        name: f.documentType?.name || '',
-        count: f._count.id
-      })),
+        name: f.documentType?.name || 'Unknown',
+        count: f._count?.id || 0
+      })).filter(f => f.id && f.name !== 'Unknown'),
       statuses: searchFacets.statuses?.map(f => ({
         status: f.status || '',
-        count: f._count.id
-      })),
+        count: f._count?.id || 0
+      })).filter(f => f.status),
       fileTypes: searchFacets.fileTypes?.map(f => ({
-        fileType: f.fileType || '',
-        count: f._count.id
-      }))
+        fileType: f.fileType || 'unknown',
+        count: f._count?.id || 0
+      })).filter(f => f.fileType && f.fileType !== 'unknown')
     };
   };
 
@@ -336,6 +361,13 @@ export function SearchPage({ initialQuery = "" }: SearchPageProps) {
       }
 
       const data: SearchResponse = await response.json();
+      
+      console.log('[SEARCH PAGE] Raw API Response:', {
+        documentsCount: data.documents?.length,
+        firstDocument: data.documents?.[0],
+        pagination: data.pagination,
+        facetsKeys: data.facets ? Object.keys(data.facets) : []
+      });
       
       // Set state dengan data yang sudah di-type
       setResults(data.documents || []);

@@ -86,8 +86,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       suggestions: suggestions.map((s) => ({
-        text: s.suggestion,
-        frequency: s.rank,
+        text: s.suggestion || '',
+        frequency: typeof s.rank === 'number' ? s.rank : 0,
       })),
       recentDocuments: recentDocuments.map((doc) => ({
         id: doc.id,

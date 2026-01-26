@@ -36,4 +36,7 @@ const LoadingButton = React.forwardRef<
 ))
 LoadingButton.displayName = "LoadingButton"
 
-export { Spinner, LoadingButton }
+// Alias untuk backward compatibility
+const LoadingSpinner = Spinner
+
+export { Spinner, LoadingButton, LoadingSpinner }

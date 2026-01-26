@@ -120,13 +120,21 @@ export async function POST(
       // Parse current version and increment major version
       const currentVersion = document.version || '1.0';
       const versionParts = currentVersion.split('.');
-      const majorVersion = parseInt(versionParts[0]) || 1;
+      const majorVersion = parseInt(versionParts[0] || '1') || 1;
       const newVersion = `${majorVersion + 1}.0`;
       
       console.log(`📝 Starting document revision: ${currentVersion} → ${newVersion}`);
       
       // Save current published version to DocumentVersion before revision
       try {
+        const versionChanges = JSON.stringify({
+          reason: comment || reason || 'Document revision',
+          previousStatus: currentStatus,
+          savedStatus: DocumentStatus.PUBLISHED,
+          originalPublishedAt: document.publishedAt,
+          savedAt: new Date().toISOString()
+        });
+        
         await prisma.documentVersion.create({
           data: {
             documentId: document.id,
@@ -134,15 +142,8 @@ export async function POST(
             fileName: document.fileName,
             filePath: document.filePath,
             fileSize: document.fileSize,
-            changes: comment || reason || `Revision started - new version ${newVersion}`,
-            createdById: auth.userId!,
-            status: DocumentStatus.PUBLISHED, // Save as PUBLISHED since it was the published version
-            metadata: {
-              previousStatus: currentStatus,
-              revisionReason: comment || reason || 'Document revision',
-              originalPublishedAt: document.publishedAt,
-              savedAt: new Date().toISOString()
-            }
+            changes: versionChanges,
+            createdById: auth.userId!
           }
         });
         

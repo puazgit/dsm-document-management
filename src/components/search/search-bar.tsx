@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 
 interface SearchSuggestion {
   text: string;
-  frequency: number;
+  frequency?: number;
 }
 
 interface SearchBarProps {
@@ -60,10 +60,19 @@ export function SearchBar({
         
         if (response.ok) {
           const data = await response.json();
-          setSuggestions(data.suggestions || []);
+          // Ensure suggestions is an array with valid data
+          const validSuggestions = (data.suggestions || []).map((s: any) => ({
+            text: s.text || '',
+            frequency: typeof s.frequency === 'number' ? s.frequency : undefined
+          })).filter((s: any) => s.text);
+          
+          setSuggestions(validSuggestions);
+        } else {
+          setSuggestions([]);
         }
       } catch (error) {
         console.error("Failed to fetch suggestions:", error);
+        setSuggestions([]);
       } finally {
         setIsLoading(false);
       }
@@ -156,9 +165,13 @@ export function SearchBar({
                     >
                       <Search className="mr-2 h-4 w-4" />
                       <span>{suggestion.text}</span>
-                      <span className="ml-auto text-xs text-muted-foreground">
-                        {suggestion.frequency.toFixed(2)} hasil
-                      </span>
+                      {suggestion.frequency && (
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          {typeof suggestion.frequency === 'number' 
+                            ? suggestion.frequency.toFixed(0)
+                            : suggestion.frequency} hasil
+                        </span>
+                      )}
                     </CommandItem>
                   ))}
                 </CommandGroup>
