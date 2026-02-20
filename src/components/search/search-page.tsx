@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession, signIn, signOut } from "next-auth/react";
 import dynamic from "next/dynamic";
@@ -10,8 +10,7 @@ import { SearchResults } from "@/components/search/search-results";
 import { SearchPagination } from "@/components/search/search-pagination";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AlertCircle, User, LogOut, Settings } from "lucide-react";
+import { AlertCircle, User, LogOut, Settings, X, FileText, ChevronLeft } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -523,7 +522,7 @@ export function SearchPage({ initialQuery = "" }: SearchPageProps) {
           {query.trim() && (
             <>
               <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 border-b shadow-sm">
-                <div className="container px-4 py-3 mx-auto md:px-6 md:py-4 max-w-7xl">
+                <div className="container px-4 py-3 mx-auto md:px-6 md:py-4 max-w-[1920px]">
                   {/* Desktop layout */}
                   <div className="items-center hidden gap-4 md:flex">
                     <h2 className="text-2xl font-bold tracking-tight text-primary whitespace-nowrap">
@@ -540,19 +539,16 @@ export function SearchPage({ initialQuery = "" }: SearchPageProps) {
                       filters={filters}
                       onFiltersChange={handleFiltersChange}
                       facets={mapFacets(facets)}
-                    />                    <UserMenu />                  </div>
+                    />
+                    <UserMenu />
+                  </div>
 
-                  {/* Mobile layout - Google style */}
+                  {/* Mobile layout */}
                   <div className="flex flex-col gap-3 md:hidden">
-                    {/* Top row: Logo and User Menu */}
                     <div className="flex items-center justify-between">
-                      <h2 className="text-xl font-bold text-primary">
-                        DSMT
-                      </h2>
+                      <h2 className="text-xl font-bold text-primary">DSMT</h2>
                       <UserMenu />
                     </div>
-                    
-                    {/* Full width search bar */}
                     <div className="w-full">
                       <SearchBar
                         initialQuery={query}
@@ -560,8 +556,6 @@ export function SearchPage({ initialQuery = "" }: SearchPageProps) {
                         placeholder="Cari dokumen..."
                       />
                     </div>
-                    
-                    {/* Filters below search */}
                     <SearchFilters
                       filters={filters}
                       onFiltersChange={handleFiltersChange}
@@ -571,35 +565,88 @@ export function SearchPage({ initialQuery = "" }: SearchPageProps) {
                 </div>
               </div>
 
-              <div className="container max-w-4xl px-4 py-6 mx-auto">
-                {/* Error Message */}
-                {error && (
-                  <Alert variant="destructive" className="mb-6">
-                    <AlertCircle className="w-4 h-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
+              {/* Split layout: results left + PDF viewer right */}
+              <div className={`flex ${selectedDocument ? 'h-[calc(100vh-65px)]' : ''}`}>
+                {/* Left panel: Search Results */}
+                <div
+                  className={`flex flex-col overflow-y-auto transition-all duration-300 ${
+                    selectedDocument
+                      ? 'w-[32%] min-w-[280px] max-w-[420px] border-r bg-background/50'
+                      : 'w-full'
+                  }`}
+                >
+                  <div className={`px-4 py-6 ${selectedDocument ? '' : 'container max-w-4xl mx-auto'}`}>
+                    {/* Error Message */}
+                    {error && (
+                      <Alert variant="destructive" className="mb-6">
+                        <AlertCircle className="w-4 h-4" />
+                        <AlertDescription>{error}</AlertDescription>
+                      </Alert>
+                    )}
 
-                {/* Search Results */}
-                <SearchResults
-                  results={mapSearchDocuments(results)}
-                  isLoading={isLoading}
-                  query={query}
-                  totalResults={totalResults}
-                  onViewDocument={handleViewDocument}
-                />
-
-                {/* Pagination */}
-                {!isLoading && results.length > 0 && totalPages > 1 && (
-                  <div className="mt-6">
-                    <SearchPagination
-                      currentPage={currentPage}
-                      totalPages={totalPages}
-                      pageSize={pageSize}
+                    {/* Search Results */}
+                    <SearchResults
+                      results={mapSearchDocuments(results)}
+                      isLoading={isLoading}
+                      query={query}
                       totalResults={totalResults}
-                      onPageChange={handlePageChange}
-                      onPageSizeChange={handlePageSizeChange}
+                      onViewDocument={handleViewDocument}
+                      selectedDocumentId={selectedDocument?.id}
+                      compact={!!selectedDocument}
                     />
+
+                    {/* Pagination */}
+                    {!isLoading && results.length > 0 && totalPages > 1 && (
+                      <div className="mt-6">
+                        <SearchPagination
+                          currentPage={currentPage}
+                          totalPages={totalPages}
+                          pageSize={pageSize}
+                          totalResults={totalResults}
+                          onPageChange={handlePageChange}
+                          onPageSizeChange={handlePageSizeChange}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right panel: PDF Viewer */}
+                {selectedDocument && (
+                  <div className="flex flex-col flex-1 min-w-0 bg-muted/30">
+                    {/* PDF panel header */}
+                    <div className="flex items-center justify-between px-4 py-2.5 border-b bg-background shadow-sm flex-shrink-0">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText className="w-4 h-4 flex-shrink-0 text-primary" />
+                        <span className="text-sm font-medium truncate text-foreground">
+                          {selectedDocument.title}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedDocument(null);
+                          setShowViewer(false);
+                        }}
+                        className="ml-3 flex-shrink-0 inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                        title="Tutup PDF viewer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Tutup</span>
+                      </button>
+                    </div>
+
+                    {/* PDF content */}
+                    <div className="flex-1 overflow-hidden">
+                      {session && (
+                        <PDFViewerWrapper
+                          fileUrl={`/api/documents/${selectedDocument.id}/download`}
+                          fileName={selectedDocument.fileName}
+                          userRole={(session.user as any).role}
+                          canDownload={false}
+                          document={selectedDocument}
+                        />
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -607,26 +654,6 @@ export function SearchPage({ initialQuery = "" }: SearchPageProps) {
           )}
         </>
       )}
-
-      {/* PDF Viewer Modal */}
-      <Dialog open={showViewer} onOpenChange={setShowViewer}>
-        <DialogContent className="max-w-6xl h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>{selectedDocument?.title || 'Document Viewer'}</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-hidden">
-            {selectedDocument && session && (
-              <PDFViewerWrapper
-                fileUrl={`/api/documents/${selectedDocument.id}/download`}
-                fileName={selectedDocument.fileName}
-                userRole={(session.user as any).role}
-                canDownload={false}
-                document={selectedDocument}
-              />
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
