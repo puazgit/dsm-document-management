@@ -613,7 +613,7 @@ export function SearchPage({ initialQuery = "" }: SearchPageProps) {
 
                 {/* Right panel: PDF Viewer */}
                 {selectedDocument && (
-                  <div className="flex flex-col flex-1 min-w-0 bg-muted/30">
+                  <div className="flex flex-col flex-1 min-w-0 bg-muted/30" style={{ minHeight: 0 }}>
                     {/* PDF panel header */}
                     <div className="flex items-center justify-between px-4 py-2.5 border-b bg-background shadow-sm flex-shrink-0">
                       <div className="flex items-center gap-2 min-w-0">
@@ -636,7 +636,7 @@ export function SearchPage({ initialQuery = "" }: SearchPageProps) {
                     </div>
 
                     {/* PDF content */}
-                    <div className="flex-1 overflow-hidden">
+                    <div className="flex-1 overflow-hidden" style={{ minHeight: 0 }}>
                       {session && (
                         <PDFViewerWrapper
                           fileUrl={`/api/documents/${selectedDocument.id}/download`}
