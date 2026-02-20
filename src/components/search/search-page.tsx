@@ -258,6 +258,7 @@ export function SearchPage({ initialQuery = "" }: SearchPageProps) {
           createdAt: typeof doc.created_at === 'string' ? doc.created_at : new Date(doc.created_at).toISOString(),
           highlight: doc.title_highlight || doc.description_highlight || doc.highlights?.title || doc.highlights?.description || '',
           rank: doc.search_rank,
+          search_rank: doc.search_rank, // Add search_rank for display
           documentType: doc.documentType ? {
             name: doc.documentType.name
           } : undefined,

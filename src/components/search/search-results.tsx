@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, Download, Eye, Calendar, Tag, ExternalLink } from "lucide-react";
+import { FileText, Download, Eye, Calendar, Tag, ExternalLink, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ interface SearchResult {
   createdAt: string;
   highlight?: string;
   rank?: number;
+  search_rank?: string | number; // Relevance score from database
   documentType?: {
     name: string;
   };
@@ -173,10 +174,19 @@ export function SearchResults({
               </span>
               <span>•</span>
               <span className="whitespace-nowrap">{result.viewCount} views</span>
-              {result.rank && (
+              {result.downloadCount > 0 && (
+                <>
+                  <span>•</span>
+                  <span className="whitespace-nowrap">{result.downloadCount} downloads</span>
+                </>
+              )}
+              {(result.search_rank || result.rank) && (
                 <>
                   <span className="hidden md:inline">•</span>
-                  <span className="hidden md:inline whitespace-nowrap">Relevansi: {(result.rank * 100).toFixed(0)}%</span>
+                  <span className="hidden md:inline whitespace-nowrap font-medium text-primary flex items-center gap-1">
+                    <TrendingUp className="h-3 w-3" />
+                    {parseFloat(String(result.search_rank || result.rank)).toFixed(2)}
+                  </span>
                 </>
               )}
             </div>

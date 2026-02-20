@@ -149,10 +149,17 @@ async function handleFullTextSearch(params: any, bypassAccessControl = false) {
     conditions.push(`EXISTS (SELECT 1 FROM comments c WHERE c.document_id = d.id)`);
   }
 
-  // Add full-text search condition
+  // Add text search condition (simple ILIKE, no full-text search)
   const searchQuery = trimmedQuery;
   const searchParamIndex = paramIndex++;
-  conditions.push(`d.search_vector @@ websearch_to_tsquery('indonesian', $${searchParamIndex})`);
+  conditions.push(`(
+    LOWER(d.title) LIKE '%' || LOWER($${searchParamIndex}) || '%'
+    OR LOWER(COALESCE(d.description, '')) LIKE '%' || LOWER($${searchParamIndex}) || '%'
+    OR EXISTS (
+      SELECT 1 FROM unnest(d.tags) AS tag 
+      WHERE LOWER(tag) LIKE '%' || LOWER($${searchParamIndex}) || '%'
+    )
+  )`);
   params_sql.push(searchQuery);
   
   console.log('[SEARCH API] Search query:', searchQuery, 'Param index:', searchParamIndex);
@@ -167,21 +174,20 @@ async function handleFullTextSearch(params: any, bypassAccessControl = false) {
   const offsetIndex = paramIndex++;
   params_sql.push(limit, offset);
 
-  // Determine ORDER BY clause - reuse searchParamIndex for same query
+  // Determine ORDER BY clause - use document_search_scores table
   let orderByClause = '';
   
   if (sortBy === 'relevance') {
-    // Use the ranking function we created in migration
-    // Reuse searchParamIndex since it's the same search query
+    // Use pre-calculated scores from document_search_scores table
+    // Text match boost * popularity * status boost
     orderByClause = `ORDER BY 
-      ts_rank_cd(d.search_vector, websearch_to_tsquery('indonesian', $${searchParamIndex}), 32) * 
-      (1 + log(1 + d.view_count + d.download_count * 2)) * 
       (CASE 
-        WHEN d.status = 'PUBLISHED' THEN 1.5
-        WHEN d.status = 'APPROVED' THEN 1.3
-        WHEN d.status = 'PENDING_APPROVAL' THEN 1.1
-        ELSE 1.0
-      END) DESC,
+        WHEN LOWER(d.title) = LOWER($${searchParamIndex}) THEN 3.0
+        WHEN LOWER(d.title) LIKE LOWER($${searchParamIndex}) || '%' THEN 2.0
+        WHEN LOWER(d.title) LIKE '%' || LOWER($${searchParamIndex}) || '%' THEN 1.5
+        WHEN LOWER(COALESCE(d.description, '')) LIKE '%' || LOWER($${searchParamIndex}) || '%' THEN 1.0
+        ELSE 0.5
+      END * COALESCE(s.popularity_score, 1.0) * COALESCE(s.status_boost, 1.0)) DESC,
       d.updated_at DESC`;
   } else {
     const sortColumn = sortBy === 'createdAt' ? 'd.created_at' :
@@ -193,7 +199,7 @@ async function handleFullTextSearch(params: any, bypassAccessControl = false) {
     orderByClause = `ORDER BY ${sortColumn} ${sortOrder.toUpperCase()}`;
   }
 
-  // Build main query with ranking - reuse searchParamIndex for all search query references
+  // Build main query with ranking - JOIN with document_search_scores
   const searchQuerySQL = `
     SELECT 
       d.id,
@@ -218,12 +224,15 @@ async function handleFullTextSearch(params: any, bypassAccessControl = false) {
       d.view_count,
       d.download_count,
       d.access_groups,
-      ts_rank_cd(d.search_vector, websearch_to_tsquery('indonesian', $${searchParamIndex})) as search_rank,
-      ts_headline('indonesian', COALESCE(d.title, ''), websearch_to_tsquery('indonesian', $${searchParamIndex}), 
-        'MaxWords=10, MinWords=5, ShortWord=2, HighlightAll=false, MaxFragments=1') as title_highlight,
-      ts_headline('indonesian', COALESCE(d.description, ''), websearch_to_tsquery('indonesian', $${searchParamIndex}), 
-        'MaxWords=20, MinWords=10, ShortWord=2, HighlightAll=false, MaxFragments=2') as description_highlight
+      (CASE 
+        WHEN LOWER(d.title) = LOWER($${searchParamIndex}) THEN 3.0
+        WHEN LOWER(d.title) LIKE LOWER($${searchParamIndex}) || '%' THEN 2.0
+        WHEN LOWER(d.title) LIKE '%' || LOWER($${searchParamIndex}) || '%' THEN 1.5
+        WHEN LOWER(COALESCE(d.description, '')) LIKE '%' || LOWER($${searchParamIndex}) || '%' THEN 1.0
+        ELSE 0.5
+      END * COALESCE(s.popularity_score, 1.0) * COALESCE(s.status_boost, 1.0)) as search_rank
     FROM documents d
+    LEFT JOIN document_search_scores s ON d.id = s.document_id
     ${whereClause}
     ${orderByClause}
     LIMIT $${limitIndex}

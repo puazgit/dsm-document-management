@@ -26,27 +26,41 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    // For multi-word queries, use the last word for word-level completion
+    // e.g. "Prosedur Post Impl" -> use "impl" for word suggestions
+    const words = q.trim().split(/\s+/);
+    const lastWord = words[words.length - 1];
+    const queryForWordSuggestions = lastWord.toLowerCase();
+    const isMultiWord = words.length > 1;
+
     // Get suggestions using the PostgreSQL function
     // Try-catch in case the function doesn't exist yet
     let suggestions: Array<{ suggestion: string; frequency: number }> = []
     
-    try {
-      suggestions = await prisma.$queryRaw<
-        Array<{ suggestion: string; frequency: number }>
-      >`
-        SELECT * FROM get_search_suggestions(${q.toLowerCase()}::text, ${limit}::int)
-      `
-    } catch (error) {
-      // If function doesn't exist, return empty suggestions
-      console.log('get_search_suggestions function not available:', error)
-      suggestions = []
+    // Only use word suggestions for single-word queries or last word of multi-word
+    if (queryForWordSuggestions.length >= 2) {
+      try {
+        suggestions = await prisma.$queryRaw<
+          Array<{ suggestion: string; frequency: number }>
+        >`
+          SELECT * FROM get_search_suggestions(${queryForWordSuggestions}::text, ${limit}::int)
+        `
+        // For multi-word queries, skip word suggestions (they are less useful)
+        if (isMultiWord) {
+          suggestions = []
+        }
+      } catch (error) {
+        // If function doesn't exist, return empty suggestions
+        console.log('get_search_suggestions function not available:', error)
+        suggestions = []
+      }
     }
 
-    // Also get recent searches from documents that match
+    // Also get recent searches from documents that match (full title search)
     const whereClause: any = {
       OR: [
         { title: { contains: q, mode: 'insensitive' } },
-        { tags: { has: q } },
+        { description: { contains: q, mode: 'insensitive' } },
       ],
     }
 
@@ -70,6 +84,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         title: true,
+        status: true,
         documentType: {
           select: {
             name: true,
@@ -78,10 +93,11 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      orderBy: {
-        updatedAt: 'desc',
-      },
-      take: 5,
+      orderBy: [
+        { status: 'asc' }, // PUBLISHED first (alphabetically P comes after others)
+        { updatedAt: 'desc' },
+      ],
+      take: 8,
     })
 
     console.log('[SUGGESTIONS API] Raw DB results:', suggestions);
