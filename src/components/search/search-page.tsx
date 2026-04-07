@@ -521,7 +521,8 @@ export function SearchPage({ initialQuery = "" }: SearchPageProps) {
           {/* Google-style header with search bar (when has query/results) */}
           {query.trim() && (
             <>
-              <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 border-b shadow-sm">
+              {/* Fixed header — always above EmbedPDF internal overlays */}
+              <div className="fixed top-0 left-0 right-0 z-[9999] bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 border-b shadow-sm">
                 <div className="container px-4 py-3 mx-auto md:px-6 md:py-4 max-w-[1920px]">
                   {/* Desktop layout */}
                   <div className="items-center hidden gap-4 md:flex">
@@ -564,6 +565,9 @@ export function SearchPage({ initialQuery = "" }: SearchPageProps) {
                   </div>
                 </div>
               </div>
+
+              {/* Spacer to push content below fixed header */}
+              <div className="h-[65px]" />
 
               {/* Split layout: results left + PDF viewer right */}
               <div className={`flex ${selectedDocument ? 'h-[calc(100vh-65px)]' : ''}`}>
@@ -613,7 +617,7 @@ export function SearchPage({ initialQuery = "" }: SearchPageProps) {
 
                 {/* Right panel: PDF Viewer */}
                 {selectedDocument && (
-                  <div className="flex flex-col flex-1 min-w-0 bg-muted/30" style={{ minHeight: 0 }}>
+                  <div className="flex flex-col flex-1 min-w-0 bg-muted/30">
                     {/* PDF panel header */}
                     <div className="flex items-center justify-between px-4 py-2.5 border-b bg-background shadow-sm flex-shrink-0">
                       <div className="flex items-center gap-2 min-w-0">
@@ -636,7 +640,7 @@ export function SearchPage({ initialQuery = "" }: SearchPageProps) {
                     </div>
 
                     {/* PDF content */}
-                    <div className="flex-1 overflow-hidden" style={{ minHeight: 0 }}>
+                    <div className="flex-1 overflow-hidden">
                       {session && (
                         <PDFViewerWrapper
                           fileUrl={`/api/documents/${selectedDocument.id}/download`}

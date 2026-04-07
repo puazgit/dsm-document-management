@@ -128,8 +128,8 @@ export function SearchResults({
             key={result.id}
             className={`group border-b last:border-b-0 -mx-2 px-2 rounded-lg transition-colors duration-200 cursor-pointer ${
               selectedDocumentId === result.id
-                ? 'bg-primary/10 border-l-2 border-l-primary'
-                : 'hover:bg-accent/30'
+                ? 'bg-accent'
+                : 'hover:bg-accent/40'
             } ${compact ? 'pb-3 py-2' : 'pb-6 py-1'}`}
             onClick={() => onViewDocument?.(result)}
           >
@@ -146,7 +146,7 @@ export function SearchResults({
             <div className="block mb-1 ">
               <h3 className={`text-primary group-hover:underline underline-offset-2 font-normal leading-tight ${
                 compact ? 'text-base line-clamp-2' : 'text-xl md:text-2xl line-clamp-1'
-              } ${selectedDocumentId === result.id ? 'font-semibold' : ''}`}>
+              }`}>
                 {result.title}
               </h3>
             </div>

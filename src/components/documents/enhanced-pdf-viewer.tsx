@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { Button } from '../ui/button';
-import { Download, AlertCircle, Printer, RefreshCw } from 'lucide-react';
+import { Download, AlertCircle, Printer } from 'lucide-react';
 import { Alert, AlertDescription } from '../ui/alert';
 
 interface EnhancedPDFViewerProps {
@@ -21,14 +21,14 @@ export function EnhancedPDFViewer({
   canDownload = false, 
   document 
 }: EnhancedPDFViewerProps) {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const blobUrlRef = useRef<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [isDownloading, setIsDownloading] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const { data: session } = useSession();
 
+  // State for dynamic permissions from database
   const [currentPermissions, setCurrentPermissions] = useState({
     canDownload: false,
     canPrint: false,
@@ -36,6 +36,7 @@ export function EnhancedPDFViewer({
   });
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
+  // Fallback function for hardcoded permissions (backwards compatibility)
   const getFallbackPermissions = (role: string) => {
     const rolePermissions: Record<string, { canDownload: boolean; canPrint: boolean; canCopy: boolean }> = {
       'administrator': { canDownload: true, canPrint: true, canCopy: true },
@@ -49,89 +50,200 @@ export function EnhancedPDFViewer({
     return rolePermissions[role.toLowerCase()] || { canDownload: false, canPrint: false, canCopy: false };
   };
 
-  // Load permissions
+  // Load user permissions from session (consistent with legacy viewer)
   useEffect(() => {
-    try {
-      const userCapabilities = (session?.user as any)?.capabilities || [];
-      if (session?.user) {
-        setCurrentPermissions({
-          canDownload: userCapabilities.includes('PDF_DOWNLOAD') || userCapabilities.includes('DOCUMENT_DOWNLOAD'),
-          canPrint: userCapabilities.includes('PDF_PRINT'),
-          canCopy: userCapabilities.includes('PDF_COPY'),
-        });
-      } else {
-        setCurrentPermissions(getFallbackPermissions(userRole));
-      }
-    } catch {
-      setCurrentPermissions(getFallbackPermissions(userRole));
-    } finally {
-      setPermissionsLoaded(true);
-    }
-  }, [session, userRole]);
+    const loadPermissions = async () => {
+      console.log('🔍 [Enhanced] Loading permissions...', { 
+        hasSession: !!session, 
+        hasUser: !!session?.user,
+        userRole 
+      });
 
-  // Fetch PDF and load into iframe via blob URL
-  const loadPDF = useCallback(async () => {
-    setIsLoading(true);
-    setError('');
+      try {
+        // Fetch user capabilities from session (migrated from permissions)
+        const userCapabilities = session?.user?.capabilities || [];
+        
+        // Always use capabilities from database if session exists
+        // Only fallback to role-based if NO session at all
+        if (session?.user) {
+          const canDownload = userCapabilities.includes('PDF_DOWNLOAD') ||
+                            userCapabilities.includes('DOCUMENT_DOWNLOAD');
+          const canPrint = userCapabilities.includes('PDF_PRINT');
+          const canCopy = userCapabilities.includes('PDF_COPY');
 
-    // Revoke previous blob URL
-    if (blobUrlRef.current) {
-      URL.revokeObjectURL(blobUrlRef.current);
-      blobUrlRef.current = null;
-    }
+          console.log('✅ [Enhanced] Using Session Capabilities:', {
+            userRole,
+            userCapabilities,
+            canDownload,
+            canPrint,
+            canCopy
+          });
 
-    try {
-      const response = await fetch(fileUrl, { credentials: 'include' });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const contentType = response.headers.get('content-type') || '';
-      if (!contentType.includes('pdf') && !contentType.includes('octet-stream') && !contentType.includes('application')) {
-        console.warn('[PDF Viewer] Unexpected content-type:', contentType);
-      }
-
-      const blob = await response.blob();
-      const pdfBlob = new Blob([blob], { type: 'application/pdf' });
-      const blobUrl = URL.createObjectURL(pdfBlob);
-      blobUrlRef.current = blobUrl;
-
-      if (iframeRef.current) {
-        iframeRef.current.src = blobUrl;
-      }
-
-      // Track view in sessionStorage
-      if (document?.id) {
-        sessionStorage.setItem(`doc_viewed_${document.id}`, 'true');
-      }
-    } catch (err: any) {
-      console.error('[PDF Viewer] Load error:', err);
-      setError(`Gagal memuat PDF: ${err.message}`);
-      setIsLoading(false);
-    }
-  }, [fileUrl, document?.id]);
-
-  useEffect(() => {
-    if (permissionsLoaded) {
-      loadPDF();
-    }
-    return () => {
-      if (blobUrlRef.current) {
-        URL.revokeObjectURL(blobUrlRef.current);
-        blobUrlRef.current = null;
+          setCurrentPermissions({
+            canDownload,
+            canPrint, 
+            canCopy
+          });
+        } else {
+          // Fallback to role-based permissions ONLY if no session
+          console.log('🔄 [Enhanced] Using Fallback Permissions for role:', userRole);
+          const fallbackPermissions = getFallbackPermissions(userRole);
+          setCurrentPermissions(fallbackPermissions);
+        }
+      } catch (error) {
+        console.error('❌ [Enhanced] Error loading permissions:', error);
+        // Fallback to role-based permissions
+        const fallbackPermissions = getFallbackPermissions(userRole);
+        setCurrentPermissions(fallbackPermissions);
+      } finally {
+        console.log('✅ [Enhanced] Permissions loaded successfully');
+        setPermissionsLoaded(true);
       }
     };
-  }, [loadPDF, permissionsLoaded]);
+
+    loadPermissions();
+  }, [session, userRole]);
+
+  // Initialize EmbedPDF Snippet
+  useEffect(() => {
+    console.log('🔍 [Enhanced] useEffect triggered:', { 
+      hasContainer: !!containerRef.current, 
+      permissionsLoaded,
+      fileUrl,
+      session: !!session
+    });
+    
+    if (!containerRef.current) {
+      console.warn('⚠️ [Enhanced] Container ref not ready');
+      return;
+    }
+    
+    if (!permissionsLoaded) {
+      console.warn('⚠️ [Enhanced] Permissions not loaded yet');
+      return;
+    }
+
+    const initEmbedPDF = async () => {
+      try {
+        setIsLoading(true);
+        setError('');
+
+        // Clear container immediately so old PDF doesn't linger
+        if (containerRef.current) {
+          containerRef.current.innerHTML = '';
+        }
+
+        console.log('🚀 [Enhanced] Starting initialization...');
+        
+        // Use sessionStorage to track views in current session (for UI feedback only)
+        const viewedKey = `doc_viewed_${document?.id}`;
+        const hasViewedInSession = sessionStorage.getItem(viewedKey) === 'true';
+        
+        // Fetch PDF with credentials (backend will handle duplicate detection)
+        console.log('🔍 [Enhanced] Fetching PDF:', fileUrl, hasViewedInSession ? '(re-fetch in session)' : '(first fetch in session)');
+        const response = await fetch(fileUrl, {
+          credentials: 'include', // Include cookies for auth
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch PDF: ${response.status} ${response.statusText}`);
+        }
+        
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        
+        console.log('✅ [Enhanced] PDF fetched, blob created');
+        
+        // Mark as viewed in sessionStorage for UI tracking
+        if (!hasViewedInSession) {
+          sessionStorage.setItem(viewedKey, 'true');
+          console.log('✅ [Enhanced] Marked as viewed in session (backend handles actual logging)');
+        } else {
+          console.log('⏭️  [Enhanced] Already viewed in this session (backend will skip duplicate)');
+        }
+        
+        // Dynamically import EmbedPDF (default export)
+        const EmbedPDF = await import('@embedpdf/snippet').then(mod => mod.default);
+        
+        // Clear container
+        containerRef.current!.innerHTML = '';
+        
+        console.log('🔍 [Enhanced] Initializing EmbedPDF with permissions:', currentPermissions);
+        
+        // Build disabled categories array based on EmbedPDF documentation
+        // Available categories: document-open, document-close, document-print, document-export, document-fullscreen
+        const disabledCategories: string[] = [
+          'document-open',    // Disable "Open" button
+          'document-close',   // Disable "Close" button  
+          'document-print',   // Disable "Print" button
+          'document-export',  // Disable "Export" button
+          'annotation',       // Disable all annotation tools
+        ];
+        
+        // Add selection disable if no copy permission
+        if (!currentPermissions.canCopy) {
+          disabledCategories.push('selection');
+        }
+        
+        console.log('🔍 [Enhanced] Disabled categories:', disabledCategories);
+        
+        // Initialize EmbedPDF (non-fatal if it throws)
+        try {
+          const viewer = EmbedPDF.init({
+            type: 'container',
+            target: containerRef.current!,
+            src: blobUrl,
+            disabledCategories: disabledCategories,
+          });
+          console.log('✅ [Enhanced] Viewer object:', viewer);
+        } catch (initErr) {
+          console.warn('⚠️ [Enhanced] EmbedPDF.init warning (non-fatal):', initErr);
+        }
+
+        setIsLoading(false);
+        console.log('✅ [Enhanced] EmbedPDF initialized successfully');
+
+        // Cleanup
+        return () => {
+          URL.revokeObjectURL(blobUrl);
+        };
+      } catch (err) {
+        console.error('❌ [Enhanced] Failed to load PDF:', err);
+        setError('Dokumen PDF tidak tersedia atau gagal dimuat.');
+        setIsLoading(false);
+        return undefined;
+      }
+    };
+
+    const cleanup = initEmbedPDF();
+    return () => {
+      cleanup?.then(cleanupFn => cleanupFn?.());
+    };
+  }, [fileUrl, permissionsLoaded, document?.id]); // Include document.id for sessionStorage key
 
   // Handle download
   const handleDownload = async () => {
-    if (!currentPermissions.canDownload || isDownloading) return;
+    if (!currentPermissions.canDownload) {
+      alert('Download not permitted for your role.');
+      return;
+    }
+
+    if (isDownloading) return;
+
     setIsDownloading(true);
     try {
-      const downloadUrl = document?.id ? `/api/documents/${document.id}/download` : fileUrl;
+      // Use the download endpoint instead of view endpoint to properly log download activity
+      const downloadUrl = document?.id 
+        ? `/api/documents/${document.id}/download`
+        : fileUrl.replace('/view', '/download');
+      
+      console.log('📥 Downloading from:', downloadUrl);
+      
       const response = await fetch(downloadUrl);
-      if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+      }
+      
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = window.document.createElement('a');
@@ -141,9 +253,11 @@ export function EnhancedPDFViewer({
       a.click();
       window.URL.revokeObjectURL(url);
       window.document.body.removeChild(a);
+      
+      console.log('✅ Download completed');
     } catch (error) {
       console.error('Download error:', error);
-      alert('Download gagal. Coba lagi.');
+      alert('Download failed. Please try again.');
     } finally {
       setIsDownloading(false);
     }
@@ -151,50 +265,105 @@ export function EnhancedPDFViewer({
 
   // Handle print
   const handlePrint = async () => {
-    if (!currentPermissions.canPrint || isPrinting) return;
+    if (!currentPermissions.canPrint) {
+      alert('Print not permitted for your role.');
+      return;
+    }
+
+    if (isPrinting) return;
+
     setIsPrinting(true);
     try {
-      const response = await fetch(fileUrl, { credentials: 'include' });
-      if (!response.ok) throw new Error(`Failed: ${response.status}`);
+      console.log('🖨️ Printing document...');
+      
+      // Fetch PDF blob
+      const response = await fetch(fileUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch PDF: ${response.status} ${response.statusText}`);
+      }
+      
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
+      
+      // Create hidden iframe for printing
       const iframe = window.document.createElement('iframe');
       iframe.style.display = 'none';
       iframe.src = blobUrl;
       window.document.body.appendChild(iframe);
+      
+      // Wait for iframe to load, then print
       iframe.onload = () => {
-        setTimeout(() => {
-          iframe.contentWindow?.print();
+        try {
+          // Give browser time to render PDF
           setTimeout(() => {
-            window.document.body.removeChild(iframe);
-            window.URL.revokeObjectURL(blobUrl);
-          }, 1000);
-        }, 500);
+            iframe.contentWindow?.print();
+            
+            // Cleanup after print dialog closes (wait a bit)
+            setTimeout(() => {
+              window.document.body.removeChild(iframe);
+              window.URL.revokeObjectURL(blobUrl);
+              console.log('✅ Print dialog opened');
+            }, 1000);
+          }, 500);
+        } catch (err) {
+          console.error('Print iframe error:', err);
+          window.document.body.removeChild(iframe);
+          window.URL.revokeObjectURL(blobUrl);
+          alert('Print failed. Please try again.');
+        }
       };
+      
+      iframe.onerror = () => {
+        console.error('Failed to load PDF in iframe');
+        window.document.body.removeChild(iframe);
+        window.URL.revokeObjectURL(blobUrl);
+        alert('Failed to load PDF for printing.');
+      };
+      
     } catch (error) {
       console.error('Print error:', error);
-      alert('Print gagal. Coba lagi.');
+      alert('Print failed. Please try again.');
     } finally {
       setIsPrinting(false);
     }
   };
 
+  // Security: Disable right-click
+  const disableRightClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+  };
+
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Action Buttons Header */}
-      {permissionsLoaded && (currentPermissions.canPrint || currentPermissions.canDownload) && (
-        <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/30 flex-shrink-0">
-          <span className="text-xs text-muted-foreground truncate">{fileName}</span>
-          <div className="flex items-center gap-2 flex-shrink-0">
+      {/* Custom Action Buttons Header */}
+      {(currentPermissions.canPrint || currentPermissions.canDownload) && permissionsLoaded && (
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground">PDF Document</span>
+            <span className="text-xs text-muted-foreground">• {fileName}</span>
+          </div>
+          <div className="flex items-center gap-2">
             {currentPermissions.canPrint && (
-              <Button onClick={handlePrint} disabled={isPrinting} variant="outline" size="sm" className="gap-1.5 h-8">
-                <Printer className="w-3.5 h-3.5" />
+              <Button
+                onClick={handlePrint}
+                disabled={isPrinting || !currentPermissions.canPrint}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <Printer className="w-4 h-4" />
                 {isPrinting ? 'Printing...' : 'Print'}
               </Button>
             )}
             {currentPermissions.canDownload && (
-              <Button onClick={handleDownload} disabled={isDownloading} variant="outline" size="sm" className="gap-1.5 h-8">
-                <Download className="w-3.5 h-3.5" />
+              <Button
+                onClick={handleDownload}
+                disabled={isDownloading || !currentPermissions.canDownload}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <Download className="w-4 h-4" />
                 {isDownloading ? 'Downloading...' : 'Download'}
               </Button>
             )}
@@ -204,46 +373,39 @@ export function EnhancedPDFViewer({
 
       {/* Error State */}
       {error && (
-        <div className="flex flex-col items-center justify-center flex-1 p-6 gap-4">
-          <Alert variant="destructive" className="max-w-md">
+        <div className="p-4">
+          <Alert variant="destructive">
             <AlertCircle className="w-4 h-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
-          <Button onClick={loadPDF} variant="outline" size="sm" className="gap-2">
-            <RefreshCw className="w-4 h-4" />
-            Coba Lagi
-          </Button>
         </div>
       )}
 
       {/* Loading State */}
       {isLoading && !error && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/60 z-10 pointer-events-none">
+        <div className="flex items-center justify-center h-96">
           <div className="text-center">
-            <div className="w-8 h-8 mx-auto mb-3 border-4 rounded-full border-t-transparent border-primary animate-spin" />
-            <p className="text-sm text-muted-foreground">Memuat PDF...</p>
+            <div className="w-8 h-8 mx-auto mb-4 border-4 rounded-full border-t-transparent border-primary animate-spin" />
+            <p className="text-sm text-muted-foreground">Loading Enhanced PDF Viewer...</p>
           </div>
         </div>
       )}
 
-      {/* PDF iframe */}
-      {!error && (
-        <div className="flex-1 relative" style={{ minHeight: 0 }}>
-          <iframe
-            ref={iframeRef}
-            title={fileName}
-            onLoad={() => setIsLoading(false)}
-            onError={() => {
-              setIsLoading(false);
-              setError('Gagal menampilkan PDF. Coba lagi.');
-            }}
-            style={{
-              width: '100%',
-              height: '100%',
-              border: 'none',
-              display: 'block',
-            }}
-          />
+      {/* EmbedPDF Container */}
+      <div 
+        ref={containerRef}
+        style={{ width: '100%', height: '100%' }}
+      />
+
+      {/* Permissions Info */}
+      {permissionsLoaded && (
+        <div className="px-4 py-2 mt-2 text-xs border-t text-muted-foreground">
+          <div className="flex items-center gap-4">
+            <span>Role: <strong>{userRole}</strong></span>
+            <span>Download: <strong>{currentPermissions.canDownload ? '✓' : '✗'}</strong></span>
+            <span>Print: <strong>{currentPermissions.canPrint ? '✓' : '✗'}</strong></span>
+            <span>Copy: <strong>{currentPermissions.canCopy ? '✓' : '✗'}</strong></span>
+          </div>
         </div>
       )}
     </div>
