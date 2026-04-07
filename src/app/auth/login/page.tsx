@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { signIn, getSession } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "../../../components/ui/button"
@@ -18,7 +18,7 @@ const Label = ({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelEleme
   />
 )
 
-export default function LoginPage() {
+function LoginContent() {
   const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -290,5 +290,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginContent />
+    </Suspense>
   )
 }

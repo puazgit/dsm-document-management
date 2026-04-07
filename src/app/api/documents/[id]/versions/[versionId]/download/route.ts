@@ -62,7 +62,7 @@ export async function GET(
         data: {
           documentId: version.documentId,
           userId: auth.userId!,
-          action: 'DOWNLOAD_VERSION',
+          action: 'DOWNLOAD',
           description: `Downloaded version ${version.version} of document`,
           metadata: {
             versionId: version.id,

@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     // For multi-word queries, use the last word for word-level completion
     // e.g. "Prosedur Post Impl" -> use "impl" for word suggestions
     const words = q.trim().split(/\s+/);
-    const lastWord = words[words.length - 1];
+    const lastWord = words[words.length - 1] ?? '';
     const queryForWordSuggestions = lastWord.toLowerCase();
     const isMultiWord = words.length > 1;
 

@@ -35,10 +35,9 @@ export function DocumentStatusChart() {
     if (typeof window !== 'undefined') {
       import('highcharts/highcharts-3d').then((module) => {
         // Call the module as a function directly
-        if (typeof module === 'function') {
-          module(Highcharts)
-        } else if (module.default && typeof module.default === 'function') {
-          module.default(Highcharts)
+        const fn = (module as any).default ?? module
+        if (typeof fn === 'function') {
+          fn(Highcharts)
         }
         setChartReady(true)
       }).catch((err) => {

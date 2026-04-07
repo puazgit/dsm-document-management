@@ -46,7 +46,7 @@ export function calculateRelevanceScore(document: any, query: string): number {
   const queryWords = lowerQuery.split(/\s+/);
   const titleWords = lowerTitle.split(/\s+/);
   const matchingWords = queryWords.filter(qw => 
-    titleWords.some(tw => tw.includes(qw) || qw.includes(tw))
+    titleWords.some((tw: string) => tw.includes(qw) || qw.includes(tw))
   ).length;
   score += (matchingWords / queryWords.length) * 25;
   
@@ -60,13 +60,14 @@ export function calculateRelevanceScore(document: any, query: string): number {
   score += popularityBoost * 10;
   
   // 6. STATUS BOOST (authoritative content ranks higher)
-  const statusMultiplier = {
+  const statusBoostMap: Record<string, number> = {
     'PUBLISHED': 1.5,
     'APPROVED': 1.3,
     'REVIEWED': 1.1,
     'DRAFT': 0.8,
     'ARCHIVED': 0.5,
-  }[document.status] || 1.0;
+  };
+  const statusMultiplier = statusBoostMap[document.status] ?? 1.0;
   
   score *= statusMultiplier;
   
@@ -79,12 +80,13 @@ export function calculateRelevanceScore(document: any, query: string): number {
   }
   
   // 8. FILE TYPE RELEVANCE (some types may be preferred)
-  const fileTypeBoost = {
+  const fileTypeBoostMap: Record<string, number> = {
     'pdf': 1.1,
     'docx': 1.0,
     'xlsx': 0.95,
     'pptx': 0.95,
-  }[document.file_type?.toLowerCase()] || 1.0;
+  };
+  const fileTypeBoost = fileTypeBoostMap[document.file_type?.toLowerCase()] ?? 1.0;
   
   score *= fileTypeBoost;
   

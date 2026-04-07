@@ -344,7 +344,7 @@ async function handleFullTextSearch(params: any, bypassAccessControl = false) {
       // Pagination
       const offset = (page - 1) * limit;
 
-      const orderBy = (sortBy === 'relevance' && q) ? [ { updatedAt: 'desc' }, { viewCount: 'desc' } ] : { [sortBy]: sortOrder };
+      const orderBy = (sortBy === 'relevance' && q) ? [ { updatedAt: 'desc' as const }, { viewCount: 'desc' as const } ] : { [sortBy]: sortOrder };
 
       const [prismaDocs, prismaCount] = await Promise.all([
         prisma.document.findMany({ where, skip: offset, take: limit, orderBy, include: {

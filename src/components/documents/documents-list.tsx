@@ -102,6 +102,7 @@ interface DocumentsListProps {
   onRefresh: () => void;
   currentPage: number;
   totalPages: number;
+  totalDocuments?: number;
   onPageChange: (page: number) => void;
   userSession?: any;
 }
