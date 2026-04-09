@@ -1,0 +1,27 @@
+name: 🚀 Deploy Local Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Pull & Deploy
+        run: |
+          cd /www/wwwroot/dsm-document-management
+
+          echo "Pull code terbaru"
+          git pull origin main
+
+          echo "Install dependencies"
+          npm install
+
+          echo "Build Next.js"
+          npm run build
+
+          echo "Restart app"
+          pm2 restart nextjs-app || pm2 start npm --name "nextjs-app" -- start
