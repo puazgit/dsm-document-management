@@ -12,6 +12,7 @@ export async function GET(
 ) {
   try {
     const auth = await requireCapability(request, 'DOCUMENT_VIEW');
+    if (!auth.authorized) return auth.error!;
 
     const { id } = params;
 
@@ -137,6 +138,7 @@ export async function POST(
 ) {
   try {
     const auth = await requireCapability(request, 'DOCUMENT_VIEW');
+    if (!auth.authorized) return auth.error!;
 
     const { id } = params;
 
