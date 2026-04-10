@@ -259,9 +259,11 @@ async function handleFullTextSearch(params: any, bypassAccessControl = false) {
   } catch (sqlError: any) {
     console.error('[SEARCH API] SQL Error:', sqlError.message);
     console.error('[SEARCH API] SQL Code:', sqlError.code);
-    // If the search_vector column or FTS setup is missing, fallback to a safe Prisma-based search
-    if (sqlError?.code === '42703' || sqlError?.meta?.code === '42703') {
-      console.warn('[SEARCH API] FTS column missing or invalid. Falling back to Prisma search.');
+    // If the search_vector column/table or FTS setup is missing, fallback to a safe Prisma-based search
+    // 42703 = undefined column, 42P01 = undefined table
+    const fallbackCodes = ['42703', '42P01'];
+    if (fallbackCodes.includes(sqlError?.code) || fallbackCodes.includes(sqlError?.meta?.code)) {
+      console.warn('[SEARCH API] FTS table/column missing or invalid. Falling back to Prisma search.');
 
       // Build a safe Prisma where clause similar to non-FTS route
       const where: any = {};
