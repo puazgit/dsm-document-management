@@ -293,6 +293,13 @@ export const authOptions: NextAuthOptions = {
       if (url.startsWith("/")) return `${baseUrl}${url}`
       // If the url is on the same origin as base url, allow it
       else if (new URL(url).origin === baseUrl) return url
+      // Also allow redirect to APP_URL origin (handles dynamic domains like Coolify)
+      const appUrl = process.env.APP_URL || process.env.NEXTAUTH_URL
+      if (appUrl) {
+        try {
+          if (new URL(url).origin === new URL(appUrl).origin) return url
+        } catch {}
+      }
       // Otherwise, return baseUrl
       return baseUrl
     }
