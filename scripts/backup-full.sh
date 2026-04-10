@@ -18,7 +18,8 @@ mkdir -p ${BACKUP_FOLDER}
 
 # 1. Backup Database
 echo -e "${BLUE}1. Backing up database...${NC}"
-docker exec -t dsm_postgres pg_dump -U postgres dsm_db > ${BACKUP_FOLDER}/database.sql
+docker exec dsm_postgres pg_dump -U postgres dsm_db \
+  --data-only --no-owner --no-acl --disable-triggers > ${BACKUP_FOLDER}/database.sql
 
 if [ $? -eq 0 ]; then
     DB_SIZE=$(ls -lh ${BACKUP_FOLDER}/database.sql | awk '{print $5}')

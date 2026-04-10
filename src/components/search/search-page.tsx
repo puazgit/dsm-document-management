@@ -198,7 +198,7 @@ function UserMenu() {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={() => signOut({ callbackUrl: '/auth/login' })}
+          onClick={() => signOut({ callbackUrl: `${window.location.origin}/auth/login` })}
           className="text-destructive focus:text-destructive"
         >
           <LogOut className="w-4 h-4 mr-2" />
