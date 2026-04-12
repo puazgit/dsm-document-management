@@ -249,7 +249,8 @@ function getStatusConditionsForRole(role: string, userPermissions?: string[]): a
   // Viewers: Only approved and published
   if (canView) {
     return [
-      { status: { in: ['APPROVED', 'PUBLISHED'] } }
+      // { status: { in: ['APPROVED', 'PUBLISHED'] } }
+      { status: { in: ['PUBLISHED'] } }
     ];
   }
 
